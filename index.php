@@ -50,7 +50,7 @@ function isActiveForm($formName, $activeForm) {
     <div class="left-box">
         <img src="bg.svg" alt="abstract contour background" class="abstract-bg" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;object-fit:cover;opacity:0.5;" />
         
-        <!-- Login Form Container Centered -->
+        <!-- Login Form  -->
         <div class="login-content">
           <div class="login-card <?= isActiveForm('login', $activeForm); ?>" id="login-form">
             <form action="login_register.php" method="post">
