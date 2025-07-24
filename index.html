@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Login</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <div class="split-container">
+    <!-- Left Box -->
+    <div class="left-box">
+        <img src="bg.svg" alt="abstract contour background" class="abstract-bg" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;object-fit:cover;opacity:0.5;" />
+        
+        <!-- Login Form Container Centered -->
+        <div class="login-content">
+          <div class="login-card active" id="login-form">
+            <form>
+              <h2>Login</h2>
+              <input type="username" name="username" placeholder="Username">
+              <input type="password" name="password" placeholder="Password">
+              <button type="submit" name="login">Login</button>
+              <p>Don't have an account? <a href="#" onclick="showForm('register-form'); return false;">Register</a></p>
+            </form>
+          </div>
+          
+          <div class="login-card" id="register-form">
+            <form>
+              <h2>Register</h2>
+              <input type="text" name="username" placeholder="Username">
+              <input type="password" name="password" placeholder="Password">
+              <button type="submit" name="register">Register</button>
+              <p>Already have an account? <a href="#" onclick="showForm('login-form'); return false;">Login</a></p>
+            </form>
+          </div>
+          
+          <div class="login-card" id="admin-form">
+            <form>
+              <h2>Admin Login</h2>
+              <input type="username" name="admin-username" placeholder="Admin Username">
+              <input type="password" name="admin-password" placeholder="Password">
+              <button type="submit" name="admin-login">Login as Admin</button>
+              <p>Back to <a href="#" onclick="showForm('login-form'); return false;">Customer Login</a></p>
+            </form>
+          </div>
+        
+          <a href="#" class="admin-switch-btn" onclick="showForm('admin-form'); return false;">I'm an Admin</a>
+        </div>
+    </div>
+
+    <!-- Right Box -->
+    <div class="right-box">
+      <img src="053 bg.jpg" alt="053bg" class="split-image">
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
