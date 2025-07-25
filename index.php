@@ -57,7 +57,12 @@ function isActiveForm($formName, $activeForm) {
               <h2>Login</h2>
               <?php showError($errors['login']); ?>
               <input type="text" name="username" placeholder="Username">
-              <input type="password" name="password" placeholder="Password">
+              <div style="position:relative;">
+                <input type="password" name="password" id="login-password" placeholder="Password">
+                <button type="button" id="toggle-login-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
+                  <img id="login-eye-icon" src="svg/eye.svg" alt="Show Password" width="20" height="20">
+                </button>
+              </div>
               <p style="text-align:right; margin-bottom: 1rem;">                 <!-- wip -->
                 <a href="forgot_password.php" class="forgot-password-link">Forgot Password?</a>
               </p>
@@ -72,7 +77,12 @@ function isActiveForm($formName, $activeForm) {
               <?php showError($errors['register']); ?>
               <input type="text" name="username" placeholder="Username">
               <input type="email" name="email" placeholder="Email">
-              <input type="password" name="password" placeholder="Password">
+              <div style="position:relative;">
+                <input type="password" name="password" id="register-password" placeholder="Password">
+                <button type="button" id="toggle-register-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
+                  <img id="register-eye-icon" src="svg/eye.svg" alt="Show Password" width="20" height="20">
+                </button>
+              </div>
                 <select name="role" id="role" required>
                   <option value="" disabled selected> --SELECT ROLE-- </option>
                   <option value="admin">Admin</option>
@@ -134,6 +144,32 @@ function isActiveForm($formName, $activeForm) {
         }, 500);
       }, 3000);
     }
+    
+    function setupPasswordToggle(inputId, buttonId, iconId) {
+      var input = document.getElementById(inputId);
+      var button = document.getElementById(buttonId);
+      var iconImg = document.getElementById(iconId);
+      var eyeSrc = 'svg/eye.svg';
+      var eyeSlashSrc = 'svg/eye-slash.svg';
+      if (input && button && iconImg) {
+        button.addEventListener('click', function() {
+          if (input.type === 'password') {
+            input.type = 'text';
+            iconImg.src = eyeSrc;
+            iconImg.alt = 'Hide Password';
+          } else {
+            input.type = 'password';
+            iconImg.src = eyeSlashSrc;
+            iconImg.alt = 'Show Password';
+          }
+        });
+        // Set initial icon state
+        iconImg.src = eyeSlashSrc;
+        iconImg.alt = 'Show Password';
+      }
+    }
+    setupPasswordToggle('login-password', 'toggle-login-password', 'login-eye-icon');
+    setupPasswordToggle('register-password', 'toggle-register-password', 'register-eye-icon');
   });
   </script>
 </body>
