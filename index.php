@@ -59,7 +59,7 @@ function isActiveForm($formName, $activeForm) {
               <input type="text" name="username" placeholder="Username">
               <input type="password" name="password" placeholder="Password">
               <p style="text-align:right; margin-bottom: 1rem;">                 <!-- wip -->
-                <a href="#" class="forgot-password-link">Forgot Password?</a>
+                <a href="forgot_password.php" class="forgot-password-link">Forgot Password?</a>
               </p>
               <button type="submit" name="login">Login</button>
               <p>Don't have an account? <a href="#" onclick="showForm('register-form'); return false;">Register</a></p>
