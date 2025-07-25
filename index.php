@@ -58,6 +58,9 @@ function isActiveForm($formName, $activeForm) {
               <?php showError($errors['login']); ?>
               <input type="text" name="username" placeholder="Username">
               <input type="password" name="password" placeholder="Password">
+              <p style="text-align:right; margin-bottom: 1rem;">                 <!-- wip -->
+                <a href="#" class="forgot-password-link">Forgot Password?</a>
+              </p>
               <button type="submit" name="login">Login</button>
               <p>Don't have an account? <a href="#" onclick="showForm('register-form'); return false;">Register</a></p>
             </form>
@@ -70,11 +73,22 @@ function isActiveForm($formName, $activeForm) {
               <input type="text" name="username" placeholder="Username">
               <input type="email" name="email" placeholder="Email">
               <input type="password" name="password" placeholder="Password">
-              <select name="role" required> 
-                <option value="" disabled selected> --SELECT ROLE-- </option>
-                <option value="admin">Admin</option>
-                <option value="user">User</option>
-              </select>
+                <select name="role" id="role" required>
+                  <option value="" disabled selected> --SELECT ROLE-- </option>
+                  <option value="admin">Admin</option>
+                  <option value="user">User</option>
+                </select>
+                <style>
+                  select {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    margin-bottom: 1rem;
+                    border: 1px solid #ddd;
+                    border-radius: 0.75rem;
+                    font-size: 1rem;
+                    outline: none;
+                  }
+                </style>
               <button type="submit" name="register">Register</button>
 
               <p>Already have an account? <a href="#" onclick="showForm('login-form'); return false;">Login</a></p>

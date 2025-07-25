@@ -98,6 +98,15 @@ body {
   font-size: 1rem;
 }
 
+.login-card select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+}
+
 .login-card button[type="submit"] {
   width: 100%;
   padding: 0.75rem 0;
@@ -220,6 +229,7 @@ p a:hover {
 .login-card input[type="text"]:focus,
 .login-card input[type="password"]:focus,
 .login-card input[type="username"]:focus {
-  border-color: #764ba2;
+  border-color: #4b51a2;
   outline: none;
 }
+

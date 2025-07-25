@@ -15,6 +15,6 @@ if (!isset($_SESSION['name'])) {
     <title>User page</title>
 </head>
 <body>
-    <h1>hello</h1>
+    <h1>hello nig</h1>
 </body>
 </html>
