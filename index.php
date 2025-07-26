@@ -116,6 +116,11 @@ function isActiveForm($formName, $activeForm) {
 
   <script src="script.js"></script>
   <script>
+    function showForm(formId) {
+    document.querySelectorAll(".login-card").forEach(form => form.classList.remove("active")); 
+    document.getElementById(formId).classList.add("active");
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     var msg = document.getElementById('register-success-message');
     if (msg) {
