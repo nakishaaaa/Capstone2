@@ -48,7 +48,7 @@ function isActiveForm($formName, $activeForm) {
   <div class="split-container">
     <!-- Left Box -->
     <div class="left-box">
-        <img src="bg.svg" alt="abstract contour background" class="abstract-bg" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;object-fit:cover;opacity:0.5;" />
+        <img src="bg.svg" alt="abstract contour background" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;object-fit:cover;opacity:0.5;" />
         
         <!-- Login Form  -->
         <div class="login-content">
@@ -56,9 +56,9 @@ function isActiveForm($formName, $activeForm) {
             <form action="login_register.php" method="post">
               <h2>Login</h2>
               <?php showError($errors['login']); ?>
-              <input type="text" name="username" placeholder="Username">
+              <input type="text" name="username" placeholder="Username" required>
               <div style="position:relative;">
-                <input type="password" name="password" id="login-password" placeholder="Password">
+                <input type="password" name="password" id="login-password" placeholder="Password" required>
                 <button type="button" id="toggle-login-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
                   <img id="login-eye-icon" src="svg/eye.svg" alt="Show Password" width="20" height="20">
                 </button>
@@ -109,7 +109,7 @@ function isActiveForm($formName, $activeForm) {
 
     <!-- Right Box -->
     <div class="right-box">
-      <img src="053 bg.jpg" alt="053bg" class="split-image">
+      <img src="images/053 bg.jpg" alt="053bg" class="split-image">
     </div>
   </div>
 
