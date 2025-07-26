@@ -37,5 +37,7 @@ if ($conn->affected_rows) {
         echo "Message could not be sent. Mailer error: {$mail->ErrorInfo}";
     }
 } else {
-    echo "Message sent, please check your inbox.";
+    echo "invalid email.";
 }
+
+echo "sent";
