@@ -26,8 +26,10 @@ function isActiveForm($formName, $activeForm) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Customer Login</title>
-  <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="reset_style.css">
+
+
 </head>
 <body>
 <?php if (!empty($registerSuccess)): ?>
@@ -45,19 +47,18 @@ function isActiveForm($formName, $activeForm) {
     <?= htmlspecialchars($errors['login']) ?>
   </div>
 <?php endif; ?>
-  <div class="split-container">
-    <!-- Left Box -->
-    <div class="left-box">
-        <img src="bg.svg" alt="abstract contour background" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;object-fit:cover;opacity:0.5;" />
-        
+  <div class="main-container">
+    <div class="logo-center">
+      <img src="images/053logo.png" alt="053Prints Logo">
+    </div>
         <!-- Login Form  -->
         <div class="login-content">
           <div class="login-card <?= isActiveForm('login', $activeForm); ?>" id="login-form">
             <form action="login_register.php" method="post">
-              <h2>Login</h2>
+              <div class="form-title">Login</div>
               <?php showError($errors['login']); ?>
               <input type="text" name="username" placeholder="Username" required>
-              <div style="position:relative;">
+              <div class="input-container">
                 <input type="password" name="password" id="login-password" placeholder="Password" required>
                 <button type="button" id="toggle-login-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
                   <img id="login-eye-icon" src="svg/eye.svg" alt="Show Password" width="20" height="20">
@@ -105,12 +106,6 @@ function isActiveForm($formName, $activeForm) {
             </form>
           </div>
         </div>
-    </div>
-
-    <!-- Right Box -->
-    <div class="right-box">
-      <img src="images/053 bg.jpg" alt="053bg" class="split-image">
-    </div>
   </div>
 
   <script src="script.js"></script>

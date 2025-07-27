@@ -39,6 +39,15 @@
                         Enter your email and we'll send you a link to reset your password.
                     </p>
                     
+                    <?php
+                    if (isset($_GET['status']) && isset($_GET['message'])) {
+                        $status = $_GET['status'];
+                        $message = $_GET['message'];
+                        $statusClass = ($status === 'success') ? 'status-success' : 'status-error';
+                        echo "<div class='status-message $statusClass'>$message</div>";
+                    }
+                    ?>
+                    
                     <form method="post" action="send_password_reset.php">
                         <label for="email" style="display:block;margin-bottom:0.5rem;">Email</label>
                         <input type="email" name="email" id="email" required>
