@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forgot Password</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .status-message {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: 500;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
 </head>
 <body>
     <div class="split-container">
@@ -19,6 +38,7 @@
                     <p style="text-align:center; color:#555; margin-bottom:1rem;">
                         Enter your email and we'll send you a link to reset your password.
                     </p>
+                    
                     <form method="post" action="send_password_reset.php">
                         <label for="email" style="display:block;margin-bottom:0.5rem;">Email</label>
                         <input type="email" name="email" id="email" required>

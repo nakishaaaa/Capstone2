@@ -32,12 +32,17 @@ if ($conn->affected_rows) {
     
     try {
         $mail->send();
+        // Redirect with success message
+        header("Location: forgot_password.php?status=success&message=Password reset link has been sent to your email.");
+        exit();
     } 
     catch (Exception $e) {
-        echo "Message could not be sent. Mailer error: {$mail->ErrorInfo}";
+        // Redirect with error message
+        header("Location: forgot_password.php?status=error&message=Failed to send email. Please try again.");
+        exit();
     }
 } else {
-    echo "invalid email.";
+    // Redirect with invalid email message
+    header("Location: forgot_password.php?status=error&message=Email not found. Please check your email address.");
+    exit();
 }
-
-echo "sent";
