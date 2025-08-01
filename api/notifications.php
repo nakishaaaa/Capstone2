@@ -1,42 +1,73 @@
 <?php
 header('Content-Type: application/json');
-include '../config.php';
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+header('Access-Control-Allow-Headers: Content-Type');
 
-try {
-    $query = "SELECT 
-                p.id,
-                p.name,
-                c.name as category,
-                p.stock_quantity as stock,
-                p.minimum_stock as minStock,
-                p.price,
-                CASE 
-                    WHEN p.stock_quantity = 0 THEN 'Out of Stock'
-                    WHEN p.stock_quantity <= p.minimum_stock THEN 'Low Stock'
-                    ELSE 'In Stock'
-                END as status
-              FROM products p
-              LEFT JOIN categories c ON p.category_id = c.id
-              WHERE p.status = 'active'
-              ORDER BY p.name";
-    
-    $stmt = $pdo->prepare($query);
-    $stmt->execute();
-    $inventory = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Convert price to float
-    foreach ($inventory as &$item) {
-        $item['price'] = floatval($item['price']);
-        $item['stock'] = intval($item['stock']);
-        $item['minStock'] = intval($item['minStock']);
+require_once '../config/database.php';
+
+$method = $_SERVER['REQUEST_METHOD'];
+$input = json_decode(file_get_contents('php://input'), true);
+
+switch($method) {
+    case 'GET':
+        getAllNotifications();
+        break;
+    case 'PUT':
+        if (isset($_GET['id'])) {
+            markAsRead($_GET['id']);
+        } elseif (isset($_GET['mark_all_read'])) {
+            markAllAsRead();
+        }
+        break;
+    case 'DELETE':
+        if (isset($_GET['id'])) {
+            deleteNotification($_GET['id']);
+        }
+        break;
+}
+
+function getAllNotifications() {
+    global $pdo;
+    try {
+        $stmt = $pdo->query("SELECT * FROM notifications ORDER BY created_at DESC");
+        $notifications = $stmt->fetchAll();
+        echo json_encode(['success' => true, 'data' => $notifications]);
+    } catch(PDOException $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
-    
-    echo json_encode($inventory);
-    
-} catch (Exception $e) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Error fetching inventory: ' . $e->getMessage()
-    ]);
+}
+
+function markAsRead($id) {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("UPDATE notifications SET is_read = TRUE WHERE id = ?");
+        $stmt->execute([$id]);
+        echo json_encode(['success' => true]);
+    } catch(PDOException $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+}
+
+function markAllAsRead() {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE");
+        $stmt->execute();
+        echo json_encode(['success' => true]);
+    } catch(PDOException $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+}
+
+function deleteNotification($id) {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("DELETE FROM notifications WHERE id = ?");
+        $stmt->execute([$id]);
+        echo json_encode(['success' => true]);
+    } catch(PDOException $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
 }
 ?>
