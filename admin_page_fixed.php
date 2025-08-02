@@ -30,14 +30,11 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
     
 </head>
 <body>
-    <!-- Database Status -->
-
     <div class="admin-container">
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
             <div class="sidebar-header">
-                <h2><i class="fas fa-store"></i> Admin Panel</h2>
-                <p>Welcome, <?php echo htmlspecialchars($_SESSION['name']); ?></p>
+                <h2><i class="fas fa-store"></i> IMS/POS</h2>
             </div>
             <ul class="nav-menu">
                 <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
@@ -159,9 +156,6 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                 <div class="section-header">
                     <h1>Point of Sale</h1>
                     <div class="pos-controls">
-                        <button class="btn btn-success" onclick="newTransaction()">
-                            <i class="fas fa-plus"></i> New Transaction
-                        </button>
                         <button class="btn btn-primary" onclick="clearTransaction()">
                             <i class="fas fa-trash"></i> Clear
                         </button>
@@ -205,7 +199,6 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                             <div class="payment-section">
                                 <select id="paymentMethod">
                                     <option value="cash">Cash</option>
-                                    <option value="card">Card</option>
                                     <option value="gcash">GCash</option>
                                 </select>
                                 <input type="number" id="amountReceived" placeholder="Amount Received" step="0.01">
@@ -767,6 +760,11 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                 return;
             }
 
+            if (paymentMethod === 'gcash' && amountReceived < total) {
+                showNotification('Insufficient payment amount!', 'error');
+                return;
+            }
+
             const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const tax = subtotal * 0.12;
 
@@ -826,12 +824,6 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
 
             if (amountReceivedEl) amountReceivedEl.value = '';
             if (paymentMethodEl) paymentMethodEl.value = 'cash';
-        }
-
-        // New transaction
-        function newTransaction() {
-            clearTransaction();
-            showNotification('New transaction started', 'info');
         }
 
         // Print receipt
