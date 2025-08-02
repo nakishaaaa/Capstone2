@@ -3,33 +3,18 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// For production
+/*
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+*/
+
 session_start();
 
-// Debug: Check if session variables exist
-echo "<!-- Debug: Session check -->";
-if (!isset($_SESSION['name'])) {
-    echo "<!-- Debug: name not set -->";
-}
-if (!isset($_SESSION['email'])) {
-    echo "<!-- Debug: email not set -->";
-}
-if (!isset($_SESSION['role'])) {
-    echo "<!-- Debug: role not set -->";
-}
-
-// Temporarily comment out the redirect for debugging
-/*
 if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: index.php");
     exit();
-}
-*/
-
-// For testing, let's set some default values if session is empty
-if (!isset($_SESSION['name'])) {
-    $_SESSION['name'] = 'Test Admin';
-    $_SESSION['email'] = 'admin@test.com';
-    $_SESSION['role'] = 'admin';
 }
 ?>
 <!DOCTYPE html>
