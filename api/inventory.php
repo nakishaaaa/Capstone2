@@ -52,18 +52,21 @@ function getAllProducts() {
     try {
         $stmt = $pdo->query("SELECT *, 
             CASE 
-                WHEN stock = 0 THEN 'Out of Stock'
+                WHEN stock <= 0 THEN 'Out of Stock'
                 WHEN stock <= min_stock THEN 'Low Stock'
                 ELSE 'In Stock'
             END as stock_status
-            FROM inventory WHERE status = 'active' ORDER BY name");
+            FROM inventory WHERE status = 'active' ORDER BY stock DESC, name");
         $products = $stmt->fetchAll();
         
-        // Add image URLs if missing
+        // Add image URLs if missing and ensure stock is integer
         foreach ($products as &$product) {
             if (empty($product['image_url'])) {
                 $product['image_url'] = 'images/placeholder.jpg';
             }
+            // Ensure stock is treated as integer
+            $product['stock'] = intval($product['stock']);
+            $product['min_stock'] = intval($product['min_stock']);
         }
         
         echo json_encode(['success' => true, 'data' => $products]);

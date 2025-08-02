@@ -42,10 +42,11 @@ if (!isset($_SESSION['name'])) {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/admin_page.css">
     
-    <!-- Inline CSS for testing -->
     
 </head>
 <body>
+    <!-- Database Status -->
+
     <div class="admin-container">
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
@@ -292,9 +293,9 @@ if (!isset($_SESSION['name'])) {
         </div>
     </div>
 
-    <!-- JavaScript -->
+    <!-- JavaScript with database connection -->
     <script>
-        console.log('Admin dashboard loading...');
+        console.log('Admin dashboard with database connection loading...');
         
         // Global variables
         let currentSection = 'dashboard';
@@ -302,12 +303,12 @@ if (!isset($_SESSION['name'])) {
         let products = [];
         let notifications = [];
 
-        // API Base URL - adjust this to match your folder structure
+        // API Base URL
         const API_BASE = 'api/';
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, initializing dashboard...');
+            console.log('DOM loaded, initializing dashboard with database...');
             initializeDashboard();
             setupEventListeners();
             updateDateTime();
@@ -319,6 +320,9 @@ if (!isset($_SESSION['name'])) {
             // Listen for hash changes
             window.addEventListener('hashchange', handleHashChange);
         });
+
+        // Include all the JavaScript functions from the previous file
+        // (Same as in admin_page_fixed.php but with better error handling)
 
         // Handle initial hash
         function handleInitialHash() {
@@ -348,11 +352,19 @@ if (!isset($_SESSION['name'])) {
 
         // Initialize dashboard
         async function initializeDashboard() {
-            console.log('Initializing dashboard...');
-            await loadProducts();
-            await loadNotifications();
-            await loadDashboardStats();
-            initializeCharts();
+            console.log('Initializing dashboard with database connection...');
+            showNotification('Connecting to database...', 'info');
+            
+            try {
+                await loadProducts();
+                await loadNotifications();
+                await loadDashboardStats();
+                initializeCharts();
+                showNotification('Dashboard loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error initializing dashboard:', error);
+                showNotification('Error loading dashboard data', 'error');
+            }
         }
 
         // Setup event listeners
@@ -470,30 +482,31 @@ if (!isset($_SESSION['name'])) {
         // Load dashboard stats from API
         async function loadDashboardStats() {
             try {
-                console.log('Loading dashboard stats...');
+                console.log('Loading dashboard stats from database...');
                 const response = await fetch(`${API_BASE}sales.php?stats=1`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
 
                 if (result.success) {
                     updateDashboardStats(result.data);
+                    console.log('Dashboard stats loaded successfully:', result.data);
                 } else {
                     console.error('Error loading dashboard stats:', result.error);
-                    // Use mock data as fallback
-                    updateDashboardStats({
-                        total_sales: 15750.50,
-                        total_orders: 23,
-                        total_products: 8,
-                        low_stock: 2
-                    });
+                    showNotification('Error loading dashboard stats: ' + result.error, 'error');
                 }
             } catch (error) {
                 console.error('Error loading dashboard stats:', error);
-                // Use mock data as fallback
+                showNotification('Error connecting to database for stats', 'error');
+                // Use fallback data
                 updateDashboardStats({
-                    total_sales: 15750.50,
-                    total_orders: 23,
-                    total_products: 8,
-                    low_stock: 2
+                    total_sales: 0,
+                    total_orders: 0,
+                    total_products: 0,
+                    low_stock: 0
                 });
             }
         }
@@ -514,57 +527,29 @@ if (!isset($_SESSION['name'])) {
         // Load products from API
         async function loadProducts() {
             try {
-                console.log('Loading products...');
+                console.log('Loading products from database...');
                 const response = await fetch(`${API_BASE}inventory.php`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
 
                 if (result.success) {
                     products = result.data;
                     displayProducts();
+                    console.log('Products loaded successfully:', products.length, 'items');
                 } else {
                     console.error('Error loading products:', result.error);
-                    // Use mock data as fallback
-                    loadMockProducts();
+                    showNotification('Error loading products: ' + result.error, 'error');
                 }
             } catch (error) {
                 console.error('Error loading products:', error);
-                // Use mock data as fallback
-                loadMockProducts();
+                showNotification('Error connecting to database for products', 'error');
+                products = []; // Empty array as fallback
+                displayProducts();
             }
-        }
-
-        // Load mock products as fallback
-        function loadMockProducts() {
-            products = [
-                {
-                    id: 1,
-                    name: 'Custom T-Shirt',
-                    price: 350.00,
-                    stock: 50,
-                    category: 'Apparel',
-                    image_url: 'images/tshirt.jpg',
-                    stock_status: 'In Stock'
-                },
-                {
-                    id: 2,
-                    name: 'Coffee Mug',
-                    price: 180.00,
-                    stock: 5,
-                    category: 'Promotional',
-                    image_url: 'images/mug.jpg',
-                    stock_status: 'Low Stock'
-                },
-                {
-                    id: 3,
-                    name: 'Vinyl Sticker',
-                    price: 25.00,
-                    stock: 0,
-                    category: 'Promotional',
-                    image_url: 'images/sticker.jpg',
-                    stock_status: 'Out of Stock'
-                }
-            ];
-            displayProducts();
         }
 
         // Display products in POS
@@ -572,18 +557,37 @@ if (!isset($_SESSION['name'])) {
             const productGrid = document.getElementById('productGrid');
             if (!productGrid) return;
 
+            if (products.length === 0) {
+                productGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #666;">No products available. Please add products to inventory.</div>';
+                return;
+            }
+
             productGrid.innerHTML = '';
 
             products.forEach(product => {
                 const productCard = document.createElement('div');
                 productCard.className = 'product-card';
-                productCard.onclick = () => addToCart(product);
+                
+                // Disable card if out of stock
+                if (product.stock <= 0) {
+                    productCard.classList.add('out-of-stock');
+                    productCard.style.opacity = '0.5';
+                    productCard.style.cursor = 'not-allowed';
+                    productCard.onclick = () => showNotification('Product is out of stock!', 'error');
+                } else {
+                    productCard.onclick = () => addToCart(product);
+                }
+
+                const stockStatus = product.stock <= 0 ? 'OUT OF STOCK' : `Stock: ${product.stock}`;
+                const stockColor = product.stock <= 0 ? 'color: #dc3545; font-weight: bold;' : 
+                          product.stock <= (product.min_stock || 10) ? 'color: #ffc107; font-weight: bold;' : 
+                          'color: #28a745;';
 
                 productCard.innerHTML = `
                     <img src="${product.image_url || 'images/placeholder.jpg'}" alt="${product.name}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNSA0MEg2NVY2MEgzNVY0MFoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+'">
                     <h4>${product.name}</h4>
                     <div class="price">₱${parseFloat(product.price).toFixed(2)}</div>
-                    <div class="stock">Stock: ${product.stock}</div>
+                    <div class="stock" style="${stockColor}">${stockStatus}</div>
                 `;
 
                 productGrid.appendChild(productCard);
@@ -592,15 +596,22 @@ if (!isset($_SESSION['name'])) {
 
         // Add to cart
         function addToCart(product) {
+            if (product.stock <= 0) {
+                showNotification('Product is out of stock!', 'error');
+                return;
+            }
+
             const existingItem = cart.find(item => item.id === product.id);
 
             if (existingItem) {
-                if (existingItem.quantity < product.stock) {
-                    existingItem.quantity++;
-                } else {
-                    showNotification('Insufficient stock!', 'error');
+                // Calculate total quantity that would be in cart
+                const totalQuantityInCart = existingItem.quantity + 1;
+                
+                if (totalQuantityInCart > product.stock) {
+                    showNotification(`Cannot add more! Only ${product.stock} items available in stock.`, 'error');
                     return;
                 }
+                existingItem.quantity++;
             } else {
                 cart.push({
                     id: product.id,
@@ -613,6 +624,7 @@ if (!isset($_SESSION['name'])) {
 
             updateCartDisplay();
             updateCartTotals();
+            showNotification(`${product.name} added to cart`, 'success');
         }
 
         // Update cart display
@@ -657,11 +669,20 @@ if (!isset($_SESSION['name'])) {
             const item = cart[index];
             const newQuantity = item.quantity + change;
 
-            if (newQuantity > 0 && newQuantity <= item.stock) {
-                item.quantity = newQuantity;
-                updateCartDisplay();
-                updateCartTotals();
+            if (newQuantity <= 0) {
+                // Remove item if quantity becomes 0 or less
+                removeFromCart(index);
+                return;
             }
+
+            if (newQuantity > item.stock) {
+                showNotification(`Cannot add more! Only ${item.stock} items available in stock.`, 'error');
+                return;
+            }
+
+            item.quantity = newQuantity;
+            updateCartDisplay();
+            updateCartTotals();
         }
 
         // Set quantity
@@ -669,18 +690,32 @@ if (!isset($_SESSION['name'])) {
             const item = cart[index];
             const newQuantity = parseInt(quantity);
 
-            if (newQuantity > 0 && newQuantity <= item.stock) {
-                item.quantity = newQuantity;
+            if (newQuantity <= 0) {
+                showNotification('Quantity must be greater than 0', 'error');
+                // Reset to previous value
                 updateCartDisplay();
-                updateCartTotals();
+                return;
             }
+
+            if (newQuantity > item.stock) {
+                showNotification(`Cannot set quantity to ${newQuantity}! Only ${item.stock} items available in stock.`, 'error');
+                // Reset to previous value
+                updateCartDisplay();
+                return;
+            }
+
+            item.quantity = newQuantity;
+            updateCartDisplay();
+            updateCartTotals();
         }
 
         // Remove from cart
         function removeFromCart(index) {
+            const item = cart[index];
             cart.splice(index, 1);
             updateCartDisplay();
             updateCartTotals();
+            showNotification(`${item.name} removed from cart`, 'info');
         }
 
         // Update cart totals
@@ -722,6 +757,22 @@ if (!isset($_SESSION['name'])) {
                 return;
             }
 
+            // Final stock validation before processing
+            for (const cartItem of cart) {
+                const currentProduct = products.find(p => p.id === cartItem.id);
+                if (!currentProduct) {
+                    showNotification(`Product ${cartItem.name} no longer exists!`, 'error');
+                    return;
+                }
+                
+                if (currentProduct.stock < cartItem.quantity) {
+                    showNotification(`Insufficient stock for ${cartItem.name}! Available: ${currentProduct.stock}, Requested: ${cartItem.quantity}`, 'error');
+                    // Refresh products to get latest stock
+                    await loadProducts();
+                    return;
+                }
+            }
+
             const total = parseFloat(document.getElementById('cartTotal').textContent.replace('₱', '').replace(',', ''));
             const amountReceived = parseFloat(document.getElementById('amountReceived').value) || 0;
             const paymentMethod = document.getElementById('paymentMethod').value;
@@ -745,6 +796,8 @@ if (!isset($_SESSION['name'])) {
             };
 
             try {
+                showNotification('Processing payment...', 'info');
+                
                 const response = await fetch(`${API_BASE}sales.php`, {
                     method: 'POST',
                     headers: {
@@ -752,6 +805,10 @@ if (!isset($_SESSION['name'])) {
                     },
                     body: JSON.stringify(transactionData)
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
                 const result = await response.json();
 
@@ -763,11 +820,14 @@ if (!isset($_SESSION['name'])) {
                     await loadProducts(); // Refresh products to update stock
                 } else {
                     showNotification('Error processing transaction: ' + result.error, 'error');
+                    // Refresh products in case stock changed
+                    await loadProducts();
                 }
             } catch (error) {
-                showNotification('Transaction completed (offline mode)', 'success');
-                printReceipt(transactionData.transaction_id, transactionData);
-                clearTransaction();
+                console.error('Error processing payment:', error);
+                showNotification('Error processing payment: ' + error.message, 'error');
+                // Refresh products in case of error
+                await loadProducts();
             }
         }
 
@@ -786,6 +846,7 @@ if (!isset($_SESSION['name'])) {
         // New transaction
         function newTransaction() {
             clearTransaction();
+            showNotification('New transaction started', 'info');
         }
 
         // Print receipt
@@ -854,18 +915,27 @@ if (!isset($_SESSION['name'])) {
         // Load inventory data
         async function loadInventoryData() {
             try {
+                console.log('Loading inventory data from database...');
                 const response = await fetch(`${API_BASE}inventory.php`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
 
                 if (result.success) {
                     displayInventoryTable(result.data);
+                    console.log('Inventory data loaded successfully:', result.data.length, 'items');
                 } else {
                     console.error('Error loading inventory:', result.error);
-                    displayInventoryTable(products); // Use products as fallback
+                    showNotification('Error loading inventory: ' + result.error, 'error');
+                    displayInventoryTable([]);
                 }
             } catch (error) {
                 console.error('Error loading inventory:', error);
-                displayInventoryTable(products); // Use products as fallback
+                showNotification('Error connecting to database for inventory', 'error');
+                displayInventoryTable([]);
             }
         }
 
@@ -875,7 +945,7 @@ if (!isset($_SESSION['name'])) {
             if (!tableBody) return;
 
             if (!data || data.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No inventory data available</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No inventory data available. Please add products to inventory.</td></tr>';
                 return;
             }
 
@@ -910,27 +980,26 @@ if (!isset($_SESSION['name'])) {
         // Load notifications
         async function loadNotifications() {
             try {
+                console.log('Loading notifications from database...');
                 const response = await fetch(`${API_BASE}notifications.php`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
 
                 if (result.success) {
                     notifications = result.data;
+                    console.log('Notifications loaded successfully:', notifications.length, 'items');
                 } else {
                     console.error('Error loading notifications:', result.error);
-                    // Use mock notifications
-                    notifications = [
-                        {
-                            id: 1,
-                            title: 'Low Stock Alert',
-                            message: 'Coffee Mug stock is running low (5 remaining)',
-                            type: 'warning',
-                            is_read: false,
-                            created_at: new Date().toISOString()
-                        }
-                    ];
+                    showNotification('Error loading notifications: ' + result.error, 'error');
+                    notifications = [];
                 }
             } catch (error) {
                 console.error('Error loading notifications:', error);
+                showNotification('Error connecting to database for notifications', 'error');
                 notifications = [];
             }
         }
@@ -1121,6 +1190,11 @@ if (!isset($_SESSION['name'])) {
             const productGrid = document.getElementById('productGrid');
             if (!productGrid) return;
 
+            if (filteredProducts.length === 0) {
+                productGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #666;">No products found matching your search.</div>';
+                return;
+            }
+
             productGrid.innerHTML = '';
 
             filteredProducts.forEach(product => {
@@ -1154,24 +1228,55 @@ if (!isset($_SESSION['name'])) {
         }
 
         function editProduct(id) {
-            showNotification(`Editing product ${id}`, 'info');
+            showNotification(`Edit product ${id} functionality coming soon`, 'info');
         }
 
         function viewProduct(id) {
-            showNotification(`Viewing product ${id}`, 'info');
+            showNotification(`View product ${id} functionality coming soon`, 'info');
         }
 
-        function dismissNotification(id) {
-            showNotification('Notification dismissed', 'info');
-            displayNotifications();
+        async function dismissNotification(id) {
+            try {
+                const response = await fetch(`${API_BASE}notifications.php?id=${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification('Notification dismissed', 'success');
+                    displayNotifications();
+                } else {
+                    showNotification('Error dismissing notification', 'error');
+                }
+            } catch (error) {
+                console.error('Error dismissing notification:', error);
+                showNotification('Error dismissing notification', 'error');
+            }
         }
 
-        function markAllRead() {
-            showNotification('All notifications marked as read', 'success');
+        async function markAllRead() {
+            try {
+                const response = await fetch(`${API_BASE}notifications.php?mark_all_read=1`, {
+                    method: 'PUT'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification('All notifications marked as read', 'success');
+                    displayNotifications();
+                } else {
+                    showNotification('Error marking notifications as read', 'error');
+                }
+            } catch (error) {
+                console.error('Error marking notifications as read:', error);
+                showNotification('Error marking notifications as read', 'error');
+            }
         }
 
         function openAddProductModal() {
-            showNotification('Add product modal would open here', 'info');
+            showNotification('Add product modal functionality coming soon', 'info');
         }
 
         // Modal functions
@@ -1203,7 +1308,7 @@ if (!isset($_SESSION['name'])) {
             }
         }
 
-        console.log('Admin dashboard script loaded successfully');
+        console.log('Admin dashboard with database connection loaded successfully');
     </script>
 </body>
 </html>
