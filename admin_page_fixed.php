@@ -1204,12 +1204,330 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
             loadInventoryData();
         }
 
-        function editProduct(id) {
-            showNotification(`Edit product ${id} functionality coming soon`, 'info');
+        // VIEW PRODUCT FUNCTION - Shows product details in a modal
+        async function viewProduct(id) {
+            try {
+                showNotification('Loading product details...', 'info');
+                
+                const response = await fetch(`${API_BASE}inventory.php?id=${id}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+
+                if (result.success) {
+                    const product = result.data;
+                    
+                    const modalContent = `
+                        <div class="modal-header">
+                            <h3><i class="fas fa-eye"></i> Product Details</h3>
+                            <button class="close-modal" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="product-details">
+                                <div class="product-image-section">
+                                    <img src="${product.image_url || 'images/placeholder.jpg'}" 
+                                         alt="${product.name}" 
+                                         style="width: 100%; max-width: 200px; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;"
+                                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03MCA4MEgxMzBWMTIwSDcwVjgwWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4='">
+                                </div>
+                                <div class="product-info">
+                                    <div class="info-row">
+                                        <strong>Product ID:</strong> ${product.id}
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Name:</strong> ${product.name}
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Category:</strong> ${product.category}
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Price:</strong> ₱${parseFloat(product.price).toFixed(2)}
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Current Stock:</strong> 
+                                        <span style="color: ${product.stock <= 0 ? '#dc3545' : product.stock <= (product.min_stock || 10) ? '#ffc107' : '#28a745'}; font-weight: bold;">
+                                            ${product.stock}
+                                        </span>
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Minimum Stock:</strong> ${product.min_stock || 10}
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Status:</strong> 
+                                        <span class="status-badge status-${(product.stock_status || 'In Stock').toLowerCase().replace(' ', '-')}">
+                                            ${product.stock_status || 'In Stock'}
+                                        </span>
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Description:</strong> ${product.description || 'No description available'}
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Created:</strong> ${new Date(product.created_at).toLocaleDateString('en-PH')}
+                                    </div>
+                                    <div class="info-row">
+                                        <strong>Last Updated:</strong> ${new Date(product.updated_at).toLocaleDateString('en-PH')}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-actions" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button class="btn btn-primary" onclick="editProduct(${product.id}); closeModal();">
+                                    <i class="fas fa-edit"></i> Edit Product
+                                </button>
+                                <button class="btn" onclick="closeModal()" style="background: #6c757d; color: white;">
+                                    <i class="fas fa-times"></i> Close
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                    openModal('Product Details', modalContent);
+                    showNotification('Product details loaded successfully', 'success');
+                } else {
+                    showNotification('Error loading product: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error viewing product:', error);
+                showNotification('Error loading product details: ' + error.message, 'error');
+            }
         }
 
-        function viewProduct(id) {
-            showNotification(`View product ${id} functionality coming soon`, 'info');
+        // EDIT PRODUCT FUNCTION - Shows edit form in a modal with restock functionality
+        async function editProduct(id) {
+            try {
+                showNotification('Loading product for editing...', 'info');
+                
+                const response = await fetch(`${API_BASE}inventory.php?id=${id}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+
+                if (result.success) {
+                    const product = result.data;
+                    
+                    const modalContent = `
+                        <div class="modal-header">
+                            <h3><i class="fas fa-edit"></i> Edit Product</h3>
+                            <button class="close-modal" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editProductForm" onsubmit="saveProductChanges(event, ${product.id})">
+                                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div class="form-group">
+                                        <label for="editProductName"><strong>Product Name:</strong></label>
+                                        <input type="text" id="editProductName" value="${product.name}" required 
+                                               style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editProductCategory"><strong>Category:</strong></label>
+                                        <input type="text" id="editProductCategory" value="${product.category}" required
+                                               style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editProductPrice"><strong>Price (₱):</strong></label>
+                                        <input type="number" id="editProductPrice" value="${product.price}" step="0.01" min="0" required
+                                               style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editProductMinStock"><strong>Minimum Stock:</strong></label>
+                                        <input type="number" id="editProductMinStock" value="${product.min_stock || 10}" min="0" required
+                                               style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                                    </div>
+                                </div>
+                                
+                                <div class="stock-section" style="margin: 1.5rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                                    <h4 style="margin-bottom: 1rem; color: #333;"><i class="fas fa-boxes"></i> Stock Management</h4>
+                                    <div class="current-stock" style="margin-bottom: 1rem;">
+                                        <strong>Current Stock: </strong>
+                                        <span style="color: ${product.stock <= 0 ? '#dc3545' : product.stock <= (product.min_stock || 10) ? '#ffc107' : '#28a745'}; font-weight: bold; font-size: 1.2rem;">
+                                            ${product.stock}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="restock-options" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                        <div class="form-group">
+                                            <label for="restockQuantity"><strong>Add Stock:</strong></label>
+                                            <input type="number" id="restockQuantity" min="0" placeholder="Enter quantity to add"
+                                                   style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                                            <small style="color: #666; font-size: 0.8rem;">Leave empty if no restock needed</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="setStockQuantity"><strong>Set Stock To:</strong></label>
+                                            <input type="number" id="setStockQuantity" min="0" placeholder="Set exact stock amount"
+                                                   style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                                            <small style="color: #666; font-size: 0.8rem;">This will override current stock</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="stock-preview" id="stockPreview" style="margin-top: 1rem; padding: 0.75rem; background: white; border-radius: 5px; border: 1px solid #ddd;">
+                                        <strong>New Stock Will Be: </strong><span id="newStockAmount">${product.stock}</span>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="editProductDescription"><strong>Description:</strong></label>
+                                    <textarea id="editProductDescription" rows="3" placeholder="Product description..."
+                                              style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem; resize: vertical;">${product.description || ''}</textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="editProductImageUrl"><strong>Image URL:</strong></label>
+                                    <input type="url" id="editProductImageUrl" value="${product.image_url || ''}" placeholder="https://example.com/image.jpg"
+                                           style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                                </div>
+
+                                <div class="modal-actions" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save"></i> Save Changes
+                                    </button>
+                                    <button type="button" class="btn" onclick="closeModal()" style="background: #6c757d; color: white;">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    `;
+
+                    openModal('Edit Product', modalContent);
+                    
+                    // Add event listeners for stock calculation
+                    const restockInput = document.getElementById('restockQuantity');
+                    const setStockInput = document.getElementById('setStockQuantity');
+                    const newStockSpan = document.getElementById('newStockAmount');
+                    const currentStock = product.stock;
+
+                    function updateStockPreview() {
+                        const restockQty = parseInt(restockInput.value) || 0;
+                        const setStockQty = parseInt(setStockInput.value);
+                        
+                        let newStock;
+                        if (setStockQty >= 0 && setStockInput.value !== '') {
+                            // Set stock to specific amount
+                            newStock = setStockQty;
+                            restockInput.value = ''; // Clear restock input
+                        } else if (restockQty > 0) {
+                            // Add to current stock
+                            newStock = currentStock + restockQty;
+                            setStockInput.value = ''; // Clear set stock input
+                        } else {
+                            // No change
+                            newStock = currentStock;
+                        }
+                        
+                        newStockSpan.textContent = newStock;
+                        newStockSpan.style.color = newStock <= 0 ? '#dc3545' : newStock <= (product.min_stock || 10) ? '#ffc107' : '#28a745';
+                    }
+
+                    restockInput.addEventListener('input', updateStockPreview);
+                    setStockInput.addEventListener('input', updateStockPreview);
+                    
+                    showNotification('Product loaded for editing', 'success');
+                } else {
+                    showNotification('Error loading product: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading product for editing:', error);
+                showNotification('Error loading product for editing: ' + error.message, 'error');
+            }
+        }
+
+        // SAVE PRODUCT CHANGES FUNCTION - Handles form submission and API call
+        async function saveProductChanges(event, productId) {
+            event.preventDefault();
+            
+            try {
+                showNotification('Saving product changes...', 'info');
+                
+                // Get form values
+                const name = document.getElementById('editProductName').value.trim();
+                const category = document.getElementById('editProductCategory').value.trim();
+                const price = parseFloat(document.getElementById('editProductPrice').value);
+                const minStock = parseInt(document.getElementById('editProductMinStock').value);
+                const description = document.getElementById('editProductDescription').value.trim();
+                const imageUrl = document.getElementById('editProductImageUrl').value.trim();
+                
+                // Calculate new stock
+                const restockQty = parseInt(document.getElementById('restockQuantity').value) || 0;
+                const setStockQty = parseInt(document.getElementById('setStockQuantity').value);
+                
+                // Get current product to calculate new stock
+                const currentProduct = products.find(p => p.id === productId);
+                let newStock;
+                
+                if (setStockQty >= 0 && document.getElementById('setStockQuantity').value !== '') {
+                    // Set stock to specific amount
+                    newStock = setStockQty;
+                } else if (restockQty > 0) {
+                    // Add to current stock
+                    newStock = currentProduct.stock + restockQty;
+                } else {
+                    // No stock change
+                    newStock = currentProduct.stock;
+                }
+
+                // Validate form data
+                if (!name || !category || price < 0 || minStock < 0 || newStock < 0) {
+                    showNotification('Please fill in all required fields with valid values', 'error');
+                    return;
+                }
+
+                // Prepare update data
+                const updateData = {
+                    name: name,
+                    category: category,
+                    price: price,
+                    stock: newStock,
+                    min_stock: minStock,
+                    description: description,
+                    image_url: imageUrl || 'images/placeholder.jpg'
+                };
+
+                // Make API call to update product
+                const response = await fetch(`${API_BASE}inventory.php?id=${productId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification('Product updated successfully!', 'success');
+                    closeModal();
+                    
+                    // Refresh data to reflect changes
+                    await loadProducts();
+                    await loadInventoryData();
+                    await loadDashboardStats();
+                    
+                    // Show stock change notification if stock was modified
+                    if (newStock !== currentProduct.stock) {
+                        const stockChange = newStock - currentProduct.stock;
+                        const changeText = stockChange > 0 ? `+${stockChange}` : `${stockChange}`;
+                        showNotification(`Stock updated: ${currentProduct.stock} → ${newStock} (${changeText})`, 'info');
+                    }
+                } else {
+                    showNotification('Error updating product: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving product changes:', error);
+                showNotification('Error saving product changes: ' + error.message, 'error');
+            }
         }
 
         async function dismissNotification(id) {
@@ -1262,18 +1580,7 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
             const modalContent = document.getElementById('modalContent');
 
             if (modal && modalContent) {
-                modalContent.innerHTML = `
-                    <div class="modal-header">
-                        <h3>${title}</h3>
-                        <button class="close-modal" onclick="closeModal()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        ${content}
-                    </div>
-                `;
-
+                modalContent.innerHTML = content;
                 modal.classList.add('active');
             }
         }
