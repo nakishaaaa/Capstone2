@@ -1,4 +1,5 @@
 <?php
+// database connection for login_register.php
 $servername = "localhost";
 $username = "root";
 $password = "";
