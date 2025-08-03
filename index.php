@@ -107,10 +107,9 @@ function isActiveForm($formName, $activeForm) {
           </div>
         </div>
   </div>
-
-  <script src="js/script.js"></script>
+  
   <script>
-    function showForm(formId) {
+  function showForm(formId) {
     document.querySelectorAll(".login-card").forEach(form => form.classList.remove("active")); 
     document.getElementById(formId).classList.add("active");
   }

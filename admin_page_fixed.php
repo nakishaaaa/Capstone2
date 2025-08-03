@@ -52,6 +52,9 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                 <li><a href="#notifications" class="nav-link" data-section="notifications">
                     <i class="fas fa-bell"></i> Notifications
                 </a></li>
+                <li><a href="#requests" class="nav-link" data-section="requests">       <!-- WIP -->
+                    <i class="fas fa-inbox"></i> Requests
+                </a></li>
                 <li><a href="index.php" class="nav-link logout">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a></li>
@@ -63,7 +66,7 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
             <!-- Dashboard Section -->
             <section id="dashboard" class="content-section active">
                 <div class="section-header">
-                    <h1>Dashboard Overview</h1>
+                    <h1>Dashboard</h1>
                     <div class="date-time" id="current-datetime"></div>
                 </div>
                 
@@ -84,6 +87,15 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                         <div class="stat-info">
                             <h3 id="total-orders">0</h3>
                             <p>Orders Today</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-inbox"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="requests">0</h3>
+                            <p>Requests</p>                                  <!-- WIP -->
                         </div>
                     </div>
                     <div class="stat-card">
@@ -298,9 +310,6 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
             // Listen for hash changes
             window.addEventListener('hashchange', handleHashChange);
         });
-
-        // Include all the JavaScript functions from the previous file
-        // (Same as in admin_page_fixed.php but with better error handling)
 
         // Handle initial hash
         function handleInitialHash() {
@@ -1296,7 +1305,7 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
             }
         }
 
-        // EDIT PRODUCT FUNCTION - Shows edit form in a modal with restock functionality
+        // EDIT PRODUCT FUNCTION 
         async function editProduct(id) {
             try {
                 showNotification('Loading product for editing...', 'info');

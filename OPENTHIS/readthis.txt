@@ -1,0 +1,9 @@
+1. open phpMyAdmin on your website.
+
+2. click the Import Tab
+
+3. click choose file then select the .sql file on the project's folder
+
+4. make sure the Apache and MySQL is on 'start' state.
+
+5. run the project on http://localhost/capstone2
