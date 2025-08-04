@@ -66,7 +66,7 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
             <!-- Dashboard Section -->
             <section id="dashboard" class="content-section active">
                 <div class="section-header">
-                    <h1>Dashboard Overview</h1>
+                    <h1>Dashboard</h1>
                     <div class="date-time" id="current-datetime"></div>
                 </div>
                 
@@ -288,6 +288,6 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
         </div>
     </div>
 
-    <script src="js/admin_page_functions.js"></script>
+    <script type="module" src="js/admin-dashboard.js"></script>
 </body>
 </html>
