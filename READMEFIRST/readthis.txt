@@ -1,9 +1,11 @@
+#DO THIS IF YOU WANT RUN THE SYSTEM FOR CHECKING.
+
 1. open phpMyAdmin on your website.
 
-2. click the Import Tab
+2. click the Import Tab.
 
-3. click choose file then select the .sql file on the project's folder
+3. ask me for the sql script. then 'choose file' click on the sql. file I given and click 'Import'.
 
 4. make sure the Apache and MySQL is on 'start' state.
 
-5. run the project on http://localhost/capstone2
+5. run the project on http://localhost/capstone2.
