@@ -106,7 +106,6 @@ function getProduct($id) {
 function createProduct($data) {
     global $pdo;
     try {
-        // Validate required fields
         if (!isset($data['name']) || !isset($data['category']) || !isset($data['price']) || !isset($data['stock'])) {
             echo json_encode(['success' => false, 'error' => 'Missing required fields']);
             return;
@@ -164,7 +163,7 @@ function updateProduct($id, $data) {
 function deleteProduct($id) {
     global $pdo;
     try {
-        // Soft delete - set status to inactive
+        // Soft delete 
         $stmt = $pdo->prepare("UPDATE inventory SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
         $stmt->execute([$id]);
         

@@ -5,7 +5,7 @@ $token = bin2hex(random_bytes(16));
 $token_hash = hash("sha256", $token);
 $expiry = date("Y-m-d H:i:s", time() + 60 * 30);
 
-require_once __DIR__ . "/config.php";
+require_once __DIR__ . "/includes/config.php";
 
 $sql = "UPDATE users
         SET reset_token_hash = ?,
@@ -17,7 +17,7 @@ $stmt->execute();
 
 if ($conn->affected_rows) {
 
-    $mail = require __DIR__ . "/mailer.php";
+    $mail = require __DIR__ . "/includes/mailer.php";
 
     $mail->setFrom("noreply@example.com");
     $mail->addAddress($email);

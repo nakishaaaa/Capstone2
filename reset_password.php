@@ -11,7 +11,7 @@ if (!$token) {
 }
 $token_hash = hash("sha256", $token);
 
-$conn = require __DIR__ . "/config.php";
+$conn = require __DIR__ . "/includes/config.php";
 
 $sql = "SELECT * FROM users WHERE reset_token_hash = ?";
 $stmt = $conn->prepare($sql);

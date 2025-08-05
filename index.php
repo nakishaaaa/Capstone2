@@ -61,7 +61,7 @@ function isActiveForm($formName, $activeForm) {
               <div class="input-container">
                 <input type="password" name="password" id="login-password" placeholder="Password" required>
                 <button type="button" id="toggle-login-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
-                  <img id="login-eye-icon" src="svg/eye.svg" alt="Show Password" width="20" height="20">
+                  <img id="login-eye-icon" src="images/svg/eye.svg" alt="Show Password" width="20" height="20">
                 </button>
               </div>
               <p style="text-align:right; margin-bottom: 1rem;">                 <!-- wip -->
@@ -81,7 +81,7 @@ function isActiveForm($formName, $activeForm) {
               <div style="position:relative;">
                 <input type="password" name="password" id="register-password" placeholder="Password">
                 <button type="button" id="toggle-register-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
-                  <img id="register-eye-icon" src="svg/eye.svg" alt="Show Password" width="20" height="20">
+                  <img id="register-eye-icon" src="images/svg/eye.svg" alt="Show Password" width="20" height="20">
                 </button>
               </div>
                 <select name="role" id="role" required>
@@ -147,8 +147,8 @@ function isActiveForm($formName, $activeForm) {
       var input = document.getElementById(inputId);
       var button = document.getElementById(buttonId);
       var iconImg = document.getElementById(iconId);
-      var eyeSrc = 'svg/eye.svg';
-      var eyeSlashSrc = 'svg/eye-slash.svg';
+      var eyeSrc = 'images/svg/eye.svg';
+      var eyeSlashSrc = 'images/svg/eye-slash.svg';
       if (input && button && iconImg) {
         button.addEventListener('click', function() {
           if (input.type === 'password') {

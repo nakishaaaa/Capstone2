@@ -1,0 +1,6 @@
+#comment this out to allow access to .php files 
+#all files within the includes folder are important and to be protected
+
+<FilesMatch "\.php$">
+    Deny from all
+</FilesMatch>

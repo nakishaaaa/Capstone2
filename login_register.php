@@ -1,6 +1,6 @@
 <?php
 session_start(); // Start the session to use session variables
-require_once 'config.php'; // Include the database connection
+require_once 'includes/config.php'; // Include the database connection
 
 // Handle registration form submission
 if (isset($_POST['register'])) {

@@ -17,7 +17,7 @@ if (!$token) {
 $token_hash = hash("sha256", $token);
 
 // Connect to database
-$conn = require __DIR__ . "/config.php";
+$conn = require __DIR__ . "/includes/config.php";
 
 // Look up user by reset token hash
 $sql = "SELECT * FROM users WHERE reset_token_hash = ?";
