@@ -175,5 +175,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Export for module usage
 export default AdminDashboard
-
-console.log("Refactored admin dashboard with database connection loaded successfully")

@@ -15,7 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Check if file was uploaded
 if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
     echo json_encode(['success' => false, 'error' => 'No file uploaded or upload error']);
     exit;
@@ -23,7 +22,6 @@ if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
 
 $file = $_FILES['image'];
 
-// Validate file type
 $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 $fileType = $file['type'];
 
@@ -32,7 +30,6 @@ if (!in_array($fileType, $allowedTypes)) {
     exit;
 }
 
-// Validate file size (max 5MB)
 $maxSize = 5 * 1024 * 1024; // 5MB in bytes
 if ($file['size'] > $maxSize) {
     echo json_encode(['success' => false, 'error' => 'File too large. Maximum size is 5MB']);

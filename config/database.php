@@ -15,9 +15,6 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     
-    // Test the connection
-    $stmt = $pdo->query("SELECT 1");
-    
 } catch(PDOException $e) {
     die("Database Connection failed: " . $e->getMessage());
 }
@@ -31,25 +28,5 @@ try {
     $conn->set_charset("utf8mb4");
 } catch(Exception $e) {
     die("MySQLi Connection failed: " . $e->getMessage());
-}
-
-// Function to test database connection
-function testDatabaseConnection() {
-    global $pdo;
-    try {
-        $stmt = $pdo->query("SHOW TABLES");
-        $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        return [
-            'success' => true,
-            'tables' => $tables,
-            'message' => 'Database connected successfully'
-        ];
-    } catch(PDOException $e) {
-        return [
-            'success' => false,
-            'error' => $e->getMessage(),
-            'message' => 'Database connection failed'
-        ];
-    }
 }
 ?>

@@ -63,7 +63,7 @@ if (isset($_POST['login'])) {
 
                 // Redirect based on user role
                 if ($user['role'] === 'admin') {
-                    header("Location: admin_page_fixed.php");
+                    header("Location: admin_page.php");
                 } else {
                     header("Location: user_page.php");
                 }
