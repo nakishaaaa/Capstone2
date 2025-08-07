@@ -40,6 +40,12 @@ if (!isset($_SESSION['name'])) {
         <!-- Main Content -->
         <main class="main-content">
             <div class="hero-section">
+                <div class="slideshow-container">
+                    <div class="slide active"></div>
+                    <div class="slide"></div>
+                    <div class="slide"></div>
+                    <div class="slide"></div>
+                </div>
                 <div class="hero-overlay">
                     <div class="request-form-container">
                         <h1 class="form-title">Requesting an Order</h1>
@@ -126,7 +132,7 @@ if (!isset($_SESSION['name'])) {
                         </form>
                     </div>
                 </div>
-            </div>
+            </div> 
 
             <div class="chat-button">
                 <span>Chat with the Seller?</span>
@@ -145,5 +151,6 @@ if (!isset($_SESSION['name'])) {
     </div>
 
     <script src="js/user_page.js"></script>
+    <script src="js/slideshow.js"></script>
 </body>
 </html>

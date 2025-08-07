@@ -57,9 +57,10 @@ if (isset($_POST['login'])) {
             // Verify the password
             if (password_verify($password, $user['password'])) {
                 // Set session variables for the logged-in user
+                $_SESSION['user_id'] = $user['id']; // Store user ID for request associations
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['email'] = $user['email'];
-                $_SESSION['role'] = $user['role']; // Store user role in session
+                $_SESSION['role'] = $user['role']; 
 
                 // Redirect based on user role
                 if ($user['role'] === 'admin') {

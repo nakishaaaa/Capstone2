@@ -81,33 +81,103 @@ body {
     flex-direction: column;
 }
 
+/* Slideshow Background Styles */
 .hero-section {
     flex: 1;
-    background-color: #eeeeee;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: calc(100vh - 80px);
+    overflow: hidden;
 }
 
+.slideshow-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.slideshow-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10;
+}
+
+.slideshow-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1.5;
+}
+
+.slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+}
+
+.slide.active {
+    opacity: 1;
+}
+
+/* Use actual image URLs or local images */
+.slide:nth-child(1) {
+    background-image: url('../images/slideshow/image1.jpg');
+}
+
+.slide:nth-child(2) {
+    background-image: url('../images/slideshow/image2.jpg');
+}
+
+.slide:nth-child(3) {
+    background-image: url('../images/slideshow/image3.jpg');
+}
+
+.slide:nth-child(4) {
+    background-image: url('../images/slideshow/image4.jpg');
+}
+
+/* Dark Overlay */
 .hero-overlay {
+    position: relative;
     width: 100%;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2rem;
+    z-index: 20;
 }
 
+/* Enhanced form container for better visibility over slideshow */
 .request-form-container {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(15px);
     padding: 2rem;
     border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
     max-width: 800px;
     width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .form-title {
@@ -187,7 +257,7 @@ body {
 
 .file-upload-label {
     background: #f7f7f8;
-    color: white;
+    color: #333;
     padding: 0.75rem 1rem;
     border-radius: 8px;
     cursor: pointer;
@@ -266,6 +336,7 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     cursor: pointer;
     transition: transform 0.3s ease;
+    z-index: 1000;
 }
 
 .chat-button:hover {
