@@ -280,6 +280,82 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                     </div>
                 </div>
             </section>
+
+            <!-- Requests Section -->
+            <section id="requests" class="content-section">
+                <div class="section-header">
+                    <h1>Customer Requests</h1>
+                    <div class="section-description">
+                        <p style="color: #666; font-size: 0.9rem; margin: 0;">Manage customer printing and service requests</p>
+                    </div>
+                    <div class="requests-filters">
+                        <select id="requestStatusFilter" onchange="filterRequests()">
+                            <option value="all">All Requests</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="refreshRequests()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Request Statistics -->
+                <div class="requests-stats">
+                    <div class="stat-card small">
+                        <div class="stat-icon pending">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="pending-requests">0</h3>
+                            <p>Pending</p>
+                        </div>
+                    </div>
+                    <div class="stat-card small">
+                        <div class="stat-icon approved">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="approved-requests">0</h3>
+                            <p>Approved</p>
+                        </div>
+                    </div>
+                    <div class="stat-card small">
+                        <div class="stat-icon rejected">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="rejected-requests">0</h3>
+                            <p>Rejected</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Requests Table -->
+                <div class="requests-table-container">
+                    <table class="inventory-table" id="requestsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Service</th>
+                                <th>Details</th>
+                                <th>Quantity</th>
+                                <th>Contact</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requestsTableBody">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 2rem;">Loading requests...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </main>
     </div>
     

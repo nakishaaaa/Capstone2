@@ -142,12 +142,8 @@ function getAllRequests() {
     global $pdo;
     
     try {
-        $sql = "SELECT ur.*, 
-                COUNT(CASE WHEN ur.status = 'pending' THEN 1 END) as pending_count,
-                COUNT(CASE WHEN ur.status = 'approved' THEN 1 END) as approved_count,
-                COUNT(CASE WHEN ur.status = 'rejected' THEN 1 END) as rejected_count
-                FROM user_requests ur 
-                ORDER BY ur.created_at DESC";
+        // Get all requests
+        $sql = "SELECT * FROM user_requests ORDER BY created_at DESC";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute();

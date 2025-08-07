@@ -5,6 +5,7 @@ import { InventoryModule } from "./modules/inventory-module.js"
 import { POSModule } from "./modules/pos-module.js"
 import { ProductManagementModule } from "./modules/product-management-module.js"
 import { NotificationsModule } from "./modules/notifications-module.js"
+import { RequestsModule } from "./modules/requests-module.js"
 import { NavigationModule } from "./modules/navigation-module.js"
 
 class AdminDashboard {
@@ -28,6 +29,7 @@ class AdminDashboard {
       this.modules.pos = new POSModule(this.toast)
       this.modules.productManagement = new ProductManagementModule(this.toast, this.modal)
       this.modules.notifications = new NotificationsModule(this.toast)
+      this.modules.requests = new RequestsModule(this.toast, this.modal)
 
       // Make modules globally accessible for onclick handlers
       window.modalManager = this.modal
@@ -35,6 +37,7 @@ class AdminDashboard {
       window.posModule = this.modules.pos
       window.productManagementModule = this.modules.productManagement
       window.notificationsModule = this.modules.notifications
+      window.requestsModule = this.modules.requests
 
       // Setup event listeners
       this.setupEventListeners()
@@ -114,6 +117,9 @@ class AdminDashboard {
           break
         case "notifications":
           await this.modules.notifications.displayNotifications()
+          break
+        case "requests":
+          await this.modules.requests.loadRequests()
           break
       }
     } catch (error) {
