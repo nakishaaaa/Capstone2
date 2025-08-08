@@ -1,11 +1,15 @@
 #DO THIS IF YOU WANT RUN THE SYSTEM FOR CHECKING.
 
-1. open phpMyAdmin on your website.
+1. download the zip file.
 
-2. click the Import Tab.
+2. extract on /xampp/htdocs.
 
-3. ask me for the sql script. then 'choose file' click on the sql. file I given and click 'Import'.
+3. run xampp control panel as admin.
 
-4. make sure the Apache and MySQL is on 'start' state.
+4. start apache and mysql.
 
-5. run the project on http://localhost/capstone2.
+5. run http:/localhost/phpmyadmin.
+
+6. impoert the sql. file.
+
+7. run http:/localhost/capstone2.
