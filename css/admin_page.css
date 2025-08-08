@@ -657,17 +657,21 @@
   text-transform: uppercase;
 }
 
-.status-badge.pending {
+.status-badge.pending,
+.status-badge.status-warning {
   background: #fff3cd;
   color: #856404;
 }
 
-.status-badge.approved {
+.status-badge.approved,
+.status-badge.status-success {
   background: #d4edda;
   color: #155724;
 }
 
-.status-badge.rejected {
+.status-badge.rejected,
+.status-badge.status-danger,
+.status-badge.status-error {
   background: #f8d7da;
   color: #721c24;
 }
