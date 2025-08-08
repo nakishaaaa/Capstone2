@@ -89,6 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeElements();
     setupEventListeners();
     loadCSRFToken();
+    initializeUserDropdown();
 });
 
 function initializeElements() {
@@ -354,3 +355,80 @@ function clearForm() {
 
 // Global function for clear button
 window.clearForm = clearForm;
+
+// Microsoft-Style User Dropdown Functionality
+function initializeUserDropdown() {
+    const userDropdownBtn = document.getElementById('userDropdownBtn');
+    const userDropdownMenu = document.getElementById('userDropdownMenu');
+    const myAccountBtn = document.getElementById('myAccountBtn');
+    const myProfileBtn = document.getElementById('myProfileBtn');
+
+    if (!userDropdownBtn || !userDropdownMenu) {
+        return;
+    }
+
+    // Toggle dropdown on button click
+    userDropdownBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleDropdown();
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!userDropdownBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
+            closeDropdown();
+        }
+    });
+
+    // Handle my account click
+    if (myAccountBtn) {
+        myAccountBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showModal('info', 'My Microsoft account functionality will be implemented in a future update.');
+            closeDropdown();
+        });
+    }
+
+    // Handle my profile click
+    if (myProfileBtn) {
+        myProfileBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showModal('info', 'My profile functionality will be implemented in a future update.');
+            closeDropdown();
+        });
+    }
+
+    // Close dropdown on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeDropdown();
+        }
+    });
+}
+
+function toggleDropdown() {
+    const userDropdownBtn = document.getElementById('userDropdownBtn');
+    const userDropdownMenu = document.getElementById('userDropdownMenu');
+    
+    if (userDropdownMenu.classList.contains('show')) {
+        closeDropdown();
+    } else {
+        openDropdown();
+    }
+}
+
+function openDropdown() {
+    const userDropdownBtn = document.getElementById('userDropdownBtn');
+    const userDropdownMenu = document.getElementById('userDropdownMenu');
+    
+    userDropdownBtn.classList.add('active');
+    userDropdownMenu.classList.add('show');
+}
+
+function closeDropdown() {
+    const userDropdownBtn = document.getElementById('userDropdownBtn');
+    const userDropdownMenu = document.getElementById('userDropdownMenu');
+    
+    if (userDropdownBtn) userDropdownBtn.classList.remove('active');
+    if (userDropdownMenu) userDropdownMenu.classList.remove('show');
+}

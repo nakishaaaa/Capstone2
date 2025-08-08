@@ -31,9 +31,41 @@ if (!isset($_SESSION['name'])) {
                 <span>SERVICES</span>
             </div>
             <div class="user-info">
-                <a href="index.php" class="logout-btn">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
+                <div class="user-dropdown">
+                    <button class="user-dropdown-btn" id="userDropdownBtn">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span class="user-name"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
+                        <i class="fas fa-chevron-down dropdown-arrow"></i>
+                    </button>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <div class="dropdown-header">
+                            <div class="user-profile">
+                                <div class="profile-avatar">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="profile-info">
+                                    <div class="profile-name"><?php echo htmlspecialchars($_SESSION['name']); ?></div>
+                                    <div class="profile-email"><?php echo htmlspecialchars($_SESSION['email']); ?></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dropdown-links">
+                            <a href="#" class="dropdown-link" id="myProfileBtn">
+                                <i class="fas fa-id-card"></i>
+                                My profile
+                            </a>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-actions">
+                            <a href="index.php" class="dropdown-action logout-action">
+                                <i class="fas fa-sign-out-alt" style="color: #ff4757;"></i>
+                                Sign out
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 
