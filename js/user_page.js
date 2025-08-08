@@ -82,6 +82,7 @@ const categoryOptions = {
 
 // DOM elements
 let categorySelect, sizeSelect, sizeLabel, requestForm, modal, modalMessage, closeBtn;
+let showFormBtn, closeFormBtn, requestFormContainer, requestButtonContainer;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -98,6 +99,12 @@ function initializeElements() {
     modal = document.getElementById('messageModal');
     modalMessage = document.getElementById('modalMessage');
     closeBtn = document.querySelector('.close');
+    
+    // Form toggle elements
+    showFormBtn = document.getElementById('showRequestFormBtn');
+    closeFormBtn = document.getElementById('closeRequestFormBtn');
+    requestFormContainer = document.getElementById('requestFormContainer');
+    requestButtonContainer = document.querySelector('.request-button-container');
 }
 
 function setupEventListeners() {
@@ -117,6 +124,15 @@ function setupEventListeners() {
             fileName.textContent = 'No file chosen';
         }
     });
+    
+    // Form toggle events
+    if (showFormBtn) {
+        showFormBtn.addEventListener('click', showRequestForm);
+    }
+    
+    if (closeFormBtn) {
+        closeFormBtn.addEventListener('click', hideRequestForm);
+    }
     
     // Modal close events
     if (closeBtn) {
@@ -172,6 +188,40 @@ function enableSizeSelect() {
 function disableSizeSelect() {
     sizeSelect.disabled = true;
     sizeSelect.required = false;
+}
+
+// Form toggle functions
+function showRequestForm() {
+    if (requestButtonContainer && requestFormContainer) {
+        requestButtonContainer.style.display = 'none';
+        requestFormContainer.style.display = 'block';
+        
+        // Add smooth animation
+        requestFormContainer.style.opacity = '0';
+        requestFormContainer.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            requestFormContainer.style.transition = 'all 0.3s ease';
+            requestFormContainer.style.opacity = '1';
+            requestFormContainer.style.transform = 'translateY(0)';
+        }, 10);
+    }
+}
+
+function hideRequestForm() {
+    if (requestButtonContainer && requestFormContainer) {
+        requestFormContainer.style.transition = 'all 0.3s ease';
+        requestFormContainer.style.opacity = '0';
+        requestFormContainer.style.transform = 'translateY(-20px)';
+        
+        setTimeout(() => {
+            requestFormContainer.style.display = 'none';
+            requestButtonContainer.style.display = 'flex';
+            
+            // Reset form when hiding
+            clearForm();
+        }, 300);
+    }
 }
 
 // CSRF Token management

@@ -37,6 +37,7 @@ if (!isset($_SESSION['name'])) {
             </div>
         </header>
 
+
         <!-- Main Content -->
         <main class="main-content">
             <div class="hero-section">
@@ -45,10 +46,24 @@ if (!isset($_SESSION['name'])) {
                     <div class="slide"></div>
                     <div class="slide"></div>
                     <div class="slide"></div>
+                    <div class="slide"></div>
                 </div>
                 <div class="hero-overlay">
-                    <div class="request-form-container">
-                        <h1 class="form-title">Requesting an Order</h1>
+                    <!-- Request Order Button -->
+                    <div class="request-button-container">
+                        <button id="showRequestFormBtn" class="btn-show-form">
+                            <span class="button_top">Request an Order</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Request Form Container -->
+                    <div class="request-form-container" id="requestFormContainer" style="display: none;">
+                        <div class="form-header">
+                            <h1 class="form-title">Requesting an Order</h1>
+                            <button type="button" class="btn-close-form" id="closeRequestFormBtn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                         
                         <form id="requestForm" class="request-form" enctype="multipart/form-data">
                             <div class="form-row">

@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentSlide = 0;
     
     if (slides.length === 0) {
-        console.log('No slides found');
         return;
     }
     
@@ -16,6 +15,4 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Change slide every 4 seconds
     setInterval(nextSlide, 4000);
-    
-    console.log('Slideshow initialized with', slides.length, 'slides');
 });
