@@ -1,8 +1,8 @@
 <?php
 // database connection for login_register.php
 $servername = "localhost";
-$username = "root";
-$password = "";
+$username = "aenv";
+$password = "springthief044";
 $dbname = "users_db";
 
 // create connection

@@ -5,8 +5,8 @@ ini_set('display_errors', 1);
 
 // Database configuration
 $servername = "localhost";
-$username = "root";
-$password = "";
+$username = "aenv";
+$password = "springthief044";
 $dbname = "users_db";
 
 try {
