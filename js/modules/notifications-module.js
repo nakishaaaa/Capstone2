@@ -118,4 +118,28 @@ export class NotificationsModule {
       this.toast.error("Error dismissing notification")
     }
   }
+
+  // Real-time SSE update handler for notification badge count
+  updateBadgeCount(unreadCount) {
+    console.log("Updating notification badge count from SSE:", unreadCount)
+    
+    // Update notification badge in navigation/header
+    const badgeElements = document.querySelectorAll('.notification-badge, .notifications-badge')
+    badgeElements.forEach(badge => {
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount
+        badge.style.display = 'inline-block'
+        badge.style.backgroundColor = '#dc3545'
+        badge.style.color = 'white'
+      } else {
+        badge.style.display = 'none'
+      }
+    })
+    
+    // Update any notification counters in the UI
+    const notificationCounters = document.querySelectorAll('.notification-count')
+    notificationCounters.forEach(counter => {
+      counter.textContent = unreadCount
+    })
+  }
 }

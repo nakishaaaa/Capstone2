@@ -1,5 +1,6 @@
 import { ToastManager } from "./components/toast-manager.js"
 import { ModalManager } from "./components/modal-manager.js"
+import { SSEClient } from "./core/sse-client.js"
 import { DashboardModule } from "./modules/dashboard-module.js"
 import { InventoryModule } from "./modules/inventory-module.js"
 import { POSModule } from "./modules/pos-module.js"
@@ -11,17 +12,19 @@ import { NavigationModule } from "./modules/navigation-module.js"
 class AdminDashboard {
   constructor() {
     this.modules = {}
+    this.sseClient = null
     this.init()
   }
 
   async init() {
-    console.log("Initializing refactored admin dashboard with database connection...")
+    console.log("Initializing refactored admin dashboard with real-time updates...")
 
     try {
       // Initialize core components
       this.toast = new ToastManager()
       this.modal = new ModalManager()
       this.navigation = new NavigationModule()
+      this.sseClient = new SSEClient()
 
       // Initialize modules
       this.modules.dashboard = new DashboardModule(this.toast)
@@ -42,13 +45,16 @@ class AdminDashboard {
       // Setup event listeners
       this.setupEventListeners()
 
+      // Setup real-time updates
+      this.setupRealTimeUpdates()
+
       // Load initial data
       await this.loadInitialData()
 
-      // Start periodic updates
-      this.startPeriodicUpdates()
+      // Start SSE connection
+      this.sseClient.connect()
 
-      this.toast.success("Dashboard loaded successfully!")
+      this.toast.success("Dashboard loaded with real-time updates!")
       console.log("Refactored admin dashboard initialized successfully")
     } catch (error) {
       console.error("Error initializing dashboard:", error)
@@ -84,6 +90,65 @@ class AdminDashboard {
     window.openAddProductModal = () => this.modules.productManagement.openAddProductModal()
     window.markAllRead = () => this.modules.notifications.markAllRead()
     window.searchProducts = () => this.modules.pos.searchProducts()
+  }
+
+  setupRealTimeUpdates() {
+    // Listen for SSE connection events
+    this.sseClient.on('connected', (data) => {
+      console.log("Real-time updates connected")
+      this.toast.success("Real-time updates enabled", { duration: 3000 })
+    })
+
+    this.sseClient.on('disconnected', (data) => {
+      console.log("Real-time updates disconnected")
+      this.toast.warning("Real-time updates disconnected - attempting to reconnect...")
+    })
+
+    this.sseClient.on('connection_failed', (data) => {
+      console.error("Real-time connection failed after", data.attempts, "attempts")
+      this.toast.error("Real-time updates unavailable - using fallback polling")
+      this.startFallbackPolling()
+    })
+
+    // Listen for real-time data updates
+    this.sseClient.on('stats_update', (data) => {
+      console.log("Processing real-time stats update:", data)
+      this.handleStatsUpdate(data)
+    })
+
+    this.sseClient.on('activity_update', (data) => {
+      console.log("Processing real-time activity update:", data)
+      this.handleActivityUpdate(data)
+    })
+  }
+  
+  handleStatsUpdate(data) {
+    // Update dashboard stats in real-time
+    if (this.navigation.getCurrentSection() === "dashboard") {
+      this.modules.dashboard.updateStatsFromSSE(data)
+    }
+
+    // Update notification badge
+    if (data.notifications && data.notifications.unread_notifications > 0) {
+      this.modules.notifications.updateBadgeCount(data.notifications.unread_notifications)
+    }
+
+    // Update requests count
+    if (data.requests && data.requests.pending_requests !== undefined) {
+      this.modules.requests.updatePendingCount(data.requests.pending_requests)
+    }
+
+    // Check for low stock alerts
+    if (data.inventory && data.inventory.low_stock_count > 0) {
+      this.modules.inventory.handleLowStockAlert(data.inventory)
+    }
+  }
+
+  handleActivityUpdate(data) {
+    // Update activity feed if visible
+    if (this.navigation.getCurrentSection() === "dashboard") {
+      this.modules.dashboard.updateActivityFeed(data)
+    }
   }
 
   async loadInitialData() {
@@ -131,29 +196,26 @@ class AdminDashboard {
     }
   }
 
-  startPeriodicUpdates() {
+  // Fallback polling if SSE fails
+  startFallbackPolling() {
+    console.log("Starting fallback polling...")
+    
     // Update date/time every second
     setInterval(() => {
       this.modules.dashboard.updateDateTime()
     }, 1000)
 
-    // Refresh dashboard stats every 5 minutes
-    setInterval(
-      async () => {
-        if (this.navigation.getCurrentSection() === "dashboard") {
-          await this.modules.dashboard.loadStats()
-        }
-      },
-      5 * 60 * 1000,
-    )
+    // Faster fallback polling - every 10 seconds
+    setInterval(async () => {
+      if (this.navigation.getCurrentSection() === "dashboard") {
+        await this.modules.dashboard.loadStats()
+      }
+    }, 10000)
 
-    // Refresh notifications every 2 minutes
-    setInterval(
-      async () => {
-        await this.modules.notifications.loadNotifications()
-      },
-      2 * 60 * 1000,
-    )
+    // Refresh notifications every 30 seconds
+    setInterval(async () => {
+      await this.modules.notifications.loadNotifications()
+    }, 30000)
   }
 
   // Public API methods
@@ -166,7 +228,22 @@ class AdminDashboard {
     return this.modules[name]
   }
 
+  getSSEStatus() {
+    return this.sseClient ? this.sseClient.getStatus() : { connected: false }
+  }
+
+  reconnectSSE() {
+    if (this.sseClient) {
+      this.sseClient.reconnect()
+    }
+  }
+
   destroy() {
+    // Cleanup SSE connection
+    if (this.sseClient) {
+      this.sseClient.disconnect()
+    }
+
     // Cleanup modules
     if (this.modules.dashboard) {
       this.modules.dashboard.destroy()

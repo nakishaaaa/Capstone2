@@ -9,6 +9,8 @@ export class InventoryModule {
     this.toast = toastManager
     this.modal = modalManager
     this.products = []
+    this.lastLowStockAlert = null // Track last alert time
+    this.lastLowStockCount = 0 // Track last count to detect changes
   }
 
   async loadInventoryData() {
@@ -81,7 +83,6 @@ export class InventoryModule {
 
   async restockProduct(id) {
     try {
-      this.toast.info("Loading product for restocking...")
       const result = await this.api.getProduct(id)
 
       if (result.success) {
@@ -202,8 +203,6 @@ export class InventoryModule {
     event.preventDefault()
 
     try {
-      this.toast.info("Updating stock...")
-
       const restockQty = Number.parseInt(document.getElementById("restockQuantity").value) || 0
       const setStockQty = Number.parseInt(document.getElementById("setStockQuantity").value)
 
@@ -251,7 +250,6 @@ export class InventoryModule {
 
         const stockChange = newStock - currentProduct.stock
         const changeText = stockChange > 0 ? `+${stockChange}` : `${stockChange}`
-        this.toast.info(`"${currentProduct.name}" stock: ${currentProduct.stock} → ${newStock} (${changeText})`)
       } else {
         this.toast.error("Error updating stock: " + result.error)
       }
@@ -263,7 +261,6 @@ export class InventoryModule {
 
   async viewProduct(id) {
     try {
-      this.toast.info("Loading product details...")
       const result = await this.api.getProduct(id)
 
       if (result.success) {
@@ -342,5 +339,38 @@ export class InventoryModule {
   async refresh() {
     await this.loadInventoryData()
     this.toast.success("Inventory refreshed")
+  }
+
+  handleLowStockAlert(inventoryData) {
+    const now = Date.now()
+    const ALERT_COOLDOWN = 5 * 60 * 1000 // 5 minutes cooldown between alerts
+    
+    // Only show toast if:
+    // 1. There are low stock items
+    // 2. The count has changed (new items went low stock)
+    // 3. It's been more than 5 minutes since last alert
+    if (inventoryData.low_stock_count > 0) {
+      const countChanged = inventoryData.low_stock_count !== this.lastLowStockCount
+      const cooldownExpired = !this.lastLowStockAlert || (now - this.lastLowStockAlert) > ALERT_COOLDOWN
+      
+      if (countChanged || cooldownExpired) {
+        this.toast.warning(
+          `${inventoryData.low_stock_count} product(s) running low on stock!`,
+          { duration: 5000 }
+        )
+        this.lastLowStockAlert = now
+      }
+      
+      this.lastLowStockCount = inventoryData.low_stock_count
+    } else {
+      // Reset when no low stock items
+      this.lastLowStockCount = 0
+    }
+
+    // If we're on the inventory section, refresh the data to show updated stock levels
+    const currentSection = document.querySelector('.sidebar-item.active')?.getAttribute('data-section')
+    if (currentSection === 'inventory') {
+      this.loadInventoryData()
+    }
   }
 }

@@ -66,6 +66,40 @@ export class RequestsModule {
     }
   }
 
+  updatePendingCount(pendingCount) {
+    console.log("Updating pending requests count from SSE:", pendingCount)
+    
+    // Update requests section stats
+    const pendingEl = document.getElementById('pending-requests')
+    if (pendingEl) {
+      pendingEl.textContent = pendingCount
+    }
+    
+    // Update dashboard stat card
+    const totalRequestsEl = document.getElementById('total-requests')
+    if (totalRequestsEl) {
+      totalRequestsEl.textContent = pendingCount
+      
+      // Add visual indicator for new requests
+      if (pendingCount > 0) {
+        totalRequestsEl.style.color = "#007bff"
+        totalRequestsEl.style.fontWeight = "bold"
+        
+        // Add pulse animation for new requests
+        const statCard = totalRequestsEl.closest('.stat-card')
+        if (statCard) {
+          statCard.style.animation = "pulse 0.5s ease-in-out"
+          setTimeout(() => {
+            statCard.style.animation = ""
+          }, 500)
+        }
+      } else {
+        totalRequestsEl.style.color = ""
+        totalRequestsEl.style.fontWeight = ""
+      }
+    }
+  }
+
   displayRequests() {
     const tbody = document.getElementById('requestsTableBody')
     if (!tbody) return

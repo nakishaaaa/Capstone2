@@ -13,15 +13,23 @@ if (isset($_POST['register'])) {
 
     // Check if all fields are filled
     if ($name && $email && $password && $role) {
-        // Check if the email is already registered
-        $checkEmail = $conn->query("SELECT email FROM users WHERE email = '$email'");
-        if ($checkEmail && $checkEmail->num_rows > 0) {
+        // Check if the email is already registered using prepared statement
+        $checkStmt = $conn->prepare("SELECT email FROM users WHERE email = ?");
+        $checkStmt->bind_param("s", $email);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        
+        if ($checkResult && $checkResult->num_rows > 0) {
             // Email already exists
             $_SESSION['register_error'] = 'Email is already registered!';
             $_SESSION['active_form'] = 'register';
+            $checkStmt->close();
         } else {
-            // Insert new user into the database
-            if ($conn->query("INSERT INTO users (name, email, password, role) VALUES ('$name', '$email', '$password', '$role')")) {
+            $checkStmt->close();
+            // Insert new user into the database using prepared statement
+            $insertStmt = $conn->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)");
+            $insertStmt->bind_param("ssss", $name, $email, $password, $role);
+            if ($insertStmt->execute()) {
                 // Registration successful
                 $_SESSION['register_success'] = 'Registration successful! You can now log in.';
                 $_SESSION['active_form'] = 'login';
@@ -50,10 +58,15 @@ if (isset($_POST['login'])) {
 
     // Check if both fields are filled
     if ($username && $password) {
-        // Look up the user by username
-        $result = $conn->query("SELECT * FROM users WHERE name = '$username'");
+        // Look up the user by username using prepared statement
+        $loginStmt = $conn->prepare("SELECT * FROM users WHERE name = ?");
+        $loginStmt->bind_param("s", $username);
+        $loginStmt->execute();
+        $result = $loginStmt->get_result();
+        
         if ($result && $result->num_rows > 0) {
             $user = $result->fetch_assoc();
+            $loginStmt->close();
             // Verify the password
             if (password_verify($password, $user['password'])) {
                 // Set session variables for the logged-in user
@@ -70,6 +83,8 @@ if (isset($_POST['login'])) {
                 }
                 exit();
             }
+        } else {
+            $loginStmt->close();
         }
     }
 
