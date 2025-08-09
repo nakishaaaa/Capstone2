@@ -39,7 +39,7 @@ export class DashboardModule {
       "total-orders": data.total_orders,
       "total-products": data.total_products,
       "low-stock": data.low_stock,
-      "total-requests": data.total_requests || 0,
+      // Note: total-requests is managed by RequestsModule, not DashboardModule
     }
 
     Object.entries(elements).forEach(([id, value]) => {

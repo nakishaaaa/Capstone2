@@ -93,6 +93,9 @@ class AdminDashboard {
     // Load dashboard stats
     await this.modules.dashboard.loadStats()
 
+    // Load requests data to update dashboard stat-card
+    await this.modules.requests.loadRequests()
+
     // Load notifications
     await this.modules.notifications.loadNotifications()
 

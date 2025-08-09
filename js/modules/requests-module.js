@@ -59,10 +59,10 @@ export class RequestsModule {
     document.getElementById('approved-requests').textContent = stats.approved || 0
     document.getElementById('rejected-requests').textContent = stats.rejected || 0
     
-    // Update dashboard total requests
+    // Update dashboard pending requests
     const totalRequestsElement = document.getElementById('total-requests')
     if (totalRequestsElement) {
-      totalRequestsElement.textContent = stats.total || 0
+      totalRequestsElement.textContent = stats.pending || 0
     }
   }
 
