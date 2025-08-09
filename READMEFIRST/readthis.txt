@@ -10,6 +10,6 @@
 
 5. run http:/localhost/phpmyadmin.
 
-6. impoert the sql. file.
+6. import the .sql file.
 
 7. run http:/localhost/capstone2.
