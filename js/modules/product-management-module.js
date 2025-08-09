@@ -348,6 +348,35 @@ export class ProductManagementModule {
             </div>
           </div>
           
+          <div class="stock-section" style="margin: 1.5rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+            <h4 style="margin-bottom: 1rem; color: #333;"><i class="fas fa-boxes"></i> Stock Management</h4>
+            <div class="current-stock" style="margin-bottom: 1rem;">
+              <strong>Current Stock: </strong>
+              <span style="color: ${this.getStockColor(product.stock, product.min_stock)}; font-weight: bold; font-size: 1.2rem;">
+                ${product.stock}
+              </span>
+            </div>
+            
+            <div class="restock-options" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="restockQuantity"><strong>Add Stock:</strong></label>
+                <input type="number" id="restockQuantity" min="0" placeholder="Enter quantity to add"
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                <small style="color: #666; font-size: 0.8rem;">Leave empty if no restock needed</small>
+              </div>
+              <div class="form-group">
+                <label for="setStockQuantity"><strong>Set Stock To:</strong></label>
+                <input type="number" id="setStockQuantity" min="0" placeholder="Set exact stock amount"
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                <small style="color: #666; font-size: 0.8rem;">This will override current stock</small>
+              </div>
+            </div>
+            
+            <div class="stock-preview" style="margin-top: 1rem; padding: 0.75rem; background: white; border-radius: 5px; border: 1px solid #ddd;">
+              <strong>New Stock Will Be: </strong><span id="newStockAmount">${product.stock}</span>
+            </div>
+          </div>
+
           <div class="form-group">
             <label for="editProductDescription"><strong>Description:</strong></label>
             <textarea id="editProductDescription" rows="3" placeholder="Product description..."
@@ -388,9 +417,36 @@ export class ProductManagementModule {
     `
 
     this.modal.open("Edit Product", content)
+    this.setupEditStockPreview(product.stock, product.min_stock)
   }
 
+  setupEditStockPreview(currentStock, minStock) {
+    const restockInput = document.getElementById("restockQuantity")
+    const setStockInput = document.getElementById("setStockQuantity")
+    const newStockSpan = document.getElementById("newStockAmount")
 
+    const updatePreview = () => {
+      const restockQty = Number.parseInt(restockInput.value) || 0
+      const setStockQty = Number.parseInt(setStockInput.value)
+
+      let newStock
+      if (setStockQty >= 0 && setStockInput.value !== "") {
+        newStock = setStockQty
+        restockInput.value = ""
+      } else if (restockQty > 0) {
+        newStock = currentStock + restockQty
+        setStockInput.value = ""
+      } else {
+        newStock = currentStock
+      }
+
+      newStockSpan.textContent = newStock
+      newStockSpan.style.color = this.getStockColor(newStock, minStock)
+    }
+
+    restockInput.addEventListener("input", updatePreview)
+    setStockInput.addEventListener("input", updatePreview)
+  }
 
   async saveProductChanges(event, productId) {
     event.preventDefault()
@@ -413,11 +469,23 @@ export class ProductManagementModule {
         description: document.getElementById("editProductDescription").value.trim(),
       }
 
-      // Keep current stock unchanged
-      formData.stock = currentProduct.stock
+      // Calculate new stock
+      const restockQty = Number.parseInt(document.getElementById("restockQuantity").value) || 0
+      const setStockQty = Number.parseInt(document.getElementById("setStockQuantity").value)
+
+      let newStock
+      if (setStockQty >= 0 && document.getElementById("setStockQuantity").value !== "") {
+        newStock = setStockQty
+      } else if (restockQty > 0) {
+        newStock = currentProduct.stock + restockQty
+      } else {
+        newStock = currentProduct.stock
+      }
+
+      formData.stock = newStock
 
       // Validate form data
-      if (!formData.name || !formData.category || formData.price < 0 || formData.min_stock < 0) {
+      if (!formData.name || !formData.category || formData.price < 0 || formData.min_stock < 0 || newStock < 0) {
         this.toast.error("Please fill in all required fields with valid values")
         return
       }
@@ -449,6 +517,13 @@ export class ProductManagementModule {
         this.toast.success("Product updated successfully!")
         this.modal.close()
         await this.loadProducts()
+
+        // Show stock change notification if stock was modified
+        if (newStock !== currentProduct.stock) {
+          const stockChange = newStock - currentProduct.stock
+          const changeText = stockChange > 0 ? `+${stockChange}` : `${stockChange}`
+          this.toast.info(`Stock updated: ${currentProduct.stock} → ${newStock} (${changeText})`)
+        }
       } else {
         this.toast.error("Error updating product: " + result.error)
       }

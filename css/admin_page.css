@@ -751,7 +751,7 @@
     flex-direction: column;
   }
 }
-
+  
 .toast {
   display: flex;
   align-items: center;
@@ -774,4 +774,3 @@
     opacity: 1;
   }
 }
-  

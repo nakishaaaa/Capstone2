@@ -1,3 +1,5 @@
+import { SSEClient } from "../core/sse-client.js"
+
 export class RequestsModule {
   constructor(toast, modal) {
     this.toast = toast
@@ -5,12 +7,15 @@ export class RequestsModule {
     this.requests = []
     this.filteredRequests = []
     this.currentFilter = 'all'
+    this.sseClient = null
+    this.lastRequestsData = null
     this.init()
   }
 
   init() {
     console.log('Initializing Requests Module...')
     this.setupEventListeners()
+    this.initializeSSE()
   }
 
   setupEventListeners() {
@@ -59,44 +64,10 @@ export class RequestsModule {
     document.getElementById('approved-requests').textContent = stats.approved || 0
     document.getElementById('rejected-requests').textContent = stats.rejected || 0
     
-    // Update dashboard pending requests
+    // Update dashboard total requests
     const totalRequestsElement = document.getElementById('total-requests')
     if (totalRequestsElement) {
       totalRequestsElement.textContent = stats.pending || 0
-    }
-  }
-
-  updatePendingCount(pendingCount) {
-    console.log("Updating pending requests count from SSE:", pendingCount)
-    
-    // Update requests section stats
-    const pendingEl = document.getElementById('pending-requests')
-    if (pendingEl) {
-      pendingEl.textContent = pendingCount
-    }
-    
-    // Update dashboard stat card
-    const totalRequestsEl = document.getElementById('total-requests')
-    if (totalRequestsEl) {
-      totalRequestsEl.textContent = pendingCount
-      
-      // Add visual indicator for new requests
-      if (pendingCount > 0) {
-        totalRequestsEl.style.color = "#007bff"
-        totalRequestsEl.style.fontWeight = "bold"
-        
-        // Add pulse animation for new requests
-        const statCard = totalRequestsEl.closest('.stat-card')
-        if (statCard) {
-          statCard.style.animation = "pulse 0.5s ease-in-out"
-          setTimeout(() => {
-            statCard.style.animation = ""
-          }, 500)
-        }
-      } else {
-        totalRequestsEl.style.color = ""
-        totalRequestsEl.style.fontWeight = ""
-      }
     }
   }
 
@@ -284,8 +255,109 @@ export class RequestsModule {
     return div.innerHTML
   }
 
+  initializeSSE() {
+    try {
+      // Initialize SSE client for real-time updates
+      this.sseClient = new SSEClient('api/realtime.php', {
+        maxReconnectAttempts: 5,
+        reconnectDelay: 2000,
+        maxReconnectDelay: 30000
+      })
+
+      // Handle stats updates for requests
+      this.sseClient.on('stats_update', (data) => {
+        this.handleRealTimeStatsUpdate(data)
+      })
+
+      // Handle activity updates (new requests)
+      this.sseClient.on('activity_update', (activity) => {
+        this.handleRealTimeActivityUpdate(activity)
+      })
+
+      // Handle connection events
+      this.sseClient.on('connection', (status) => {
+        if (status.status === 'connected') {
+          console.log('Requests: Real-time connection established')
+        } else if (status.status === 'error') {
+          console.warn('Requests: Real-time connection error, using manual refresh')
+        }
+      })
+
+    } catch (error) {
+      console.error('Requests: Failed to initialize SSE client:', error)
+    }
+  }
+
+  handleRealTimeStatsUpdate(data) {
+    try {
+      // Check if requests data has changed
+      if (this.hasRequestsDataChanged(data)) {
+        console.log('Requests: Received real-time stats update', data)
+        
+        // Update request statistics
+        if (data.requests) {
+          const stats = {
+            pending: data.requests.pending_requests || 0,
+            approved: data.requests.approved_requests || 0,
+            rejected: data.requests.rejected_requests || 0
+          }
+          this.updateStats(stats)
+          
+          // Show notification for new requests
+          if (data.requests.pending_requests > (this.lastRequestsData?.requests?.pending_requests || 0)) {
+            // Auto-refresh the requests list to show new requests
+            this.loadRequests()
+          }
+        }
+        
+        this.lastRequestsData = data
+      }
+    } catch (error) {
+      console.error('Requests: Error handling real-time stats update:', error)
+    }
+  }
+
+  handleRealTimeActivityUpdate(activity) {
+    try {
+      // Check if there are new request activities
+      const requestActivities = activity.filter(item => item.type === 'request')
+      
+      if (requestActivities.length > 0) {
+        console.log('Requests: New request activity detected', requestActivities)
+        
+        // Show notification and refresh requests list
+        this.toast.success('New customer request!')
+        
+        // Auto-refresh the requests list to show new requests
+        setTimeout(() => {
+          this.loadRequests()
+        }, 500) // Small delay to ensure database is updated
+      }
+    } catch (error) {
+      console.error('Requests: Error handling real-time activity update:', error)
+    }
+  }
+
+  hasRequestsDataChanged(newData) {
+    if (!this.lastRequestsData) return true
+    
+    // Compare requests data to detect changes
+    const oldRequests = this.lastRequestsData.requests
+    const newRequests = newData.requests
+    
+    return (
+      oldRequests?.pending_requests !== newRequests?.pending_requests ||
+      oldRequests?.total_requests !== newRequests?.total_requests
+    )
+  }
+
   destroy() {
-    // Cleanup if needed
+    // Clean up SSE connection
+    if (this.sseClient) {
+      this.sseClient.close()
+      this.sseClient = null
+    }
+    
     console.log('Requests module destroyed')
   }
 }

@@ -1,132 +1,148 @@
-// Server-Sent Events client for real-time updates
-import { CONFIG } from "./config.js"
-
+// Server-Sent Events (SSE) client for real-time updates
 export class SSEClient {
-  constructor() {
+  constructor(url, options = {}) {
+    this.url = url
     this.eventSource = null
     this.reconnectAttempts = 0
-    this.maxReconnectAttempts = 5
-    this.reconnectDelay = 1000 // Start with 1 second
+    this.maxReconnectAttempts = options.maxReconnectAttempts || 5
+    this.reconnectDelay = options.reconnectDelay || 1000
+    this.maxReconnectDelay = options.maxReconnectDelay || 30000
     this.listeners = new Map()
     this.isConnected = false
-    this.heartbeatTimeout = null
+    this.shouldReconnect = true
+    
+    this.connect()
   }
 
-  // Connect to SSE endpoint
   connect() {
-    if (this.eventSource) {
-      this.disconnect()
-    }
-
-    console.log("Establishing SSE connection...")
-    
     try {
-      this.eventSource = new EventSource(`${CONFIG.API_BASE}realtime.php`)
+      console.log('SSE: Attempting to connect to', this.url)
       
-      // Connection opened
+      this.eventSource = new EventSource(this.url, {
+        withCredentials: true
+      })
+
       this.eventSource.onopen = (event) => {
-        console.log("SSE connection established")
+        console.log('SSE: Connection opened')
         this.isConnected = true
         this.reconnectAttempts = 0
         this.reconnectDelay = 1000
-        this.emit('connected', { timestamp: Date.now() })
+        this.emit('connection', { status: 'connected' })
       }
 
-      // Handle different event types
-      this.eventSource.addEventListener('connected', (event) => {
-        const data = JSON.parse(event.data)
-        console.log("SSE server confirmed connection:", data.message)
-        this.resetHeartbeatTimeout()
-      })
-
-      this.eventSource.addEventListener('stats_update', (event) => {
-        const data = JSON.parse(event.data)
-        // Removed frequent logging - only log if there are significant changes
-        this.emit('stats_update', data)
-        this.resetHeartbeatTimeout()
-      })
-
-      this.eventSource.addEventListener('activity_update', (event) => {
-        const data = JSON.parse(event.data)
-        // Only log when there's actual new activity
-        if (data && data.length > 0) {
-          console.log("New activity received:", data.length, "items")
-        }
-        this.emit('activity_update', data)
-        this.resetHeartbeatTimeout()
-      })
-
-      this.eventSource.addEventListener('heartbeat', (event) => {
-        const data = JSON.parse(event.data)
-        // Removed frequent heartbeat logging - only reset timeout
-        this.resetHeartbeatTimeout()
-      })
-
-      // Handle connection errors
       this.eventSource.onerror = (event) => {
-        console.error("SSE connection error:", event)
+        console.error('SSE: Connection error', event)
         this.isConnected = false
-        this.emit('disconnected', { reason: 'error' })
+        this.emit('connection', { status: 'error', event })
         
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.scheduleReconnect()
-        } else {
-          console.error("Max reconnection attempts reached")
-          this.emit('connection_failed', { attempts: this.reconnectAttempts })
         }
       }
+
+      this.eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          this.emit('message', data)
+        } catch (error) {
+          console.error('SSE: Error parsing message data', error)
+        }
+      }
+
+      // Handle custom events
+      this.setupEventHandlers()
 
     } catch (error) {
-      console.error("Failed to create SSE connection:", error)
-      this.scheduleReconnect()
+      console.error('SSE: Failed to create EventSource', error)
+      if (this.shouldReconnect) {
+        this.scheduleReconnect()
+      }
     }
   }
 
-  // Disconnect from SSE
-  disconnect() {
-    if (this.eventSource) {
-      this.eventSource.close()
-      this.eventSource = null
-    }
-    
-    if (this.heartbeatTimeout) {
-      clearTimeout(this.heartbeatTimeout)
-      this.heartbeatTimeout = null
-    }
-    
-    this.isConnected = false
-    console.log("SSE connection closed")
+  setupEventHandlers() {
+    // Stats update event
+    this.eventSource.addEventListener('stats_update', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        this.emit('stats_update', data)
+      } catch (error) {
+        console.error('SSE: Error parsing stats_update data', error)
+      }
+    })
+
+    // Activity update event
+    this.eventSource.addEventListener('activity_update', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        this.emit('activity_update', data)
+      } catch (error) {
+        console.error('SSE: Error parsing activity_update data', error)
+      }
+    })
+
+    // Connection events
+    this.eventSource.addEventListener('connected', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.log('SSE: Server confirmed connection', data)
+        this.emit('connected', data)
+      } catch (error) {
+        console.error('SSE: Error parsing connected data', error)
+      }
+    })
+
+    // Heartbeat event
+    this.eventSource.addEventListener('heartbeat', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        this.emit('heartbeat', data)
+      } catch (error) {
+        console.error('SSE: Error parsing heartbeat data', error)
+      }
+    })
+
+    // Timeout event
+    this.eventSource.addEventListener('timeout', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.warn('SSE: Connection timeout', data)
+        this.emit('timeout', data)
+        this.close()
+      } catch (error) {
+        console.error('SSE: Error parsing timeout data', error)
+      }
+    })
+
+    // Memory warning event
+    this.eventSource.addEventListener('memory_warning', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.warn('SSE: Memory warning', data)
+        this.emit('memory_warning', data)
+      } catch (error) {
+        console.error('SSE: Error parsing memory_warning data', error)
+      }
+    })
   }
 
-  // Schedule reconnection with exponential backoff
   scheduleReconnect() {
+    if (!this.shouldReconnect) return
+
     this.reconnectAttempts++
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000)
-    
-    console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
-    
+    console.log(`SSE: Scheduling reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${this.reconnectDelay}ms`)
+
     setTimeout(() => {
-      if (this.reconnectAttempts <= this.maxReconnectAttempts) {
+      if (this.shouldReconnect) {
+        this.close()
         this.connect()
       }
-    }, delay)
+    }, this.reconnectDelay)
+
+    // Exponential backoff with maximum delay
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
   }
 
-  // Reset heartbeat timeout (connection health check)
-  resetHeartbeatTimeout() {
-    if (this.heartbeatTimeout) {
-      clearTimeout(this.heartbeatTimeout)
-    }
-    
-    // If no heartbeat received in 60 seconds, consider connection dead
-    this.heartbeatTimeout = setTimeout(() => {
-      console.warn("SSE heartbeat timeout - connection may be dead")
-      this.disconnect()
-      this.scheduleReconnect()
-    }, 60000)
-  }
-
-  // Event listener management
   on(event, callback) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, [])
@@ -144,32 +160,34 @@ export class SSEClient {
     }
   }
 
-  // Emit events to listeners
   emit(event, data) {
     if (this.listeners.has(event)) {
       this.listeners.get(event).forEach(callback => {
         try {
           callback(data)
         } catch (error) {
-          console.error(`Error in SSE event listener for ${event}:`, error)
+          console.error(`SSE: Error in event handler for ${event}:`, error)
         }
       })
     }
   }
 
-  // Get connection status
-  getStatus() {
-    return {
-      connected: this.isConnected,
-      reconnectAttempts: this.reconnectAttempts,
-      readyState: this.eventSource ? this.eventSource.readyState : EventSource.CLOSED
+  close() {
+    this.shouldReconnect = false
+    if (this.eventSource) {
+      console.log('SSE: Closing connection')
+      this.eventSource.close()
+      this.eventSource = null
     }
+    this.isConnected = false
+    this.emit('connection', { status: 'closed' })
   }
 
-  // Force reconnection
-  reconnect() {
-    this.disconnect()
-    this.reconnectAttempts = 0
-    this.connect()
+  getConnectionStatus() {
+    return {
+      isConnected: this.isConnected,
+      reconnectAttempts: this.reconnectAttempts,
+      readyState: this.eventSource ? this.eventSource.readyState : null
+    }
   }
 }

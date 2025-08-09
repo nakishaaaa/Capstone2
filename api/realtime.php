@@ -1,30 +1,28 @@
 <?php
-require_once '../config/database.php';
+// Disable error output to prevent breaking SSE stream
+ini_set('display_errors', 0);
+error_reporting(0);
 
-// Set secure CORS headers based on environment
-$allowedOrigins = Environment::get('CORS_ALLOWED_ORIGINS', 'http://localhost,http://127.0.0.1');
-$allowedOriginsArray = explode(',', $allowedOrigins);
-
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowedOriginsArray)) {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    // Fallback for development
-    if (!Environment::isProduction()) {
-        header('Access-Control-Allow-Origin: http://localhost');
-    }
-}
-
+// Set SSE headers BEFORE including any files that might output content
 header('Content-Type: text/event-stream');
 header('Cache-Control: no-cache');
 header('Connection: keep-alive');
+header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Cache-Control');
 header('Access-Control-Allow-Credentials: true');
+
+// Flush headers immediately
+if (ob_get_level()) ob_flush();
+flush();
+
+require_once '../config/database.php';
+
+// Headers already set above before including database config
 
 // Prevent script timeout but set reasonable limits
 set_time_limit(0);
 ini_set('max_execution_time', 0);
-ini_set('memory_limit', '128M'); // Increased from 64M for better performance
+ini_set('memory_limit', '128M');
 
 // Add garbage collection optimization for long-running processes
 if (function_exists('gc_enable')) {
@@ -32,8 +30,8 @@ if (function_exists('gc_enable')) {
 }
 
 // Connection management
-$maxConnections = Environment::get('SSE_MAX_CONNECTIONS', 50);
-$connectionTimeout = Environment::get('SSE_CONNECTION_TIMEOUT', 300); // 5 minutes
+$maxConnections = 50;
+$connectionTimeout = 300; // 5 minutes
 $startTime = time();
 
 // Function to send SSE data with error handling
@@ -57,6 +55,22 @@ function sendSSEData($event, $data) {
         error_log("SSE Send Error: " . $e->getMessage());
         return false;
     }
+}
+
+// Test database connection before starting SSE
+try {
+    if (!isset($pdo)) {
+        throw new Exception("Database connection not available");
+    }
+    // Test query
+    $pdo->query("SELECT 1");
+} catch (Exception $e) {
+    // Send error and exit
+    echo "event: error\n";
+    echo "data: " . json_encode(['message' => 'Database connection failed']) . "\n\n";
+    if (ob_get_level()) ob_flush();
+    flush();
+    exit;
 }
 
 // Function to check connection limits
@@ -113,8 +127,13 @@ function getCurrentStats() {
             FROM sales WHERE DATE(created_at) = CURDATE()");
         $salesStats = $salesStmt->fetch(PDO::FETCH_ASSOC);
         
-        // Get pending requests count
-        $requestsStmt = $pdo->query("SELECT COUNT(*) as pending_requests FROM user_requests WHERE status = 'pending'");
+        // Get comprehensive requests stats
+        $requestsStmt = $pdo->query("SELECT 
+            COUNT(*) as total_requests,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_requests,
+            SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_requests,
+            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_requests
+            FROM user_requests");
         $requestsStats = $requestsStmt->fetch(PDO::FETCH_ASSOC);
         
         // Get unread notifications count

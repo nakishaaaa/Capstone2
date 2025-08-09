@@ -27,6 +27,7 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/admin_page.css">
     
+    
 </head>
 <body>
     <div class="admin-container">
@@ -53,9 +54,6 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                 </a></li>
                 <li><a href="#requests" class="nav-link" data-section="requests">
                     <i class="fas fa-inbox"></i> Requests
-                </a></li>
-                <li><a href="#customersupport" class="nav-link" data-section="customersupport">
-                    <i class="fas fa-headset"></i> Customer Support
                 </a></li>
                 <li><a href="index.php" class="nav-link logout">
                     <i class="fas fa-sign-out-alt"></i> Logout
@@ -97,7 +95,7 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                         </div>
                         <div class="stat-info">
                             <h3 id="total-requests">0</h3>
-                            <p>Pending Requests</p>
+                            <p>Requests</p>
                         </div>
                     </div>
                     <div class="stat-card">

@@ -63,13 +63,18 @@ function getSalesStats() {
         $stmt = $pdo->query("SELECT COUNT(*) as low_stock FROM inventory WHERE stock <= min_stock AND status = 'active'");
         $stockStats = $stmt->fetch();
         
+        // Pending requests count
+        $stmt = $pdo->query("SELECT COUNT(*) as pending_requests FROM user_requests WHERE status = 'pending'");
+        $requestStats = $stmt->fetch();
+        
         echo json_encode([
             'success' => true,
             'data' => [
                 'total_sales' => floatval($todayStats['total_sales']),
                 'total_orders' => intval($todayStats['total_orders']),
                 'total_products' => intval($productStats['total_products']),
-                'low_stock' => intval($stockStats['low_stock'])
+                'low_stock' => intval($stockStats['low_stock']),
+                'pending_requests' => intval($requestStats['pending_requests'])
             ]
         ]);
     } catch(PDOException $e) {

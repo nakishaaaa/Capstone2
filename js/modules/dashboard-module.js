@@ -3,13 +3,16 @@
 import { ApiClient } from "../core/api-client.js"
 import { Utils } from "../utils/helpers.js"
 import { CONFIG } from "../core/config.js"
+import { SSEClient } from "../core/sse-client.js"
 
 export class DashboardModule {
   constructor(toastManager) {
     this.api = new ApiClient()
     this.toast = toastManager
     this.charts = {}
-    this.lastSSEData = null // Track last data to detect actual changes
+    this.sseClient = null
+    this.lastStatsData = null
+    this.initializeSSE()
   }
 
   async loadStats() {
@@ -30,6 +33,7 @@ export class DashboardModule {
         total_orders: 0,
         total_products: 0,
         low_stock: 0,
+        pending_requests: 0,
       })
     }
   }
@@ -40,7 +44,7 @@ export class DashboardModule {
       "total-orders": data.total_orders,
       "total-products": data.total_products,
       "low-stock": data.low_stock,
-      // Note: total-requests is managed by RequestsModule, not DashboardModule
+      "total-requests": data.pending_requests || 0,
     }
 
     Object.entries(elements).forEach(([id, value]) => {
@@ -48,171 +52,6 @@ export class DashboardModule {
       if (element) {
         element.textContent = value
       }
-    })
-  }
-
-  // Real-time SSE update handler
-  updateStatsFromSSE(sseData) {
-    console.log("Updating dashboard stats from SSE:", sseData)
-    
-    // Check if data actually changed
-    const dataChanged = this.hasDataChanged(sseData)
-    
-    // Update inventory stats
-    if (sseData.inventory) {
-      const totalProductsEl = document.getElementById("total-products")
-      const lowStockEl = document.getElementById("low-stock")
-      
-      if (totalProductsEl) {
-        totalProductsEl.textContent = sseData.inventory.total_products
-      }
-      if (lowStockEl) {
-        lowStockEl.textContent = sseData.inventory.low_stock_count
-        
-        // Add visual indicator for low stock
-        if (sseData.inventory.low_stock_count > 0) {
-          lowStockEl.style.color = "#ffc107"
-          lowStockEl.style.fontWeight = "bold"
-        } else {
-          lowStockEl.style.color = ""
-          lowStockEl.style.fontWeight = ""
-        }
-      }
-    }
-    
-    // Update sales stats
-    if (sseData.sales) {
-      const totalSalesEl = document.getElementById("total-sales")
-      const totalOrdersEl = document.getElementById("total-orders")
-      
-      if (totalSalesEl) {
-        totalSalesEl.textContent = Utils.formatCurrency(sseData.sales.total_revenue)
-      }
-      if (totalOrdersEl) {
-        totalOrdersEl.textContent = sseData.sales.total_sales
-      }
-    }
-    
-    // Only animate if data actually changed
-    if (dataChanged) {
-      this.addUpdateAnimation()
-    }
-    
-    // Store current data for next comparison
-    this.lastSSEData = JSON.parse(JSON.stringify(sseData))
-  }
-
-  // Check if SSE data has actually changed
-  hasDataChanged(newData) {
-    if (!this.lastSSEData) {
-      return true // First time, consider it changed
-    }
-    
-    // Compare key stats that matter for visual updates
-    const oldStats = this.lastSSEData
-    const newStats = newData
-    
-    // Check inventory changes
-    if (oldStats.inventory && newStats.inventory) {
-      if (oldStats.inventory.total_products !== newStats.inventory.total_products ||
-          oldStats.inventory.low_stock_count !== newStats.inventory.low_stock_count) {
-        return true
-      }
-    }
-    
-    // Check sales changes
-    if (oldStats.sales && newStats.sales) {
-      if (oldStats.sales.total_revenue !== newStats.sales.total_revenue ||
-          oldStats.sales.total_sales !== newStats.sales.total_sales) {
-        return true
-      }
-    }
-    
-    // Check requests changes
-    if (oldStats.requests && newStats.requests) {
-      if (oldStats.requests.pending_requests !== newStats.requests.pending_requests) {
-        return true
-      }
-    }
-    
-    // Check notifications changes
-    if (oldStats.notifications && newStats.notifications) {
-      if (oldStats.notifications.unread_notifications !== newStats.notifications.unread_notifications) {
-        return true
-      }
-    }
-    
-    return false // No significant changes detected
-  }
-
-  // Update activity feed with real-time data
-  updateActivityFeed(activities) {
-    const activityFeed = document.getElementById("recent-activity")
-    if (!activityFeed) return
-    
-    activityFeed.innerHTML = ""
-    
-    activities.slice(0, 5).forEach(activity => {
-      const activityItem = document.createElement("div")
-      activityItem.className = "activity-item"
-      activityItem.style.cssText = `
-        padding: 8px 12px;
-        border-left: 3px solid #007bff;
-        margin-bottom: 8px;
-        background: #f8f9fa;
-        border-radius: 4px;
-        font-size: 14px;
-      `
-      
-      const timeAgo = this.getTimeAgo(activity.created_at)
-      
-      if (activity.type === 'sale') {
-        activityItem.innerHTML = `
-          <strong>Sale #${activity.id}</strong> - ${Utils.formatCurrency(activity.amount)}
-          <div style="color: #666; font-size: 12px;">${timeAgo}</div>
-        `
-      } else if (activity.type === 'request') {
-        activityItem.innerHTML = `
-          <strong>New Request #${activity.id}</strong>
-          <div style="color: #666; font-size: 12px;">${timeAgo}</div>
-        `
-      }
-      
-      activityFeed.appendChild(activityItem)
-    })
-  }
-
-  // Helper method to calculate time ago
-  getTimeAgo(timestamp) {
-    const now = new Date()
-    const past = new Date(timestamp)
-    const diffMs = now - past
-    const diffMins = Math.floor(diffMs / 60000)
-    
-    if (diffMins < 1) return "Just now"
-    if (diffMins < 60) return `${diffMins} min ago`
-    
-    const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return `${diffHours}h ago`
-    
-    const diffDays = Math.floor(diffHours / 24)
-    return `${diffDays}d ago`
-  }
-
-  // Add visual animation for real-time updates (only when data changes)
-  addUpdateAnimation() {
-    const statsCards = document.querySelectorAll('.stat-card')
-    statsCards.forEach(card => {
-      // Remove any existing animation first
-      card.style.animation = ""
-      
-      // Add a subtle scale animation
-      card.style.transition = "transform 0.3s ease"
-      card.style.transform = "scale(1.05)"
-      
-      setTimeout(() => {
-        card.style.transform = "scale(1)"
-      }, 300)
     })
   }
 
@@ -303,7 +142,92 @@ export class DashboardModule {
     }
   }
 
+  initializeSSE() {
+    try {
+      // Initialize SSE client for real-time updates
+      this.sseClient = new SSEClient('api/realtime.php', {
+        maxReconnectAttempts: 5,
+        reconnectDelay: 2000,
+        maxReconnectDelay: 30000
+      })
+
+      // Handle stats updates
+      this.sseClient.on('stats_update', (data) => {
+        this.handleRealTimeStatsUpdate(data)
+      })
+
+      // Handle connection events
+      this.sseClient.on('connection', (status) => {
+        if (status.status === 'connected') {
+          console.log('Dashboard: Real-time connection established')
+        } else if (status.status === 'error') {
+          console.warn('Dashboard: Real-time connection error, falling back to periodic updates')
+        }
+      })
+
+      // Handle heartbeat to ensure connection is alive
+      this.sseClient.on('heartbeat', (data) => {
+        console.log('Dashboard: Heartbeat received', new Date(data.timestamp * 1000))
+      })
+
+    } catch (error) {
+      console.error('Dashboard: Failed to initialize SSE client:', error)
+      this.toast.warning('Real-time updates unavailable, using periodic updates')
+    }
+  }
+
+  handleRealTimeStatsUpdate(data) {
+    try {
+      // Check if data has actually changed to prevent unnecessary animations
+      if (this.hasDataChanged(data)) {
+        console.log('Dashboard: Received real-time stats update', data)
+        
+        // Update dashboard stats with real-time data
+        const statsData = {
+          total_sales: data.sales?.total_revenue || 0,
+          total_orders: data.sales?.total_sales || 0,
+          total_products: data.inventory?.total_products || 0,
+          low_stock: data.inventory?.low_stock_count || 0,
+          pending_requests: data.requests?.pending_requests || 0
+        }
+        
+        this.updateStatsDisplay(statsData)
+        this.lastStatsData = data
+        
+        // Show subtle notification for new requests
+        if (data.requests?.pending_requests > (this.lastStatsData?.requests?.pending_requests || 0)) {
+          this.toast.info('New customer request received!')
+        }
+      }
+    } catch (error) {
+      console.error('Dashboard: Error handling real-time stats update:', error)
+    }
+  }
+
+  hasDataChanged(newData) {
+    if (!this.lastStatsData) return true
+    
+    // Compare key stats to detect changes
+    const oldStats = this.lastStatsData
+    const newStats = newData
+    
+    return (
+      oldStats.sales?.total_revenue !== newStats.sales?.total_revenue ||
+      oldStats.sales?.total_sales !== newStats.sales?.total_sales ||
+      oldStats.inventory?.total_products !== newStats.inventory?.total_products ||
+      oldStats.inventory?.low_stock_count !== newStats.inventory?.low_stock_count ||
+      oldStats.requests?.pending_requests !== newStats.requests?.pending_requests ||
+      oldStats.notifications?.unread_notifications !== newStats.notifications?.unread_notifications
+    )
+  }
+
   destroy() {
+    // Clean up SSE connection
+    if (this.sseClient) {
+      this.sseClient.close()
+      this.sseClient = null
+    }
+    
     // Clean up charts
     Object.values(this.charts).forEach((chart) => {
       if (chart && typeof chart.destroy === "function") {
