@@ -2,7 +2,7 @@
 export const CONFIG = {
     API_BASE: "api/",
     CURRENCY: "₱",
-    TAX_RATE: 0.12,
+    TAX_RATE: 0.00,
     LOCALE: "en-PH",
     TOAST_DURATION: 5000,
     CHART_COLORS: {

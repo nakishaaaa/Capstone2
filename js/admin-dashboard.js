@@ -175,9 +175,113 @@ class AdminDashboard {
 }
 
 // Initialize dashboard when DOM is loaded
-document.addEventListener("DOMContentLoaded", () => {
-  window.adminDashboard = new AdminDashboard()
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Admin Dashboard: Initializing...')
+  
+  try {
+    initializeDashboard()
+    initializeMobileMenu()
+    console.log('Admin Dashboard: Initialization complete')
+  } catch (error) {
+    console.error('Admin Dashboard: Initialization failed:', error)
+  }
 })
+
+function initializeDashboard() {
+  window.adminDashboard = new AdminDashboard()
+}
+
+// Mobile menu functionality
+function initializeMobileMenu() {
+  // Create mobile menu toggle functionality
+  const mainContent = document.querySelector('.main-content')
+  const sidebar = document.querySelector('.sidebar')
+  
+  if (mainContent && sidebar) {
+    // Add click event to mobile header
+    mainContent.addEventListener('click', function(e) {
+      // Only trigger on mobile screens and when clicking the header area
+      if (window.innerWidth <= 768 && e.target === mainContent && e.clientY <= 60) {
+        sidebar.classList.toggle('active')
+        
+        // Add overlay when sidebar is open
+        toggleMobileOverlay()
+      }
+    })
+    
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(e) {
+      if (window.innerWidth <= 768 && 
+          sidebar.classList.contains('active') && 
+          !sidebar.contains(e.target) && 
+          !mainContent.contains(e.target)) {
+        sidebar.classList.remove('active')
+        removeMobileOverlay()
+      }
+    })
+    
+    // Close sidebar when clicking nav links on mobile
+    const navLinks = sidebar.querySelectorAll('.nav-link')
+    navLinks.forEach(link => {
+      link.addEventListener('click', function() {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('active')
+          removeMobileOverlay()
+        }
+      })
+    })
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 768) {
+        sidebar.classList.remove('active')
+        removeMobileOverlay()
+      }
+    })
+  }
+}
+
+function toggleMobileOverlay() {
+  let overlay = document.querySelector('.mobile-overlay')
+  
+  if (!overlay) {
+    overlay = document.createElement('div')
+    overlay.className = 'mobile-overlay'
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `
+    document.body.appendChild(overlay)
+    
+    // Trigger animation
+    setTimeout(() => {
+      overlay.style.opacity = '1'
+    }, 10)
+    
+    // Close sidebar when clicking overlay
+    overlay.addEventListener('click', function() {
+      document.querySelector('.sidebar').classList.remove('active')
+      removeMobileOverlay()
+    })
+  }
+}
+
+function removeMobileOverlay() {
+  const overlay = document.querySelector('.mobile-overlay')
+  if (overlay) {
+    overlay.style.opacity = '0'
+    setTimeout(() => {
+      overlay.remove()
+    }, 300)
+  }
+}
 
 // Export for module usage
 export default AdminDashboard

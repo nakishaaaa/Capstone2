@@ -55,6 +55,9 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                 <li><a href="#requests" class="nav-link" data-section="requests">
                     <i class="fas fa-inbox"></i> Requests
                 </a></li>
+                <li><a href="#customersupport" class="nav-link" data-section="customersupport">
+                    <i class="fas fa-headset"></i> Customer Support
+                </a></li>
                 <li><a href="index.php" class="nav-link logout">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a></li>
@@ -118,14 +121,27 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                     </div>
                 </div>
 
-                <div class="dashboard-charts">
-                    <div class="chart-container">
-                        <h3>Sales Overview</h3>
-                        <canvas id="salesOverviewChart"></canvas>
+                <div class="charts-container">
+                    <!-- Period Selector -->
+                    <div class="chart-period-selector" id="chart-period-selector">
+                        <div class="period-buttons">
+                            <button class="period-btn active" data-period="daily">Daily</button>
+                            <button class="period-btn" data-period="weekly">Weekly</button>
+                            <button class="period-btn" data-period="monthly">Monthly</button>
+                            <button class="period-btn" data-period="annually">Annually</button>
+                        </div>
                     </div>
-                    <div class="chart-container">
-                        <h3>Top Products</h3>
-                        <canvas id="topProductsChart"></canvas>
+                    
+                    <!-- Dashboard Charts -->
+                    <div class="dashboard-charts">
+                        <div class="chart-container">
+                            <h3>Sales Overview</h3>
+                            <canvas id="salesOverviewChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Top Products</h3>
+                            <canvas id="topProductsChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -203,8 +219,7 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                                     <span id="cartSubtotal">₱0.00</span>
                                 </div>
                                 <div class="summary-row">
-                                    <span>Tax (12%):</span>
-                                    <span id="cartTax">₱0.00</span>
+
                                 </div>
                                 <div class="summary-row total">
                                     <span>Total:</span>

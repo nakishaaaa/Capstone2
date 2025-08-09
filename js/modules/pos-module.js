@@ -349,8 +349,7 @@ export class POSModule {
             <span>${Utils.formatCurrency(transactionData.total_amount - transactionData.tax_amount)}</span>
           </div>
           <div class="item">
-            <span>Tax (12%):</span>
-            <span>${Utils.formatCurrency(transactionData.tax_amount)}</span>
+
           </div>
           <div class="item">
             <strong>Total: ${Utils.formatCurrency(transactionData.total_amount)}</strong>

@@ -774,3 +774,338 @@
     opacity: 1;
   }
 }
+
+/* Chart Period Selector Styles - Minimal Design */
+.chart-period-selector {
+  margin-bottom: 1.5rem;
+  padding: 0;
+  background: transparent;
+}
+
+.period-buttons {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.period-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e9ecef;
+  background: white;
+  color: #666;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 400;
+  transition: all 0.2s ease;
+  min-width: auto;
+}
+
+.period-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.period-btn.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.period-btn.active:hover {
+  background: #5a67d8;
+  border-color: #5a67d8;
+}
+
+/* Chart container enhancements for better responsiveness */
+.chart-container {
+  position: relative;
+  height: 400px;
+}
+
+.chart-container canvas {
+  max-height: 350px;
+}
+
+/* Mobile-First Responsive Design for Admin */
+@media (max-width: 768px) {
+  /* Sidebar becomes mobile menu */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    width: 280px;
+    z-index: 1001;
+  }
+  
+  .sidebar.active {
+    transform: translateX(0);
+  }
+  
+  /* Mobile header */
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+  
+  .main-content::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #667eea;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+  }
+  
+  .main-content::after {
+    content: '☰ Admin Dashboard';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #667eea;
+    color: white;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  
+  .content-section {
+    margin-top: 80px;
+  }
+  
+  /* Stats grid mobile optimization */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    margin-right: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
+  }
+  
+  .stat-info h3 {
+    font-size: 1.5rem;
+  }
+  
+  .stat-info p {
+    font-size: 0.8rem;
+  }
+  
+  /* Charts mobile optimization */
+  .dashboard-charts {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .chart-container {
+    height: 300px;
+    padding: 1rem;
+  }
+  
+  .chart-container h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .chart-container canvas {
+    max-height: 250px;
+  }
+  
+  /* Period selector mobile */
+  .period-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  
+  .period-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+    min-width: auto;
+  }
+  
+  /* Tables mobile optimization */
+  .inventory-table-container,
+  .requests-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .inventory-table,
+  .requests-table {
+    min-width: 600px;
+    font-size: 0.85rem;
+  }
+  
+  .inventory-table th,
+  .inventory-table td,
+  .requests-table th,
+  .requests-table td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  /* Section headers */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .section-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  /* Buttons and forms */
+  .btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  /* POS mobile optimization */
+  .pos-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .pos-right {
+    order: -1;
+  }
+  
+  /* Requests filters */
+  .requests-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .requests-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .stat-card.small {
+    padding: 0.75rem;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .stat-card.small .stat-icon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 0.75rem;
+  }
+  
+  .content-section {
+    margin-top: 70px;
+  }
+  
+  /* Single column stats on very small screens */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .stat-card {
+    padding: 0.75rem;
+  }
+  
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+  
+  .stat-info h3 {
+    font-size: 1.3rem;
+  }
+  
+  /* Period buttons stack vertically on very small screens */
+  .period-buttons {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .period-btn {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+  
+  .chart-container {
+    height: 250px;
+    padding: 0.75rem;
+  }
+  
+  .chart-container canvas {
+    max-height: 200px;
+  }
+  
+  .section-header h1 {
+    font-size: 1.3rem;
+  }
+  
+  /* Requests stats single column */
+  .requests-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Action buttons stack */
+  .request-actions {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .btn-approve,
+  .btn-reject,
+  .btn-view {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Landscape orientation for tablets */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .sidebar {
+    width: 200px;
+  }
+  
+  .main-content {
+    margin-left: 200px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .dashboard-charts {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

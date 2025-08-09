@@ -12,6 +12,8 @@ export class DashboardModule {
     this.charts = {}
     this.sseClient = null
     this.lastStatsData = null
+    this.currentPeriod = 'daily'
+    this.lastChartData = null
     this.initializeSSE()
   }
 
@@ -56,73 +58,227 @@ export class DashboardModule {
   }
 
   initializeCharts() {
-    this.initSalesChart()
-    this.initTopProductsChart()
+    this.setupPeriodControls()
+    this.loadChartData(this.currentPeriod)
   }
 
-  initSalesChart() {
+  setupPeriodControls() {
+    // Add event listeners to existing period selector buttons
+    const periodSelector = document.getElementById('chart-period-selector')
+    if (periodSelector) {
+      // Add event listeners
+      periodSelector.addEventListener('click', (e) => {
+        if (e.target.classList.contains('period-btn')) {
+          const period = e.target.dataset.period
+          this.changePeriod(period)
+        }
+      })
+    }
+  }
+
+  changePeriod(period) {
+    if (period === this.currentPeriod) return
+    
+    // Update active button
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.period === period)
+    })
+    
+    this.currentPeriod = period
+    this.loadChartData(period)
+  }
+
+  async loadChartData(period = 'daily') {
+    try {
+      console.log(`Loading chart data for period: ${period}`)
+      
+      const response = await fetch(`api/sales.php?chart=1&period=${period}`, {
+        method: 'GET',
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        this.updateCharts(result.data)
+        this.lastChartData = result.data
+        console.log('Chart data loaded successfully:', result.data)
+      } else {
+        throw new Error(result.error || 'Failed to load chart data')
+      }
+    } catch (error) {
+      console.error('Error loading chart data:', error)
+      this.toast.error('Failed to load chart data: ' + error.message)
+      // Use fallback data
+      this.updateCharts(this.getFallbackChartData(period))
+    }
+  }
+
+  updateCharts(data) {
+    this.initSalesChart(data.sales_chart)
+    this.initTopProductsChart(data.products_chart)
+  }
+
+  initSalesChart(chartData) {
     const ctx = document.getElementById("salesOverviewChart")
-    if (ctx && typeof Chart !== "undefined") {
-      this.charts.sales = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-          datasets: [
-            {
-              label: "Sales (₱)",
-              data: [1200, 1900, 3000, 5000, 2000, 3000, 4500],
-              borderColor: CONFIG.CHART_COLORS.primary,
-              backgroundColor: `${CONFIG.CHART_COLORS.primary}1A`,
-              tension: 0.4,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: (value) => Utils.formatCurrency(value),
-              },
-            },
-          },
-        },
-      })
+    if (!ctx || typeof Chart === "undefined") return
+    
+    // Destroy existing chart
+    if (this.charts.sales) {
+      this.charts.sales.destroy()
     }
+    
+    this.charts.sales = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: chartData?.labels || [],
+        datasets: [
+          {
+            label: "Sales (₱)",
+            data: chartData?.data || [],
+            borderColor: CONFIG.CHART_COLORS.primary,
+            backgroundColor: `${CONFIG.CHART_COLORS.primary}1A`,
+            tension: 0.4,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => `Sales: ${Utils.formatCurrency(context.parsed.y)}`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (value) => Utils.formatCurrency(value),
+            },
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        },
+        animation: {
+          duration: 750,
+          easing: 'easeInOutQuart'
+        }
+      },
+    })
   }
 
-  initTopProductsChart() {
+  initTopProductsChart(chartData) {
     const ctx = document.getElementById("topProductsChart")
-    if (ctx && typeof Chart !== "undefined") {
-      this.charts.topProducts = new Chart(ctx, {
-        type: "doughnut",
-        data: {
-          labels: ["T-Shirts", "Mugs", "Stickers", "Banners", "Others"],
-          datasets: [
-            {
-              data: [30, 25, 20, 15, 10],
-              backgroundColor: [
-                CONFIG.CHART_COLORS.primary,
-                CONFIG.CHART_COLORS.secondary,
-                "#f093fb",
-                "#f5576c",
-                "#4facfe",
-              ],
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: "bottom" },
-          },
-        },
-      })
+    if (!ctx || typeof Chart === "undefined") return
+    
+    // Destroy existing chart
+    if (this.charts.topProducts) {
+      this.charts.topProducts.destroy()
     }
+    
+    this.charts.topProducts = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: chartData?.labels || ["No Data"],
+        datasets: [
+          {
+            data: chartData?.data || [0],
+            backgroundColor: [
+              CONFIG.CHART_COLORS.primary,
+              CONFIG.CHART_COLORS.secondary,
+              "#f093fb",
+              "#f5576c",
+              "#4facfe",
+            ],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { 
+            position: "bottom",
+            labels: {
+              padding: 20,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const label = context.label || ''
+                const value = context.parsed || 0
+                return `${label}: ${value} sold`
+              }
+            }
+          }
+        },
+        animation: {
+          duration: 750,
+          easing: 'easeInOutQuart'
+        }
+      },
+    })
+  }
+
+  getFallbackChartData(period) {
+    const fallbackData = {
+      daily: {
+        sales_chart: {
+          labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+          data: [0, 0, 0, 0, 0, 0, 0]
+        },
+        products_chart: {
+          labels: ["No Sales Data"],
+          data: [0]
+        }
+      },
+      weekly: {
+        sales_chart: {
+          labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
+          data: [0, 0, 0, 0]
+        },
+        products_chart: {
+          labels: ["No Sales Data"],
+          data: [0]
+        }
+      },
+      monthly: {
+        sales_chart: {
+          labels: ["6 months ago", "5 months ago", "4 months ago", "3 months ago", "2 months ago", "Last month"],
+          data: [0, 0, 0, 0, 0, 0]
+        },
+        products_chart: {
+          labels: ["No Sales Data"],
+          data: [0]
+        }
+      },
+      annually: {
+        sales_chart: {
+          labels: ["2 years ago", "Last year", "This year"],
+          data: [0, 0, 0]
+        },
+        products_chart: {
+          labels: ["No Sales Data"],
+          data: [0]
+        }
+      }
+    }
+    
+    return fallbackData[period] || fallbackData.daily
   }
 
   updateDateTime() {
@@ -192,11 +348,26 @@ export class DashboardModule {
         }
         
         this.updateStatsDisplay(statsData)
+        
+        // Check if sales data changed - if so, refresh charts
+        const salesChanged = this.lastStatsData?.sales?.total_revenue !== data.sales?.total_revenue ||
+                            this.lastStatsData?.sales?.total_sales !== data.sales?.total_sales
+        
+        if (salesChanged) {
+          console.log('Dashboard: Sales data changed, refreshing charts...')
+          this.loadChartData(this.currentPeriod)
+        }
+        
         this.lastStatsData = data
         
         // Show subtle notification for new requests
         if (data.requests?.pending_requests > (this.lastStatsData?.requests?.pending_requests || 0)) {
           this.toast.info('New customer request received!')
+        }
+        
+        // Show notification for new sales
+        if (salesChanged && data.sales?.total_revenue > 0) {
+          this.toast.success('New sale recorded! Charts updated.')
         }
       }
     } catch (error) {

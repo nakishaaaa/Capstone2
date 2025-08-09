@@ -23,6 +23,8 @@ try {
         case 'GET':
             if (isset($_GET['stats'])) {
                 getSalesStats();
+            } elseif (isset($_GET['chart'])) {
+                getChartData($_GET['period'] ?? 'daily');
             } elseif (isset($_GET['report'])) {
                 getSalesReport($_GET['start_date'] ?? null, $_GET['end_date'] ?? null);
             } else {
@@ -79,6 +81,200 @@ function getSalesStats() {
         ]);
     } catch(PDOException $e) {
         error_log("Database error in getSalesStats: " . $e->getMessage());
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+}
+
+function getChartData($period = 'daily') {
+    global $pdo;
+    try {
+        $salesData = [];
+        $labels = [];
+        
+        switch($period) {
+            case 'daily':
+                // Last 7 days
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        DATE(created_at) as date,
+                        COALESCE(SUM(total_amount), 0) as total_sales,
+                        COUNT(*) as total_orders
+                    FROM sales 
+                    WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                    GROUP BY DATE(created_at)
+                    ORDER BY date ASC
+                ");
+                $stmt->execute();
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Fill in missing days with 0
+                for ($i = 6; $i >= 0; $i--) {
+                    $date = date('Y-m-d', strtotime("-$i days"));
+                    $dayName = date('D', strtotime("-$i days"));
+                    $labels[] = $dayName;
+                    
+                    $found = false;
+                    foreach ($results as $result) {
+                        if ($result['date'] === $date) {
+                            $salesData[] = floatval($result['total_sales']);
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) {
+                        $salesData[] = 0;
+                    }
+                }
+                break;
+                
+            case 'weekly':
+                // Last 4 weeks
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        YEARWEEK(created_at, 1) as week,
+                        COALESCE(SUM(total_amount), 0) as total_sales,
+                        COUNT(*) as total_orders
+                    FROM sales 
+                    WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 4 WEEK)
+                    GROUP BY YEARWEEK(created_at, 1)
+                    ORDER BY week ASC
+                ");
+                $stmt->execute();
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                for ($i = 3; $i >= 0; $i--) {
+                    $weekStart = date('Y-m-d', strtotime("-$i weeks"));
+                    $weekNum = date('W', strtotime("-$i weeks"));
+                    $labels[] = "Week $weekNum";
+                    
+                    $yearWeek = date('oW', strtotime("-$i weeks"));
+                    $found = false;
+                    foreach ($results as $result) {
+                        if ($result['week'] == $yearWeek) {
+                            $salesData[] = floatval($result['total_sales']);
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) {
+                        $salesData[] = 0;
+                    }
+                }
+                break;
+                
+            case 'monthly':
+                // Last 6 months
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        DATE_FORMAT(created_at, '%Y-%m') as month,
+                        COALESCE(SUM(total_amount), 0) as total_sales,
+                        COUNT(*) as total_orders
+                    FROM sales 
+                    WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+                    ORDER BY month ASC
+                ");
+                $stmt->execute();
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                for ($i = 5; $i >= 0; $i--) {
+                    $monthDate = date('Y-m', strtotime("-$i months"));
+                    $monthName = date('M Y', strtotime("-$i months"));
+                    $labels[] = $monthName;
+                    
+                    $found = false;
+                    foreach ($results as $result) {
+                        if ($result['month'] === $monthDate) {
+                            $salesData[] = floatval($result['total_sales']);
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) {
+                        $salesData[] = 0;
+                    }
+                }
+                break;
+                
+            case 'annually':
+                // Last 3 years
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        YEAR(created_at) as year,
+                        COALESCE(SUM(total_amount), 0) as total_sales,
+                        COUNT(*) as total_orders
+                    FROM sales 
+                    WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
+                    GROUP BY YEAR(created_at)
+                    ORDER BY year ASC
+                ");
+                $stmt->execute();
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                for ($i = 2; $i >= 0; $i--) {
+                    $year = date('Y', strtotime("-$i years"));
+                    $labels[] = $year;
+                    
+                    $found = false;
+                    foreach ($results as $result) {
+                        if ($result['year'] == $year) {
+                            $salesData[] = floatval($result['total_sales']);
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) {
+                        $salesData[] = 0;
+                    }
+                }
+                break;
+        }
+        
+        // Get top products data - simplified version without sales_items table
+        // For now, we'll show products by stock level as a placeholder
+        $stmt = $pdo->prepare("
+            SELECT 
+                name,
+                stock as total_sold
+            FROM inventory 
+            WHERE status = 'active'
+            ORDER BY stock DESC
+            LIMIT 5
+        ");
+        $stmt->execute();
+        $topProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $productLabels = [];
+        $productData = [];
+        
+        foreach ($topProducts as $product) {
+            $productLabels[] = $product['name'] ?: 'Unknown Product';
+            $productData[] = intval($product['total_sold']);
+        }
+        
+        // If no products found, use default data
+        if (empty($productLabels)) {
+            $productLabels = ['No Sales Data'];
+            $productData = [0];
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'period' => $period,
+                'sales_chart' => [
+                    'labels' => $labels,
+                    'data' => $salesData
+                ],
+                'products_chart' => [
+                    'labels' => $productLabels,
+                    'data' => $productData
+                ]
+            ]
+        ]);
+        
+    } catch(PDOException $e) {
+        error_log("Database error in getChartData: " . $e->getMessage());
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
 }
