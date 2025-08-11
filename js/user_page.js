@@ -390,6 +390,7 @@ function initializeUserDropdown() {
     }
 
     // Handle my profile click
+    /*
     if (myProfileBtn) {
         myProfileBtn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -397,6 +398,7 @@ function initializeUserDropdown() {
             closeDropdown();
         });
     }
+    */
 
     // Close dropdown on escape key
     document.addEventListener('keydown', function(e) {
