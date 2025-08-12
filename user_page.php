@@ -52,10 +52,11 @@ if (!isset($_SESSION['name'])) {
                             </div>
                         </div>
                         <div class="dropdown-links">
-                            <a href="#" class="dropdown-link" id="myProfileBtn">
-                                <i class="fas fa-id-card"></i>
-                                My profile
+                            <a href="#" class="dropdown-link" id="myAccountBtn">
+                                <i class="fas fa-user-cog"></i>
+                                My Account
                             </a>
+
                         </div>
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-actions">
@@ -188,6 +189,106 @@ if (!isset($_SESSION['name'])) {
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- My Account Card -->
+    <div id="myAccountCard" class="account-card" style="display: none;">
+        <div class="account-card-content">
+            <div class="account-card-header">
+                <h2>My Account</h2>
+                <button class="account-card-close" id="closeAccountCard">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="account-tabs">
+                <button class="tab-btn active" data-tab="info">
+                    <i class="fas fa-info-circle"></i>
+                    Account Info
+                </button>
+                <button class="tab-btn" data-tab="security">
+                    <i class="fas fa-shield-alt"></i>
+                    Security
+                </button>
+            </div>
+            
+            <div class="account-tab-content">
+                <!-- Info Tab -->
+                <div id="infoTab" class="tab-panel active">
+                    <div class="info-section">
+                        <h3>Account Information</h3>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Full Name</label>
+                                <span id="accountName">Loading...</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Email Address</label>
+                                <span id="accountEmail">Loading...</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Account Type</label>
+                                <span id="accountRole">Loading...</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Member Since</label>
+                                <span id="accountCreated">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Security Tab -->
+                <div id="securityTab" class="tab-panel">
+                    <div class="security-section">
+                        <h3>Change Password</h3>
+                        <form id="changePasswordForm" class="password-form">
+                            <div class="form-group">
+                                <label for="currentPassword">Current Password</label>
+                                <div class="password-input-group">
+                                    <input type="password" id="currentPassword" name="current_password" required>
+                                    <button type="button" class="password-toggle" data-target="currentPassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="newPassword">New Password</label>
+                                <div class="password-input-group">
+                                    <input type="password" id="newPassword" name="new_password" required minlength="6">
+                                    <button type="button" class="password-toggle" data-target="newPassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small class="form-help">Password must be at least 6 characters long</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="confirmPassword">Confirm New Password</label>
+                                <div class="password-input-group">
+                                    <input type="password" id="confirmPassword" name="confirm_password" required minlength="6">
+                                    <button type="button" class="password-toggle" data-target="confirmPassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    Update Password
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="resetPasswordForm()">
+                                    <i class="fas fa-undo"></i>
+                                    Reset
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="messageModal" class="modal">

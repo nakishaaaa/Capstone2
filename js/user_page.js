@@ -384,13 +384,12 @@ function initializeUserDropdown() {
     if (myAccountBtn) {
         myAccountBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            showModal('info', 'My Microsoft account functionality will be implemented in a future update.');
+            showAccountCard();
             closeDropdown();
         });
     }
 
     // Handle my profile click
-    /*
     if (myProfileBtn) {
         myProfileBtn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -398,7 +397,6 @@ function initializeUserDropdown() {
             closeDropdown();
         });
     }
-    */
 
     // Close dropdown on escape key
     document.addEventListener('keydown', function(e) {
@@ -406,6 +404,9 @@ function initializeUserDropdown() {
             closeDropdown();
         }
     });
+
+    // Initialize account card functionality
+    initializeAccountCard();
 }
 
 function toggleDropdown() {
@@ -434,3 +435,190 @@ function closeDropdown() {
     if (userDropdownBtn) userDropdownBtn.classList.remove('active');
     if (userDropdownMenu) userDropdownMenu.classList.remove('show');
 }
+
+// My Account Card Functionality
+function initializeAccountCard() {
+    const accountCard = document.getElementById('myAccountCard');
+    const closeAccountCard = document.getElementById('closeAccountCard');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    const passwordToggles = document.querySelectorAll('.password-toggle');
+
+    // Close account card
+    if (closeAccountCard) {
+        closeAccountCard.addEventListener('click', hideAccountCard);
+    }
+
+    // Removed outside click to close functionality
+    // Account card will only close via the close button
+
+    // Tab switching
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
+            switchTab(tabName);
+        });
+    });
+
+    // Password form submission
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', handlePasswordChange);
+    }
+
+    // Password visibility toggles
+    passwordToggles.forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const targetId = this.dataset.target;
+            const targetInput = document.getElementById(targetId);
+            const icon = this.querySelector('i');
+            
+            if (targetInput.type === 'password') {
+                targetInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                targetInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    });
+
+    // Close on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && accountCard && accountCard.classList.contains('show')) {
+            hideAccountCard();
+        }
+    });
+}
+
+function showAccountCard() {
+    const accountCard = document.getElementById('myAccountCard');
+    if (accountCard) {
+        accountCard.style.display = 'flex';
+        setTimeout(() => {
+            accountCard.classList.add('show');
+        }, 10);
+        
+        // Load user info when showing the card
+        loadUserInfo();
+    }
+}
+
+function hideAccountCard() {
+    const accountCard = document.getElementById('myAccountCard');
+    if (accountCard) {
+        accountCard.classList.remove('show');
+        setTimeout(() => {
+            accountCard.style.display = 'none';
+        }, 300);
+    }
+}
+
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+    // Update tab panels
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    document.getElementById(`${tabName}Tab`).classList.add('active');
+}
+
+async function loadUserInfo() {
+    try {
+        const response = await fetch('api/user_account.php', {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const user = data.user;
+            document.getElementById('accountName').textContent = user.name || 'N/A';
+            document.getElementById('accountEmail').textContent = user.email || 'N/A';
+            document.getElementById('accountRole').textContent = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'N/A';
+            document.getElementById('accountCreated').textContent = user.created_at || 'N/A';
+        } else {
+            showModal('error', data.error || 'Failed to load user information');
+        }
+    } catch (error) {
+        console.error('Error loading user info:', error);
+        showModal('error', 'Failed to load user information');
+    }
+}
+
+async function handlePasswordChange(event) {
+    event.preventDefault();
+
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    submitBtn.disabled = true;
+
+    try {
+        const formData = new FormData(event.target);
+        const passwordData = {
+            current_password: formData.get('current_password'),
+            new_password: formData.get('new_password'),
+            confirm_password: formData.get('confirm_password'),
+            csrf_token: csrfToken
+        };
+
+        const response = await fetch('api/user_account.php', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            credentials: 'include',
+            body: JSON.stringify(passwordData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showModal('success', data.message || 'Password updated successfully');
+            resetPasswordForm();
+        } else {
+            showModal('error', data.error || 'Failed to update password');
+        }
+    } catch (error) {
+        console.error('Error updating password:', error);
+        showModal('error', 'Failed to update password');
+    } finally {
+        // Reset button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+function resetPasswordForm() {
+    const form = document.getElementById('changePasswordForm');
+    if (form) {
+        form.reset();
+        
+        // Reset password visibility
+        const passwordInputs = form.querySelectorAll('input[type="text"]');
+        const toggles = form.querySelectorAll('.password-toggle i');
+        
+        passwordInputs.forEach(input => {
+            input.type = 'password';
+        });
+        
+        toggles.forEach(icon => {
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        });
+    }
+}
+
+// Global function for reset button
+window.resetPasswordForm = resetPasswordForm;
