@@ -22,11 +22,11 @@ if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
 
 $file = $_FILES['image'];
 
-$allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+$allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 $fileType = $file['type'];
 
 if (!in_array($fileType, $allowedTypes)) {
-    echo json_encode(['success' => false, 'error' => 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed']);
+    echo json_encode(['success' => false, 'error' => 'Invalid file type. Only JPEG, PNG, and WebP are allowed']);
     exit;
 }
 

@@ -58,6 +58,9 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                 <li><a href="#customersupport" class="nav-link" data-section="customersupport">
                     <i class="fas fa-headset"></i> Customer Support
                 </a></li>
+                <li><a href="#user-management" class="nav-link" data-section="user-management">
+                    <i class="fas fa-user"></i> User Management
+                </a></li>
                 <li><a href="index.php" class="nav-link logout">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a></li>
@@ -303,6 +306,7 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                     <div class="section-description">
                         <p style="color: #666; font-size: 0.9rem; margin: 0;">Manage customer printing and service requests</p>
                     </div>
+
                     <div class="requests-filters">
                         <select id="requestStatusFilter" onchange="filterRequests()">
                             <option value="all">All Requests</option>
@@ -314,6 +318,18 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                             <i class="fas fa-sync"></i> Refresh
                         </button>
                     </div>
+                </div>
+                
+                <div class="requests-actions" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <form method="POST" action="api/clear_requests.php" onsubmit="return confirm('Are you sure you want to clear all requests?');" style="margin: 0;">
+                        <button type="submit" class="btn btn-danger">
+                            Clear All Requests
+                        </button>
+                    </form>
+                        
+                    <a href="request_history.php" class="btn btn-secondary">
+                        View History
+                    </a>
                 </div>
 
                 <!-- Request Statistics -->
