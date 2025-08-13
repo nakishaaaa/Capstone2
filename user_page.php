@@ -19,7 +19,7 @@ if (!isset($_SESSION['name'])) {
 <body>
     <div class="container">
         <header class="header">
-            <div class="logo">
+            <div class="logo ai-generator-trigger" id="aiGeneratorTrigger" title="Click to open AI Image Generator">
                 <i class="fas fa-atom"></i>
                 <span>AI</span>
             </div>
@@ -56,7 +56,6 @@ if (!isset($_SESSION['name'])) {
                                 <i class="fas fa-user-cog"></i>
                                 My Account
                             </a>
-
                         </div>
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-actions">
@@ -295,6 +294,69 @@ if (!isset($_SESSION['name'])) {
         <div class="modal-content">
             <span class="close">&times;</span>
             <div id="modalMessage"></div>
+        </div>
+    </div>
+
+    <!-- AI Image Generator Modal -->
+    <div id="aiImageModal" class="modal ai-modal">
+        <div class="modal-content ai-modal-content">
+            <div class="ai-modal-header">
+                <h2><i class="fas fa-magic"></i> AI Image Generator</h2>
+                <span class="close ai-modal-close" id="aiModalClose">&times;</span>
+            </div>
+            <div class="ai-modal-body">
+                <div class="ai-prompt-section">
+                    <label for="aiPrompt">Describe the image you want to generate:</label>
+                    <textarea id="aiPrompt" placeholder="e.g., A beautiful sunset over mountains with vibrant colors..." rows="4"></textarea>
+                    <div class="ai-prompt-actions">
+                        <button id="generateImageBtn" class="btn btn-primary ai-generate-btn">
+                            <i class="fas fa-magic"></i>
+                            Generate Image
+                        </button>
+                        <button id="clearPromptBtn" class="btn btn-secondary">
+                            <i class="fas fa-eraser"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="ai-result-section" id="aiResultSection" style="display: none;">
+                    <div class="ai-loading" id="aiLoading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <p>Generating your image... This may take a few moments.</p>
+                    </div>
+                    
+                    <div class="ai-image-result" id="aiImageResult" style="display: none;">
+                        <div class="generated-image-container">
+                            <img id="generatedImage" src="" alt="Generated Image" />
+                        </div>
+                        <div class="ai-image-actions">
+                            <button id="downloadImageBtn" class="btn btn-success">
+                                <i class="fas fa-download"></i>
+                                Download Image
+                            </button>
+                            <button id="generateNewBtn" class="btn btn-primary">
+                                <i class="fas fa-redo"></i>
+                                Generate New
+                            </button>
+                        </div>
+                        <div class="ai-image-info">
+                            <p><strong>Prompt:</strong> <span id="usedPrompt"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-error" id="aiError" style="display: none;">
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span id="errorText"></span>
+                        </div>
+                        <button id="retryBtn" class="btn btn-primary">
+                            <i class="fas fa-retry"></i>
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
