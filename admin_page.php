@@ -327,9 +327,9 @@ if (!isset($_SESSION['name']) || !isset($_SESSION['email']) || !isset($_SESSION[
                         </button>
                     </form>
                         
-                    <a href="request_history.php" class="btn btn-secondary">
+                    <button class="btn btn-secondary" onclick="viewRequestHistory()">
                         View History
-                    </a>
+                    </button>
                 </div>
 
                 <!-- Request Statistics -->

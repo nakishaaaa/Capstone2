@@ -53,6 +53,22 @@ export class DashboardModule {
       const element = document.getElementById(id)
       if (element) {
         element.textContent = value
+        
+        // Add attention-grabbing effects for requests and low stock when value > 0
+        const statCard = element.closest('.stat-card')
+        if (statCard) {
+          // Remove existing attention classes
+          statCard.classList.remove('needs-attention', 'low-stock-attention')
+          
+          // Add attention classes based on values
+          if (id === 'total-requests' && parseInt(value) > 0) {
+            statCard.classList.add('needs-attention')
+            console.log('Added attention to requests card:', value)
+          } else if (id === 'low-stock' && parseInt(value) > 0) {
+            statCard.classList.add('low-stock-attention', 'needs-attention')
+            console.log('Added attention to low stock card:', value)
+          }
+        }
       }
     })
   }

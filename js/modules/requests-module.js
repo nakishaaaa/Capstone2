@@ -9,6 +9,8 @@ export class RequestsModule {
     this.currentFilter = 'all'
     this.sseClient = null
     this.lastRequestsData = null
+    this.isHistoryView = false
+    this.historyData = []
     this.init()
   }
 
@@ -25,6 +27,8 @@ export class RequestsModule {
     window.approveRequest = (id) => this.updateRequestStatus(id, 'approved')
     window.rejectRequest = (id) => this.updateRequestStatus(id, 'rejected')
     window.viewRequest = (id) => this.viewRequestDetails(id)
+    window.viewRequestHistory = () => this.viewHistory()
+    window.backToRequests = () => this.backToRequests()
   }
 
   async loadRequests() {
@@ -71,50 +75,7 @@ export class RequestsModule {
     }
   }
 
-  displayRequests() {
-    const tbody = document.getElementById('requestsTableBody')
-    if (!tbody) return
 
-    if (this.requests.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">No requests found</td></tr>'
-      return
-    }
-
-    // Apply current filter
-    this.filteredRequests = this.currentFilter === 'all' 
-      ? this.requests 
-      : this.requests.filter(request => request.status === this.currentFilter)
-
-    tbody.innerHTML = this.filteredRequests.map(request => `
-      <tr>
-        <td>#${request.id}</td>
-        <td>${this.formatDate(request.created_at)}</td>
-        <td>${this.escapeHtml(request.name || 'N/A')}</td>
-        <td>${this.formatCategory(request.category)}</td>
-        <td class="request-details" title="${this.escapeHtml(request.size + (request.notes ? ' - ' + request.notes : ''))}">
-          ${this.escapeHtml(request.size)}${request.notes ? '<br><small>' + this.escapeHtml(request.notes) + '</small>' : ''}
-        </td>
-        <td>${request.quantity}</td>
-        <td>${this.escapeHtml(request.contact_number || 'N/A')}</td>
-        <td><span class="status-badge ${request.status}">${request.status}</span></td>
-        <td>
-          <div class="request-actions">
-            ${request.status === 'pending' ? `
-              <button class="btn-approve" onclick="approveRequest(${request.id})" title="Approve">
-                <i class="fas fa-check"></i>
-              </button>
-              <button class="btn-reject" onclick="rejectRequest(${request.id})" title="Reject">
-                <i class="fas fa-times"></i>
-              </button>
-            ` : ''}
-            <button class="btn-view" onclick="viewRequest(${request.id})" title="View Details">
-              <i class="fas fa-eye"></i>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('')
-  }
 
   filterRequests() {
     const filterSelect = document.getElementById('requestStatusFilter')
@@ -349,6 +310,230 @@ export class RequestsModule {
       oldRequests?.pending_requests !== newRequests?.pending_requests ||
       oldRequests?.total_requests !== newRequests?.total_requests
     )
+  }
+
+  async viewHistory() {
+    try {
+      console.log('Loading request history...')
+      this.isHistoryView = true
+      
+      const response = await fetch('api/request_history.php', {
+        method: 'GET',
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      if (data.success) {
+        this.historyData = data.history || []
+        this.displayHistory(data.stats)
+        console.log('Request history loaded successfully:', this.historyData.length)
+      } else {
+        throw new Error(data.message || 'Failed to load request history')
+      }
+    } catch (error) {
+      console.error('Error loading request history:', error)
+      this.toast.error('Failed to load request history: ' + error.message)
+      this.displayError('Failed to load request history')
+    }
+  }
+
+  backToRequests() {
+    console.log('Switching back to current requests view...')
+    this.isHistoryView = false
+    this.resetToRequestsView()
+    this.loadRequests()
+  }
+
+  resetToRequestsView() {
+    // Reset section header
+    const sectionHeader = document.querySelector('#requests .section-header h1')
+    if (sectionHeader) {
+      sectionHeader.innerHTML = 'Customer Requests'
+    }
+
+    // Reset section description
+    const sectionDescription = document.querySelector('#requests .section-description')
+    if (sectionDescription) {
+      sectionDescription.textContent = 'Manage customer service requests and inquiries'
+    }
+
+    // Restore original actions
+    const requestsActions = document.querySelector('.requests-actions')
+    if (requestsActions) {
+      requestsActions.innerHTML = `
+        <form method="POST" action="api/clear_requests.php" onsubmit="return confirm('Are you sure you want to clear all requests?');" style="margin: 0;">
+          <button type="submit" class="btn btn-danger">
+            Clear All Requests
+          </button>
+        </form>
+        <button class="btn btn-secondary" onclick="viewRequestHistory()">
+          View History
+        </button>
+      `
+    }
+
+    // Show filters
+    const requestsFilters = document.querySelector('.requests-filters')
+    if (requestsFilters) {
+      requestsFilters.style.display = 'flex'
+    }
+
+    // Reset table headers
+    const tableHead = document.querySelector('#requestsTable thead tr')
+    if (tableHead) {
+      tableHead.innerHTML = `
+        <th>ID</th>
+        <th>Date</th>
+        <th>Customer</th>
+        <th>Service</th>
+        <th>Details</th>
+        <th>Quantity</th>
+        <th>Contact</th>
+        <th>Status</th>
+        <th>Actions</th>
+      `
+    }
+  }
+
+  displayHistory(stats) {
+    // Update section header
+    const sectionHeader = document.querySelector('#requests .section-header h1')
+    if (sectionHeader) {
+      sectionHeader.innerHTML = '<i class="fas fa-history"></i> Request History'
+    }
+
+    // Update section description
+    const sectionDescription = document.querySelector('#requests .section-description')
+    if (sectionDescription) {
+      sectionDescription.textContent = 'View all cleared customer requests'
+    }
+
+    // Hide current requests actions and show back button
+    const requestsActions = document.querySelector('.requests-actions')
+    if (requestsActions) {
+      requestsActions.innerHTML = `
+        <button class="btn btn-secondary" onclick="backToRequests()">
+          <i class="fas fa-arrow-left"></i> Back to Current Requests
+        </button>
+        <button class="btn btn-primary" onclick="viewRequestHistory()">
+          <i class="fas fa-sync"></i> Refresh History
+        </button>
+      `
+    }
+
+    // Hide filters
+    const requestsFilters = document.querySelector('.requests-filters')
+    if (requestsFilters) {
+      requestsFilters.style.display = 'none'
+    }
+
+    // Update stats
+    if (stats) {
+      document.getElementById('pending-requests').textContent = stats.pending || 0
+      document.getElementById('approved-requests').textContent = stats.approved || 0
+      document.getElementById('rejected-requests').textContent = stats.rejected || 0
+    }
+
+    // Display history table
+    const tbody = document.getElementById('requestsTableBody')
+    if (!tbody) return
+
+    if (this.historyData.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 3rem;">
+            <div style="color: #6c757d;">
+              <i class="fas fa-history" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <h3>No Request History</h3>
+              <p>No requests have been cleared yet.</p>
+            </div>
+          </td>
+        </tr>
+      `
+      return
+    }
+
+    // Update table headers for history view
+    const tableHead = document.querySelector('#requestsTable thead tr')
+    if (tableHead) {
+      tableHead.innerHTML = `
+        <th>ID</th>
+        <th>Customer</th>
+        <th>Category</th>
+        <th>Size/Type</th>
+        <th>Quantity</th>
+        <th>Contact</th>
+        <th>Status</th>
+        <th>Admin Response</th>
+        <th>Submitted</th>
+        <th>Cleared</th>
+      `
+    }
+
+    tbody.innerHTML = this.historyData.map(request => `
+      <tr>
+        <td>#${request.id}</td>
+        <td>${this.escapeHtml(request.name || 'N/A')}</td>
+        <td>${this.formatCategory(request.category)}</td>
+        <td>${this.escapeHtml(request.size || 'N/A')}</td>
+        <td>${request.quantity || 'N/A'}</td>
+        <td>${this.escapeHtml(request.contact_number || 'N/A')}</td>
+        <td><span class="status-badge ${request.status}">${request.status}</span></td>
+        <td class="admin-response">${this.escapeHtml(request.admin_response || 'No response')}</td>
+        <td>${this.formatDate(request.created_at)}</td>
+        <td>${this.formatDate(request.cleared_at)}</td>
+      </tr>
+    `).join('')
+  }
+
+  displayRequests() {
+    const tbody = document.getElementById('requestsTableBody')
+    if (!tbody) return
+
+    if (this.requests.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">No requests found</td></tr>'
+      return
+    }
+
+    // Apply current filter
+    this.filteredRequests = this.currentFilter === 'all' 
+      ? this.requests 
+      : this.requests.filter(request => request.status === this.currentFilter)
+
+    tbody.innerHTML = this.filteredRequests.map(request => `
+      <tr>
+        <td>#${request.id}</td>
+        <td>${this.formatDate(request.created_at)}</td>
+        <td>${this.escapeHtml(request.name || 'N/A')}</td>
+        <td>${this.formatCategory(request.category)}</td>
+        <td class="request-details" title="${this.escapeHtml(request.size + (request.notes ? ' - ' + request.notes : ''))}">
+          ${this.escapeHtml(request.size)}
+        </td>
+        <td>${request.quantity}</td>
+        <td>${this.escapeHtml(request.contact_number || 'N/A')}</td>
+        <td><span class="status-badge ${request.status}">${request.status}</span></td>
+        <td>
+          <div class="request-actions">
+            ${request.status === 'pending' ? `
+              <button class="btn-approve" onclick="approveRequest(${request.id})" title="Approve">
+                <i class="fas fa-check"></i>
+              </button>
+              <button class="btn-reject" onclick="rejectRequest(${request.id})" title="Reject">
+                <i class="fas fa-times"></i>
+              </button>
+            ` : ''}
+            <button class="btn-view" onclick="viewRequest(${request.id})" title="View Details">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('')
   }
 
   destroy() {

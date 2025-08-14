@@ -679,36 +679,23 @@
 .request-actions {
   display: flex;
   gap: 0.5rem;
+  justify-content: center;
+}
+
+.btn-approve,
+.btn-reject,
+.btn-view {
+  padding: 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
 }
 
 .btn-approve {
   background: #28a745;
   color: white;
-  border: none;
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8rem;
-}
-
-.btn-reject {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8rem;
-}
-
-.btn-view {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8rem;
 }
 
 .btn-approve:hover {
@@ -749,6 +736,156 @@
   
   .request-actions {
     flex-direction: column;
+  }
+}
+
+/* History View Styles */
+.admin-response {
+  max-width: 200px;
+  word-wrap: break-word;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  padding: 0.5rem;
+}
+
+.admin-response:empty::after {
+  content: "No response";
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* History table adjustments for better column spacing */
+.inventory-table th:nth-child(8),
+.inventory-table td:nth-child(8) {
+  min-width: 150px;
+}
+
+.inventory-table th:nth-child(9),
+.inventory-table td:nth-child(9),
+.inventory-table th:nth-child(10),
+.inventory-table td:nth-child(10) {
+  min-width: 120px;
+  font-size: 0.875rem;
+}
+
+/* Status badges for history */
+.status-badge.approved {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-badge.rejected {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.status-badge.pending {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+/* Attention-grabbing stat cards for requests and low stock */
+.stat-card.needs-attention {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: white;
+  border: 2px solid #ff4757;
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+  transform: scale(1.02);
+  animation: pulse-attention 2s infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card.needs-attention::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 3s infinite;
+}
+
+.stat-card.needs-attention .stat-icon {
+  background: rgba(255, 255, 255, 0.2);
+  animation: bounce-icon 1.5s infinite;
+}
+
+.stat-card.needs-attention .stat-icon i {
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card.needs-attention .stat-info h3 {
+  color: white;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  animation: number-glow 2s infinite;
+}
+
+.stat-card.needs-attention .stat-info p {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+/* Keyframe animations */
+@keyframes pulse-attention {
+  0%, 100% {
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+  }
+  50% {
+    box-shadow: 0 12px 35px rgba(255, 107, 107, 0.6);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+  }
+}
+
+@keyframes bounce-icon {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes number-glow {
+  0%, 100% {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* Low stock specific styling */
+.stat-card.low-stock-attention {
+  background: linear-gradient(135deg, #ffa726, #ff9800);
+  border: 2px solid #ff8f00;
+  box-shadow: 0 8px 25px rgba(255, 167, 38, 0.3);
+}
+
+.stat-card.low-stock-attention::before {
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+}
+
+@keyframes pulse-low-stock {
+  0%, 100% {
+    box-shadow: 0 8px 25px rgba(255, 167, 38, 0.3);
+  }
+  50% {
+    box-shadow: 0 12px 35px rgba(255, 167, 38, 0.6);
   }
 }
   

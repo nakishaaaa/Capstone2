@@ -1,4 +1,8 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: http://localhost');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -10,25 +14,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-session_start();
+try {
+    session_start();
 
-// Check if user is logged in
-if (!isset($_SESSION['name'])) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized access']);
-    exit();
-}
-
-// Include CSRF protection
-require_once '../includes/csrf.php';
-
-// Validate CSRF token for POST requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!CSRFToken::validate($_POST['csrf_token'] ?? '')) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Invalid CSRF token']);
+    // Check if user is logged in
+    if (!isset($_SESSION['name'])) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized access']);
         exit();
     }
+
+    // Include CSRF protection
+    if (file_exists('../includes/csrf.php')) {
+        require_once '../includes/csrf.php';
+        
+        // Validate CSRF token for POST requests
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!CSRFToken::validate($_POST['csrf_token'] ?? '')) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Invalid CSRF token']);
+                exit();
+            }
+        }
+    } else {
+        // If CSRF file doesn't exist, skip CSRF validation for now
+        error_log('CSRF file not found, skipping CSRF validation');
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Server initialization error: ' . $e->getMessage()]);
+    exit();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -51,108 +66,197 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 function generateImage() {
-    $prompt = trim($_POST['prompt'] ?? '');
-    
-    if (empty($prompt)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Prompt is required']);
-        return;
-    }
-    
-    // DeepAI API configuration
-    $api_key = 'ad500340-688e-4fc0-85cd-3cb4fdf423e9'; // Replace with your actual DeepAI API key
-    $api_url = 'https://api.deepai.org/api/text2img';
-    
-    // Prepare the data for DeepAI API
-    $data = array(
-        'text' => $prompt
-    );
-    
-    // Initialize cURL
-    $ch = curl_init();
-    
-    curl_setopt($ch, CURLOPT_URL, $api_url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-        'Api-Key: ' . $api_key
-    ));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 60); // 60 seconds timeout
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curl_error = curl_error($ch);
-    
-    curl_close($ch);
-    
-    if ($curl_error) {
+    try {
+        error_log('GenerateImage function called');
+        $prompt = trim($_POST['prompt'] ?? '');
+        error_log('Prompt received: ' . $prompt);
+        
+        if (empty($prompt)) {
+            error_log('Empty prompt error');
+            http_response_code(400);
+            echo json_encode(['error' => 'Prompt is required']);
+            return;
+        }
+        
+        // Validate prompt length
+        if (strlen($prompt) > 500) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Prompt is too long (max 500 characters)']);
+            return;
+        }
+        
+        // DeepAI API configuration
+        $api_key = '67e9121a-b54e-4f1e-88f1-9ecf61e69b50';
+        $api_url = 'https://api.deepai.org/api/text2img';
+        
+        // Check if cURL is available
+        if (!function_exists('curl_init')) {
+            http_response_code(500);
+            echo json_encode(['error' => 'cURL is not available on this server']);
+            return;
+        }
+        
+        // Prepare the data for DeepAI API (multipart/form-data as per official PHP docs)
+        $data = array(
+            'text' => $prompt
+        );
+        
+        error_log('Preparing DeepAI API call with data: ' . json_encode($data));
+        
+        // Initialize cURL
+        $ch = curl_init();
+        
+        if (!$ch) {
+            error_log('Failed to initialize cURL');
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to initialize cURL']);
+            return;
+        }
+        
+        curl_setopt($ch, CURLOPT_URL, $api_url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'api-key: ' . $api_key
+        ));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60); // 60 seconds timeout
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        
+        error_log('Making cURL request to DeepAI API: ' . $api_url);
+        error_log('Using API key: ' . substr($api_key, 0, 8) . '...');
+        
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        
+        error_log('DeepAI API HTTP response code: ' . $http_code);
+        error_log('DeepAI API response body: ' . $response);
+        if ($curl_error) {
+            error_log('cURL error: ' . $curl_error);
+        }
+        
+        curl_close($ch);
+        
+        if ($curl_error) {
+            error_log('DeepAI cURL Error: ' . $curl_error);
+            http_response_code(500);
+            echo json_encode(['error' => 'Network error: ' . $curl_error]);
+            return;
+        }
+        
+        if ($http_code !== 200) {
+            error_log('DeepAI API HTTP Error: ' . $http_code . ' Response: ' . $response);
+            http_response_code(500);
+            echo json_encode(['error' => 'DeepAI API error: HTTP ' . $http_code . '. Please try again.']);
+            return;
+        }
+        
+        $result = json_decode($response, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log('JSON decode error: ' . json_last_error_msg() . ' Response: ' . $response);
+            http_response_code(500);
+            echo json_encode(['error' => 'Invalid JSON response from DeepAI API']);
+            return;
+        }
+        
+        if (!$result || !isset($result['output_url'])) {
+            error_log('Invalid DeepAI response: ' . print_r($result, true));
+            http_response_code(500);
+            echo json_encode(['error' => 'Invalid response from DeepAI API. Please try again.']);
+            return;
+        }
+        
+        // Store the generated image info in session for potential download
+        $_SESSION['last_generated_image'] = [
+            'url' => $result['output_url'],
+            'prompt' => $prompt,
+            'generated_at' => time()
+        ];
+        
+        echo json_encode([
+            'success' => true,
+            'image_url' => $result['output_url'],
+            'prompt' => $prompt,
+            'message' => 'Image generated successfully!'
+        ]);
+        
+    } catch (Exception $e) {
+        error_log('GenerateImage Exception: ' . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['error' => 'Network error: ' . $curl_error]);
-        return;
+        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
     }
-    
-    if ($http_code !== 200) {
-        http_response_code(500);
-        echo json_encode(['error' => 'DeepAI API error: HTTP ' . $http_code]);
-        return;
-    }
-    
-    $result = json_decode($response, true);
-    
-    if (!$result || !isset($result['output_url'])) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Invalid response from DeepAI API']);
-        return;
-    }
-    
-    // Store the generated image info in session for potential download
-    $_SESSION['last_generated_image'] = [
-        'url' => $result['output_url'],
-        'prompt' => $prompt,
-        'generated_at' => time()
-    ];
-    
-    echo json_encode([
-        'success' => true,
-        'image_url' => $result['output_url'],
-        'prompt' => $prompt,
-        'message' => 'Image generated successfully!'
-    ]);
 }
 
 function downloadImage() {
-    if (!isset($_SESSION['last_generated_image'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'No image available for download']);
-        return;
-    }
-    
-    $imageInfo = $_SESSION['last_generated_image'];
-    $imageUrl = $imageInfo['url'];
-    $prompt = $imageInfo['prompt'];
-    
-    // Create a safe filename from the prompt
-    $filename = preg_replace('/[^a-zA-Z0-9\-_]/', '_', substr($prompt, 0, 50));
-    $filename = 'ai_generated_' . $filename . '_' . time() . '.jpg';
-    
-    // Get the image content
-    $imageContent = file_get_contents($imageUrl);
-    
-    if ($imageContent === false) {
+    try {
+        if (!isset($_SESSION['last_generated_image'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No image available for download']);
+            return;
+        }
+        
+        $imageInfo = $_SESSION['last_generated_image'];
+        $imageUrl = $imageInfo['url'];
+        $prompt = $imageInfo['prompt'];
+        
+        // Create a safe filename from the prompt
+        $filename = preg_replace('/[^a-zA-Z0-9\-_]/', '_', substr($prompt, 0, 50));
+        $filename = 'ai_generated_' . $filename . '_' . time() . '.jpg';
+        
+        // Get the image content using cURL for better error handling
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $imageUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        
+        $imageContent = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
+        
+        if ($curl_error) {
+            error_log('Download cURL Error: ' . $curl_error);
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to download image: ' . $curl_error]);
+            return;
+        }
+        
+        if ($http_code !== 200 || $imageContent === false) {
+            error_log('Download HTTP Error: ' . $http_code);
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to download image from URL']);
+            return;
+        }
+        
+        if (empty($imageContent)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Downloaded image is empty']);
+            return;
+        }
+        
+        // Clear any previous output
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        
+        // Set headers for file download
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($imageContent));
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        
+        echo $imageContent;
+        
+    } catch (Exception $e) {
+        error_log('DownloadImage Exception: ' . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['error' => 'Failed to download image']);
-        return;
+        echo json_encode(['error' => 'Server error during download: ' . $e->getMessage()]);
     }
-    
-    // Set headers for file download
-    header('Content-Type: application/octet-stream');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-    header('Content-Length: ' . strlen($imageContent));
-    header('Cache-Control: must-revalidate');
-    header('Pragma: public');
-    
-    echo $imageContent;
 }
 ?>
