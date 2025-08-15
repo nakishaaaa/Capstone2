@@ -1,0 +1,60 @@
+# Environment variables - NEVER commit these files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Database credentials and sensitive config
+config/database.php
+includes/config.php
+
+# Uploaded files
+uploads/
+uploads/*
+
+# Logs
+*.log
+logs/
+error.log
+access.log
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# IDE and editor files
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node modules (if using any JS build tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Composer dependencies (if using Composer)
+vendor/
+composer.lock
+
+# Cache files
+cache/
+*.cache
+
+# Backup files
+*.bak
+*.backup
+backup/

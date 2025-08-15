@@ -56,11 +56,18 @@ if (isset($_POST['login'])) {
             $user = $result->fetch_assoc();
             // Verify the password
             if (password_verify($password, $user['password'])) {
-                // Set session variables for the logged-in user
-                $_SESSION['user_id'] = $user['id']; // Store user ID for request associations
+                // Set role-specific session variables
+                $role = $user['role'];
+                $_SESSION[$role . '_user_id'] = $user['id'];
+                $_SESSION[$role . '_name'] = $user['name'];
+                $_SESSION[$role . '_email'] = $user['email'];
+                $_SESSION[$role . '_role'] = $user['role'];
+                
+                // Keep legacy session variables for backward compatibility
+                $_SESSION['user_id'] = $user['id'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['email'] = $user['email'];
-                $_SESSION['role'] = $user['role']; 
+                $_SESSION['role'] = $user['role'];
 
                 // Redirect based on user role
                 if ($user['role'] === 'admin') {

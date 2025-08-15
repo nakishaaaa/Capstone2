@@ -463,6 +463,7 @@ export class RequestsModule {
     if (tableHead) {
       tableHead.innerHTML = `
         <th>ID</th>
+        <th>Date</th>
         <th>Customer</th>
         <th>Category</th>
         <th>Size/Type</th>

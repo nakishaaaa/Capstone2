@@ -2,29 +2,35 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/csrf.php';
+require_once '../includes/session_helper.php';
 
-// Set CORS headers
+// Set JSON header
+header('Content-Type: application/json');
+
+// CORS headers
 header("Access-Control-Allow-Origin: http://localhost");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, X-CSRF-Token");
 header("Access-Control-Allow-Credentials: true");
-header("Content-Type: application/json");
 
-// Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
+    exit(0);
 }
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit();
+// Check if user is logged in (prefer user role, fallback to any)
+$userData = getUserSessionData('user');
+if (!$userData['is_logged_in']) {
+    // Try fallback to any logged in user
+    $userData = getUserSessionData();
+    if (!$userData['is_logged_in']) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        exit();
+    }
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-$user_id = $_SESSION['user_id'];
+$user_id = $userData['user_id'];
 
 try {
     switch ($method) {
