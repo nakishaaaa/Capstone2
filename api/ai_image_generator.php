@@ -240,7 +240,7 @@ function editPhoto() {
         }
         
         // DeepAI API configuration
-        $api_key = 'dc475475-8e00-49e0-a539-a05c6096c314';
+        $api_key = '';
         $api_url = 'https://api.deepai.org/api/image-editor';
         
         // Check if cURL is available
