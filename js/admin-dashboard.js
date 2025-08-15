@@ -277,5 +277,4 @@ function removeMobileOverlay() {
   }
 }
 
-// Export for module usage
 export default AdminDashboard
