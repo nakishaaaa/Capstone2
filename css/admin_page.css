@@ -698,16 +698,14 @@
   color: white;
 }
 
-.btn-approve:hover {
-  background: #218838;
+.btn-reject {
+  background: #dc3545;
+  color: white;
 }
 
-.btn-reject:hover {
-  background: #c82333;
-}
-
-.btn-view:hover {
-  background: #0056b3;
+.btn-view {
+  background: #17a2b8;
+  color: white;
 }
 
 .request-details {

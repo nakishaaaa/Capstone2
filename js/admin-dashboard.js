@@ -168,9 +168,6 @@ class AdminDashboard {
     if (this.modules.dashboard) {
       this.modules.dashboard.destroy()
     }
-
-    // Clear intervals and event listeners
-    // This would be expanded based on specific cleanup needs
   }
 }
 
@@ -231,7 +228,6 @@ function initializeMobileMenu() {
       })
     })
     
-    // Handle window resize
     window.addEventListener('resize', function() {
       if (window.innerWidth > 768) {
         sidebar.classList.remove('active')
@@ -260,12 +256,10 @@ function toggleMobileOverlay() {
     `
     document.body.appendChild(overlay)
     
-    // Trigger animation
     setTimeout(() => {
       overlay.style.opacity = '1'
     }, 10)
     
-    // Close sidebar when clicking overlay
     overlay.addEventListener('click', function() {
       document.querySelector('.sidebar').classList.remove('active')
       removeMobileOverlay()
