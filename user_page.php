@@ -1,7 +1,24 @@
 <?php
 session_start();
 
-if (!isset($_SESSION['name'])) {
+// Check for user-specific session first, then fallback to legacy
+$isUserLoggedIn = false;
+$userName = '';
+$userEmail = '';
+
+if (isset($_SESSION['user_name']) && isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'user') {
+    // User-specific session exists
+    $isUserLoggedIn = true;
+    $userName = $_SESSION['user_name'];
+    $userEmail = $_SESSION['user_email'] ?? '';
+} elseif (isset($_SESSION['name']) && (!isset($_SESSION['role']) || $_SESSION['role'] === 'user')) {
+    // Legacy session exists and is user (or role not set, assuming user)
+    $isUserLoggedIn = true;
+    $userName = $_SESSION['name'];
+    $userEmail = $_SESSION['email'] ?? '';
+}
+
+if (!$isUserLoggedIn) {
     header("Location: index.php");
     exit();
 }
@@ -38,7 +55,11 @@ if (!isset($_SESSION['name'])) {
                 </div>
             </div>
             <div class="brand">
+                <i class="fas fa-store"></i>
                 <span>053 PRINTS</span>
+            </div>
+            <div class="services">
+                <span>SERVICES</span>
             </div>
             <div class="user-info">
                 <div class="user-dropdown">
@@ -46,7 +67,7 @@ if (!isset($_SESSION['name'])) {
                         <div class="user-avatar">
                             <i class="fas fa-user"></i>
                         </div>
-                        <span class="user-name"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
+                        <span class="user-name"><?php echo htmlspecialchars($userName); ?></span>
                         <i class="fas fa-chevron-down dropdown-arrow"></i>
                     </button>
                     <div class="user-dropdown-menu" id="userDropdownMenu">
@@ -56,8 +77,8 @@ if (!isset($_SESSION['name'])) {
                                     <i class="fas fa-user"></i>
                                 </div>
                                 <div class="profile-info">
-                                    <div class="profile-name"><?php echo htmlspecialchars($_SESSION['name']); ?></div>
-                                    <div class="profile-email"><?php echo htmlspecialchars($_SESSION['email']); ?></div>
+                                    <div class="profile-name"><?php echo htmlspecialchars($userName); ?></div>
+                                    <div class="profile-email"><?php echo htmlspecialchars($userEmail); ?></div>
                                 </div>
                             </div>
                         </div>

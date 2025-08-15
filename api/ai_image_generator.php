@@ -3,6 +3,9 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Load environment variables
+require_once '../includes/env.php';
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: http://localhost');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -16,9 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 try {
     session_start();
+    require_once '../includes/session_helper.php';
 
-    // Check if user is logged in
-    if (!isset($_SESSION['name'])) {
+    // Check if user is logged in (any role)
+    $userData = getUserSessionData();
+    if (!$userData['is_logged_in']) {
         http_response_code(401);
         echo json_encode(['error' => 'Unauthorized access']);
         exit();
@@ -89,8 +94,15 @@ function generateImage() {
         }
         
         // DeepAI API configuration
-        $api_key = '';
+        $api_key = env('DEEPAI_API_KEY');
         $api_url = 'https://api.deepai.org/api/text2img';
+        
+        if (empty($api_key)) {
+            error_log('DeepAI API key not configured');
+            http_response_code(500);
+            echo json_encode(['error' => 'API configuration error. Please contact administrator.']);
+            return;
+        }
         
         // Check if cURL is available
         if (!function_exists('curl_init')) {
@@ -240,8 +252,15 @@ function editPhoto() {
         }
         
         // DeepAI API configuration
-        $api_key = 'dc475475-8e00-49e0-a539-a05c6096c314';
+        $api_key = env('DEEPAI_API_KEY');
         $api_url = 'https://api.deepai.org/api/image-editor';
+        
+        if (empty($api_key)) {
+            error_log('DeepAI API key not configured');
+            http_response_code(500);
+            echo json_encode(['error' => 'API configuration error. Please contact administrator.']);
+            return;
+        }
         
         // Check if cURL is available
         if (!function_exists('curl_init')) {
