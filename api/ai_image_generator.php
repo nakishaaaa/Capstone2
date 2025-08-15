@@ -58,6 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'generate_image':
             generateImage();
             break;
+        case 'edit_photo':
+            editPhoto();
+            break;
         case 'download_image':
             downloadImage();
             break;
@@ -376,7 +379,9 @@ function downloadImage() {
         
         // Create a safe filename from the prompt
         $filename = preg_replace('/[^a-zA-Z0-9\-_]/', '_', substr($prompt, 0, 50));
-        $filename = 'ai_generated_' . $filename . '_' . time() . '.jpg';
+        $type = $imageInfo['type'] ?? 'generated';
+        $prefix = ($type === 'edited') ? 'ai_edited_' : 'ai_generated_';
+        $filename = $prefix . $filename . '_' . time() . '.jpg';
         
         // Get the image content using cURL for better error handling
         $ch = curl_init();

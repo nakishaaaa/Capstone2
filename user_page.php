@@ -36,9 +36,23 @@ if (!$isUserLoggedIn) {
 <body>
     <div class="container">
         <header class="header">
-            <div class="logo ai-generator-trigger" id="aiGeneratorTrigger" title="Click to open AI Image Generator">
-                <i class="fas fa-atom"></i>
-                <span>AI</span>
+            <div class="ai-tools">
+                <div class="ai-dropdown">
+                    <div class="ai-trigger" id="aiTrigger" title="AI Tools">
+                        <i class="fas fa-atom"></i>
+                        <span>AI</span>
+                    </div>
+                    <div class="ai-dropdown-menu" id="aiDropdownMenu">
+                        <div class="ai-option" id="aiGeneratorOption">
+                            <i class="fas fa-magic"></i>
+                            <span>Generate Image</span>
+                        </div>
+                        <div class="ai-option" id="aiEditorOption">
+                            <i class="fas fa-edit"></i>
+                            <span>Edit Photo</span>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="brand">
                 <i class="fas fa-store"></i>
@@ -321,6 +335,7 @@ if (!$isUserLoggedIn) {
                 <h2><i class="fas fa-magic"></i> AI Image Generator</h2>
                 <span class="close ai-modal-close" id="aiModalClose">&times;</span>
             </div>
+            
             <div class="ai-modal-body">
                 <div class="ai-prompt-section">
                     <label for="aiPrompt">Describe the image you want to generate:</label>
@@ -368,6 +383,90 @@ if (!$isUserLoggedIn) {
                             <span id="errorText"></span>
                         </div>
                         <button id="retryBtn" class="btn btn-primary">
+                            <i class="fas fa-retry"></i>
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI Photo Editor Modal -->
+    <div id="aiPhotoEditorModal" class="modal ai-modal">
+        <div class="modal-content ai-modal-content">
+            <div class="ai-modal-header">
+                <h2><i class="fas fa-edit"></i> AI Photo Editor</h2>
+                <span class="close ai-modal-close" id="aiEditorModalClose">&times;</span>
+            </div>
+            
+            <div class="ai-modal-body">
+                <div class="ai-edit-section">
+                    <div class="upload-section">
+                        <label for="photoUpload">Upload your photo to edit:</label>
+                        <div class="upload-area" id="uploadArea">
+                            <input type="file" id="photoUpload" accept="image/*" style="display: none;">
+                            <div class="upload-placeholder">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>Click to upload or drag & drop your image</p>
+                                <small>Supports JPG, PNG, GIF (Max 10MB)</small>
+                            </div>
+                            <div class="uploaded-image" id="uploadedImagePreview" style="display: none;">
+                                <img id="previewImage" src="" alt="Uploaded Image">
+                                <button class="remove-image" id="removeImageBtn">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="edit-prompt-section">
+                        <label for="editPrompt">Describe how you want to edit the image:</label>
+                        <textarea id="editPrompt" placeholder="e.g., Remove the background, change the sky to sunset, add flowers..." rows="3"></textarea>
+                        <div class="edit-actions">
+                            <button id="editPhotoBtn" class="btn btn-primary ai-edit-btn" disabled>
+                                <i class="fas fa-edit"></i>
+                                Edit Photo
+                            </button>
+                            <button id="clearEditBtn" class="btn btn-secondary">
+                                <i class="fas fa-eraser"></i>
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ai-result-section" id="aiEditorResultSection" style="display: none;">
+                    <div class="ai-loading" id="aiEditorLoading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <p>Editing your photo... This may take a few moments.</p>
+                    </div>
+                    
+                    <div class="ai-image-result" id="aiEditorImageResult" style="display: none;">
+                        <div class="generated-image-container">
+                            <img id="editedImage" src="" alt="Edited Image" />
+                        </div>
+                        <div class="ai-image-actions">
+                            <button id="downloadEditedBtn" class="btn btn-success">
+                                <i class="fas fa-download"></i>
+                                Download Image
+                            </button>
+                            <button id="editNewBtn" class="btn btn-primary">
+                                <i class="fas fa-redo"></i>
+                                Edit New Photo
+                            </button>
+                        </div>
+                        <div class="ai-image-info">
+                            <p><strong>Edit Instructions:</strong> <span id="usedEditPrompt"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-error" id="aiEditorError" style="display: none;">
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span id="editorErrorText"></span>
+                        </div>
+                        <button id="retryEditBtn" class="btn btn-primary">
                             <i class="fas fa-retry"></i>
                             Try Again
                         </button>

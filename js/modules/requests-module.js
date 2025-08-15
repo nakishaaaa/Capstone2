@@ -132,58 +132,74 @@ export class RequestsModule {
     }
 
     const modalContent = `
-      <div class="request-details-modal">
-        <h3>Request Details #${request.id}</h3>
-        <div class="request-info">
-          <div class="info-row">
-            <strong>Customer:</strong> ${this.escapeHtml(request.name || 'N/A')}
-          </div>
-          <div class="info-row">
-            <strong>Contact:</strong> ${this.escapeHtml(request.contact_number || 'N/A')}
-          </div>
-          <div class="info-row">
-            <strong>Service:</strong> ${this.formatCategory(request.category)}
-          </div>
-          <div class="info-row">
-            <strong>Type/Size:</strong> ${this.escapeHtml(request.size)}
-          </div>
-          <div class="info-row">
-            <strong>Quantity:</strong> ${request.quantity}
-          </div>
-          <div class="info-row">
-            <strong>Status:</strong> <span class="status-badge ${request.status}">${request.status}</span>
-          </div>
-          <div class="info-row">
-            <strong>Date Submitted:</strong> ${this.formatDate(request.created_at)}
-          </div>
-          ${request.notes ? `
-            <div class="info-row">
-              <strong>Notes:</strong> ${this.escapeHtml(request.notes)}
-            </div>
-          ` : ''}
-          ${request.image_path ? `
-            <div class="info-row">
-              <strong>Attached Image:</strong><br>
-              <img src="${request.image_path}" alt="Request Image" style="max-width: 300px; max-height: 200px; border-radius: 4px;">
-            </div>
-          ` : ''}
-          ${request.admin_response ? `
-            <div class="info-row">
-              <strong>Admin Response:</strong> ${this.escapeHtml(request.admin_response)}
-            </div>
-          ` : ''}
-        </div>
-        ${request.status === 'pending' ? `
-          <div class="modal-actions">
-            <button class="btn btn-success" onclick="approveRequest(${request.id}); window.modalManager.close();">
-              <i class="fas fa-check"></i> Approve
-            </button>
-            <button class="btn btn-danger" onclick="rejectRequest(${request.id}); window.modalManager.close();">
-              <i class="fas fa-times"></i> Reject
-            </button>
-          </div>
-        ` : ''}
+      <div class="request-details-modal" style="font-family: Arial, sans-serif; padding: 1.2rem; background: #fff; border-radius: 8px; border: 1px solid #ddd; max-width: 500px; margin: auto;">
+    <h3 style="margin-bottom: 1rem; color: #333; font-weight: 600; font-size: 1.25rem;">
+      Request Details #${request.id}
+    </h3>
+
+    <div class="request-info" style="display: flex; flex-direction: column; gap: 0.6rem;">
+      <div class="info-row" style="color: #444;">
+      <strong>Customer:</strong> ${this.escapeHtml(request.name || 'N/A')}
+    </div>
+    <div class="info-row" style="color: #444;">
+      <strong>Contact:</strong> ${this.escapeHtml(request.contact_number || 'N/A')}
+    </div>
+    <div class="info-row" style="color: #444;">
+      <strong>Service:</strong> ${this.formatCategory(request.category)}
+    </div>
+    <div class="info-row" style="color: #444;">
+      <strong>Type/Size:</strong> ${this.escapeHtml(request.size)}
+    </div>
+    <div class="info-row" style="color: #444;">
+      <strong>Quantity:</strong> ${request.quantity}
+    </div>
+    <div class="info-row" style="color: #444;">
+      <strong>Status:</strong> 
+      <span class="status-badge ${request.status}" style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; text-transform: capitalize; 
+        background: ${request.status === 'pending' ? '#fff3cd' : request.status === 'approved' ? '#d4edda' : '#f8d7da'}; 
+        color: ${request.status === 'pending' ? '#856404' : request.status === 'approved' ? '#155724' : '#721c24'};">
+        ${request.status}
+      </span>
+    </div>
+    <div class="info-row" style="color: #444;">
+      <strong>Date Submitted:</strong> ${this.formatDate(request.created_at)}
+    </div>
+
+    ${request.notes ? `
+      <div class="info-row" style="color: #444;">
+        <strong>Notes:</strong> ${this.escapeHtml(request.notes)}
       </div>
+    ` : ''}
+
+    ${request.image_path ? `
+      <div class="info-row" style="color: #444;">
+        <strong>Attached Image:</strong><br>
+        <img src="${request.image_path}" alt="Request Image" 
+             style="max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid #ccc; margin-top: 0.4rem;">
+      </div>
+    ` : ''}
+
+    ${request.admin_response ? `
+      <div class="info-row" style="color: #444;">
+        <strong>Admin Response:</strong> ${this.escapeHtml(request.admin_response)}
+      </div>
+    ` : ''}
+  </div>
+
+  ${request.status === 'pending' ? `
+    <div class="modal-actions" style="margin-top: 1.2rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+      <button class="btn btn-success" style="padding: 0.5rem 1rem; border-radius: 6px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
+              onclick="approveRequest(${request.id}); window.modalManager.close();">
+        <i class="fas fa-check"></i> Approve
+      </button>
+      <button class="btn btn-danger" style="padding: 0.5rem 1rem; border-radius: 6px; background: #dc3545; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
+              onclick="rejectRequest(${request.id}); window.modalManager.close();">
+        <i class="fas fa-times"></i> Reject
+      </button>
+    </div>
+  ` : ''}
+</div>
+
     `
 
     this.modal.open('Request Details', modalContent)
@@ -410,7 +426,7 @@ export class RequestsModule {
     // Update section description
     const sectionDescription = document.querySelector('#requests .section-description')
     if (sectionDescription) {
-      sectionDescription.textContent = 'View all cleared customer requests'
+      sectionDescription.textContent = ''
     }
 
     // Hide current requests actions and show back button
