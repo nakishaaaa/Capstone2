@@ -1,21 +1,15 @@
 <?php
 session_start();
 
-// Check for user-specific session first, then fallback to legacy
+// Require only user-specific session variables (no legacy fallback)
 $isUserLoggedIn = false;
 $userName = '';
 $userEmail = '';
 
 if (isset($_SESSION['user_name']) && isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'user') {
-    // User-specific session exists
     $isUserLoggedIn = true;
     $userName = $_SESSION['user_name'];
     $userEmail = $_SESSION['user_email'] ?? '';
-} elseif (isset($_SESSION['name']) && (!isset($_SESSION['role']) || $_SESSION['role'] === 'user')) {
-    // Legacy session exists and is user (or role not set, assuming user)
-    $isUserLoggedIn = true;
-    $userName = $_SESSION['name'];
-    $userEmail = $_SESSION['email'] ?? '';
 }
 
 if (!$isUserLoggedIn) {
@@ -48,8 +42,8 @@ if (!$isUserLoggedIn) {
                             <span>Generate Image</span>
                         </div>
                         <div class="ai-option" id="aiEditorOption">
-                            <i class="fas fa-edit"></i>
-                            <span>Edit Photo</span>
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            <span>Enhance Image</span>
                         </div>
                     </div>
                 </div>
@@ -396,7 +390,7 @@ if (!$isUserLoggedIn) {
     <div id="aiPhotoEditorModal" class="modal ai-modal">
         <div class="modal-content ai-modal-content">
             <div class="ai-modal-header">
-                <h2><i class="fas fa-edit"></i> AI Photo Editor</h2>
+                <h2><i class="fas fa-wand-magic-sparkles"></i> AI Image Editor</h2>
                 <span class="close ai-modal-close" id="aiEditorModalClose">&times;</span>
             </div>
             

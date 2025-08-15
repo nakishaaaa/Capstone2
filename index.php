@@ -8,7 +8,11 @@ $errors = [
 ];
 $activeForm = $_SESSION['active_form'] ?? 'login';
 $registerSuccess = $_SESSION['register_success'] ?? '';
-session_unset();
+// Clear only flash keys instead of the entire session to avoid logging out other tabs
+unset($_SESSION['login_error']);
+unset($_SESSION['register_error']);
+unset($_SESSION['active_form']);
+unset($_SESSION['register_success']);
 
 function showError($error) {
   return !empty($error) ? "<p class='error-message'>$error</p>" : '';

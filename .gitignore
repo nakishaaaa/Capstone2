@@ -5,8 +5,6 @@
 .env.staging
 
 # Database credentials and sensitive config
-config/database.php
-includes/config.php
 
 # Uploaded files
 uploads/

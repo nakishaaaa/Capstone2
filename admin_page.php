@@ -12,21 +12,15 @@ ini_set('log_errors', 1);
 
 session_start();
 
-// Check for admin-specific session first, then fallback to legacy
+// Require only admin-specific session variables (no legacy fallback)
 $isAdminLoggedIn = false;
 $adminName = '';
 $adminEmail = '';
 
 if (isset($_SESSION['admin_name']) && isset($_SESSION['admin_email']) && isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'admin') {
-    // Admin-specific session exists
     $isAdminLoggedIn = true;
     $adminName = $_SESSION['admin_name'];
     $adminEmail = $_SESSION['admin_email'];
-} elseif (isset($_SESSION['name']) && isset($_SESSION['email']) && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-    // Legacy session exists and is admin
-    $isAdminLoggedIn = true;
-    $adminName = $_SESSION['name'];
-    $adminEmail = $_SESSION['email'];
 }
 
 if (!$isAdminLoggedIn) {

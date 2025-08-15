@@ -108,7 +108,15 @@ export class SSEClient {
         const data = JSON.parse(event.data)
         console.warn('SSE: Connection timeout', data)
         this.emit('timeout', data)
-        this.close()
+        // Instead of permanently closing, attempt a reconnect
+        if (this.eventSource) {
+          this.eventSource.close()
+          this.eventSource = null
+        }
+        this.isConnected = false
+        if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.scheduleReconnect()
+        }
       } catch (error) {
         console.error('SSE: Error parsing timeout data', error)
       }

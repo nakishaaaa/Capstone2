@@ -105,7 +105,7 @@ function handleCreateRequest() {
     }
     
     // Validate required fields
-    $required_fields = ['category', 'size', 'quantity'];
+    $required_fields = ['category', 'size', 'quantity', 'name', 'contact_number'];
     foreach ($required_fields as $field) {
         if (!isset($_POST[$field]) || empty(trim($_POST[$field]))) {
             http_response_code(400);
@@ -115,28 +115,32 @@ function handleCreateRequest() {
     }
     
     try {
-        // Handle file upload if present
-        $file_path = null;
-        if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+        // Handle file upload if present (field name: 'image')
+        $image_path = null;
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             $upload_dir = '../uploads/requests/';
             if (!is_dir($upload_dir)) {
                 mkdir($upload_dir, 0755, true);
             }
             
-            $file_extension = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
-            $file_name = uniqid() . '.' . $file_extension;
-            $file_path = $upload_dir . $file_name;
+            $file_extension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+            $file_name = uniqid('req_', true) . '.' . $file_extension;
+            $destination = $upload_dir . $file_name;
             
-            if (!move_uploaded_file($_FILES['file']['tmp_name'], $file_path)) {
+            if (!move_uploaded_file($_FILES['image']['tmp_name'], $destination)) {
                 throw new Exception('Failed to upload file');
             }
             
-            $file_path = 'uploads/requests/' . $file_name; // Store relative path
+            // Store relative path for serving
+            $image_path = 'uploads/requests/' . $file_name;
         }
         
-        // Insert request
-        $sql = "INSERT INTO user_requests (user_id, category, size, quantity, notes, file_path, status, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())";
+        // Insert request (align with schema used in clear_requests.php)
+        $sql = "INSERT INTO user_requests (
+                    user_id, category, size, quantity, name, contact_number, notes, image_path, status, created_at, updated_at
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW()
+                )";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -144,8 +148,10 @@ function handleCreateRequest() {
             $_POST['category'],
             $_POST['size'],
             $_POST['quantity'],
+            $_POST['name'],
+            $_POST['contact_number'],
             $_POST['notes'] ?? '',
-            $file_path
+            $image_path
         ]);
         
         echo json_encode(['success' => true, 'message' => 'Request submitted successfully']);

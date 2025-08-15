@@ -17,16 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// Check if user is logged in (prefer user role, fallback to any)
+// Require strictly a logged-in user role (no fallback to other roles)
 $userData = getUserSessionData('user');
 if (!$userData['is_logged_in']) {
-    // Try fallback to any logged in user
-    $userData = getUserSessionData();
-    if (!$userData['is_logged_in']) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized']);
-        exit();
-    }
+    http_response_code(401);
+    echo json_encode(['error' => 'Unauthorized - user role required']);
+    exit();
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
