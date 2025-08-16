@@ -7,6 +7,7 @@ import { ProductManagementModule } from "./modules/product-management-module.js"
 import { NotificationsModule } from "./modules/notifications-module.js"
 import { RequestsModule } from "./modules/requests-module.js"
 import { NavigationModule } from "./modules/navigation-module.js"
+import AdminSupportManager from "./modules/admin-support-module.js"
 
 class AdminDashboard {
   constructor() {
@@ -30,6 +31,7 @@ class AdminDashboard {
       this.modules.productManagement = new ProductManagementModule(this.toast, this.modal)
       this.modules.notifications = new NotificationsModule(this.toast)
       this.modules.requests = new RequestsModule(this.toast, this.modal)
+      this.modules.adminSupport = new AdminSupportManager(this.toast, this.modal)
 
       // Make modules globally accessible for onclick handlers
       window.modalManager = this.modal
@@ -38,6 +40,7 @@ class AdminDashboard {
       window.productManagementModule = this.modules.productManagement
       window.notificationsModule = this.modules.notifications
       window.requestsModule = this.modules.requests
+      window.adminSupportModule = this.modules.adminSupport
 
       // Setup event listeners
       this.setupEventListeners()
@@ -49,7 +52,7 @@ class AdminDashboard {
       this.startPeriodicUpdates()
 
       this.toast.success("Dashboard loaded successfully!")
-      console.log("Refactored admin dashboard initialized successfully")
+      console.log("admin dashboard initialized successfully")
     } catch (error) {
       console.error("Error initializing dashboard:", error)
       this.toast.error("Error loading dashboard data")
@@ -120,6 +123,9 @@ class AdminDashboard {
           break
         case "requests":
           await this.modules.requests.loadRequests()
+          break
+        case "customer-support":
+          await this.modules.adminSupport.loadSupportMessages()
           break
       }
     } catch (error) {

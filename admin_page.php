@@ -398,9 +398,152 @@ if (!$isAdminLoggedIn) {
                     </table>
                 </div>
             </section>
+
+            <!-- Customer Support Section -->
+            <section id="customersupport" class="content-section">
+                <div class="section-header">
+                    <h1>Customer Support</h1>
+                    <div class="section-actions">
+                        <button id="refreshSupportBtn" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Support Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card small">
+                        <div class="stat-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="total-messages">0</div>
+                            <div class="stat-label">Total Messages</div>
+                        </div>
+                    </div>
+                    <div class="stat-card small">
+                        <div class="stat-icon">
+                            <i class="fas fa-envelope-open"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="unread-messages">0</div>
+                            <div class="stat-label">Unread</div>
+                        </div>
+                    </div>
+                    <div class="stat-card small">
+                        <div class="stat-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="active-conversations">0</div>
+                            <div class="stat-label">Active Conversations</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messenger-style Support Interface -->
+                <div class="support-messenger-container">
+                    <!-- Conversations List -->
+                    <div class="support-conversations-panel">
+                        <div class="conversations-header">
+                            <h3>Conversations</h3>
+                            <div class="conversations-search">
+                                <input type="text" id="conversationSearch" placeholder="Search conversations..." class="search-input-small">
+                            </div>
+                        </div>
+                        <div class="conversations-list" id="conversationsList">
+                            <div class="loading-conversations">
+                                <i class="fas fa-spinner fa-spin"></i> Loading conversations...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Area -->
+                    <div class="support-chat-panel">
+                        <div class="chat-header" id="chatHeader" style="display: none;">
+                            <div class="chat-user-info">
+                                <div class="chat-avatar">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="chat-user-details">
+                                    <div class="chat-user-name" id="chatUserName"></div>
+                                    <div class="chat-user-email" id="chatUserEmail"></div>
+                                </div>
+                            </div>
+                            <div class="chat-actions">
+                                <button class="btn-chat-action" id="markAllReadBtn" title="Mark all as read">
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="no-conversation-selected">
+                                <i class="fas fa-comments"></i>
+                                <h3>Select a conversation</h3>
+                                <p>Choose a conversation from the list to start messaging</p>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input-area" id="chatInputArea" style="display: none;">
+                            <div class="chat-input-container">
+                                <textarea id="adminReplyInput" placeholder="Type your reply..." rows="2"></textarea>
+                                <button id="sendReplyBtn" class="btn-send-reply">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
-    
+
+    <!-- Support Message Modal -->
+    <div id="supportMessageModal" class="support-message-modal">
+        <div class="support-message-modal-content">
+            <div class="support-message-modal-header">
+                <h3>Support Message</h3>
+                <button class="support-message-close" onclick="closeSupportMessageModal()">×</button>
+            </div>
+            <div class="support-message-modal-body">
+                <div class="support-message-info">
+                    <div class="support-message-meta">
+                        <p><strong>From:</strong> <span id="modalCustomerName"></span></p>
+                        <p><strong>Email:</strong> <span id="modalCustomerEmail"></span></p>
+                    </div>
+                    <div class="support-message-meta">
+                        <p><strong>Date:</strong> <span id="modalMessageDate"></span></p>
+                        <p><strong>Status:</strong> <span id="modalMessageStatus" class="support-message-status"></span></p>
+                    </div>
+                </div>
+                
+                <div class="support-message-content">
+                    <h4>Subject:</h4>
+                    <div id="modalSubject" class="support-message-text"></div>
+                </div>
+                
+                <div class="support-message-content">
+                    <h4>Message:</h4>
+                    <div id="modalMessage" class="support-message-text"></div>
+                </div>
+                
+                <div class="support-response-section">
+                    <h4>Admin Response</h4>
+                    <textarea id="adminResponse" class="support-response-textarea" placeholder="Type your response to the customer..." rows="6"></textarea>
+                    <div class="support-modal-actions">
+                        <button id="sendResponseBtn" class="support-btn support-btn-primary">
+                            📤 Send Response
+                        </button>
+                        <button id="markAsReadBtn" class="support-btn support-btn-secondary">
+                            ✓ Mark as Read
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modalOverlay" class="modal-overlay">
         <div id="modalContent" class="modal-content">
         </div>

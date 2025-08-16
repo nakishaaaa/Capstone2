@@ -1,8 +1,3 @@
-/**
- * Main User Page Controller
- * Initializes all modules and manages the overall application
- */
-
 import { ANIMATION_SETTINGS } from './modules/config-module.js';
 import { csrfService } from './modules/csrf-module.js';
 import './modules/ui-module.js';
@@ -12,6 +7,7 @@ import { AccountManager } from './modules/account-module.js';
 import { AIImageGenerator } from './modules/ai-image-generator-module.js';
 import { AIPhotoEditor } from './modules/ai-photo-editor-module.js';
 import { AIDropdownManager } from './modules/ai-dropdown-module.js';
+import SupportMessaging from './modules/support-module.js';
 
 class UserPageApp {
     constructor() {
@@ -21,6 +17,7 @@ class UserPageApp {
         this.aiImageGenerator = null;
         this.aiPhotoEditor = null;
         this.aiDropdownManager = null;
+        this.supportMessaging = null;
         
         this.init();
     }
@@ -48,6 +45,9 @@ class UserPageApp {
         this.aiImageGenerator = new AIImageGenerator();
         this.aiPhotoEditor = new AIPhotoEditor();
         this.aiDropdownManager = new AIDropdownManager();
+        
+        // Support functionality
+        this.supportMessaging = new SupportMessaging();
     }
     
     exposeGlobalInstances() {
@@ -58,6 +58,7 @@ class UserPageApp {
         window.aiImageGenerator = this.aiImageGenerator;
         window.aiPhotoEditor = this.aiPhotoEditor;
         window.aiDropdownManager = this.aiDropdownManager;
+        window.supportMessaging = this.supportMessaging;
         
         // Expose CSRF service
         window.csrfService = csrfService;

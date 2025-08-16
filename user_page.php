@@ -23,7 +23,15 @@ if (!$isUserLoggedIn) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Resource hints to speed up external icon/font CDNs -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" rel="stylesheet">
     <title>053 PRINTS - User Dashboard</title>
     <link rel="stylesheet" href="css/user_page.css">
 </head>
@@ -49,11 +57,7 @@ if (!$isUserLoggedIn) {
                 </div>
             </div>
             <div class="brand">
-                <i class="fas fa-store"></i>
-                <span>053 PRINTS</span>
-            </div>
-            <div class="services">
-                <span>SERVICES</span>
+                <span>053</span>
             </div>
             <div class="user-info">
                 <div class="user-dropdown">
@@ -106,6 +110,10 @@ if (!$isUserLoggedIn) {
                     <div class="slide"></div>
                 </div>
                 <div class="hero-overlay">
+                    <!-- Centered logo over slideshow -->
+                    <div class="hero-logo-container">
+                        <img src="images/053logo.png" alt="053 Prints Logo" class="hero-logo" />
+                    </div>
                     <!-- Request Order Button -->
                     <div class="request-button-container">
                         <button id="showRequestFormBtn" class="btn-show-form">
@@ -204,10 +212,110 @@ if (!$isUserLoggedIn) {
                         </form>
                     </div>
                 </div>
+                <!-- Social Links over the slideshow -->
+                <div class="social-links" role="navigation" aria-label="Social Media Links">
+                    <a href="https://www.facebook.com/053printingservice" target="_blank" rel="noopener" aria-label="Facebook">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="https://www.instagram.com/053prints" target="_blank" rel="noopener" aria-label="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    <a href="https://www.tiktok.com/@053.prints?lang=en" target="_blank" rel="noopener" aria-label="TikTok">
+                        <i class="fab fa-tiktok"></i>
+                    </a>
+                </div>
             </div> 
+            <section id="services" class="content-section services-section">
+                <div class="section-header">
+                    <h2>Our Services</h2>
+                    <p>High-quality prints and office services tailored to your needs</p>
+                </div>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-shirt"></i></div>
+                        <h3>T-Shirt Print</h3>
+                        <p>Custom designs with vibrant colors and durable materials.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-tags"></i></div>
+                        <h3>Tag & Sticker</h3>
+                        <p>Labels and stickers for branding, packaging, and events.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-id-card"></i></div>
+                        <h3>Cards</h3>
+                        <p>ID, business, and custom cards with premium finishes.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-print"></i></div>
+                        <h3>Document & Photo</h3>
+                        <p>Clear document prints and photo prints in all standard sizes.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-copy"></i></div>
+                        <h3>Photo Copy</h3>
+                        <p>Fast and accurate photocopy with high-resolution output.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-layer-group"></i></div>
+                        <h3>Lamination</h3>
+                        <p>Protect your prints with high-quality lamination.</p>
+                    </div>
+                </div>
+            </section>
 
-            <div class="chat-button">
-                <span>Chat with the Seller?</span>
+            <section id="how" class="content-section how-section">
+                <div class="section-header">
+                    <h2>How It Works</h2>
+                    <p>Simple steps from request to delivery</p>
+                </div>
+                <div class="how-grid">
+                    <div class="step-card">
+                        <span class="step-number">1</span>
+                        <h3>Submit Request</h3>
+                        <p>Click "Request an Order" and provide the details and files.</p>
+                    </div>
+                    <div class="step-card">
+                        <span class="step-number">2</span>
+                        <h3>We Review</h3>
+                        <p>Our team confirms specs, timeline, and pricing.</p>
+                    </div>
+                    <div class="step-card">
+                        <span class="step-number">3</span>
+                        <h3>Production</h3>
+                        <p>We print and prepare your order with care and quality.</p>
+                    </div>
+                    <div class="step-card">
+                        <span class="step-number">4</span>
+                        <h3>Pick Up / Delivery</h3>
+                        <p>Receive your finished order on schedule.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="testimonials" class="content-section testimonials-section">
+                <div class="section-header">
+                    <h2>What Customers Say</h2>
+                    <p>Real feedback from our satisfied clients</p>
+                </div>
+                <div class="testimonials-grid">
+                    <div class="testimonial-card">
+                        <p class="quote">“Top-notch quality and very fast turnaround!”</p>
+                        <div class="author">— Jamie R.</div>
+                    </div>
+                    <div class="testimonial-card">
+                        <p class="quote">“They handled my custom shirt order perfectly.”</p>
+                        <div class="author">— Marco D.</div>
+                    </div>
+                    <div class="testimonial-card">
+                        <p class="quote">“Great customer service. Highly recommended.”</p>
+                        <div class="author">— Aira P.</div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="chat-button" onclick="openSupportModal()">
+                <span>Support</span>
                 <div class="chat-icon">
                     <i class="fas fa-comments"></i>
                 </div>
@@ -315,10 +423,50 @@ if (!$isUserLoggedIn) {
         </div>
     </div>
 
-    <div id="messageModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <div id="modalMessage"></div>
+    <!-- Support Modal -->
+    <div id="supportModal" class="support-modal" style="display: none;">
+        <div class="support-modal-content">
+            <div class="support-modal-header">
+                <button class="support-back-btn" onclick="closeSupportModal()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2>Send a message</h2>
+            </div>
+            
+            <div class="support-modal-body">
+                <div class="support-header-info">
+                    <h3>How can we help?</h3>
+                    <p>We usually respond in a few hours</p>
+                </div>
+                
+                <form id="supportForm" class="support-form">
+                    <div class="support-form-group">
+                        <label for="supportSubject">Subject</label>
+                        <input type="text" id="supportSubject" name="subject" required>
+                    </div>
+                    
+                    <div class="support-form-group">
+                        <label for="supportMessage">How can we help?</label>
+                        <textarea id="supportMessage" name="message" rows="6" required placeholder="Describe your issue or question..."></textarea>
+                        <div class="support-message-actions">
+                            <button type="button" class="support-attachment-btn">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <button type="button" class="support-emoji-btn">
+                                <i class="fas fa-smile"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="support-send-btn">
+                        Send a message
+                    </button>
+                    <button type="button" class="support-prev-btn" id="openPreviousConversationsBtn" aria-label="View previous conversations">
+                        <i class="fas fa-clock-rotate-left"></i>
+                        Previous Conversations
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -466,6 +614,30 @@ if (!$isUserLoggedIn) {
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="messageModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modalMessage"></div>
+        </div>
+    </div>
+
+    <!-- Previous Conversations Modal -->
+    <div id="previousConversationsModal" class="support-modal" style="display: none;">
+        <div class="support-modal-content">
+            <div class="support-modal-header">
+                <button class="support-back-btn" id="closePreviousConversations">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2>Previous Conversations</h2>
+            </div>
+
+            <div class="support-modal-body previous-conversations-body">
+                <div id="conversationsList" class="conversations-list" aria-live="polite"></div>
+                <div id="conversationDetail" class="conversation-detail" style="display:none;"></div>
             </div>
         </div>
     </div>

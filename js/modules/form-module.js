@@ -15,6 +15,7 @@ export class FormManager {
         this.closeFormBtn = null;
         this.requestFormContainer = null;
         this.requestButtonContainer = null;
+        this.heroOverlay = null;
         this.csrfToken = null;
         
         this.init();
@@ -35,6 +36,7 @@ export class FormManager {
         this.closeFormBtn = document.getElementById('closeRequestFormBtn');
         this.requestFormContainer = document.getElementById('requestFormContainer');
         this.requestButtonContainer = document.querySelector('.request-button-container');
+        this.heroOverlay = document.querySelector('.hero-overlay');
     }
     
     setupEventListeners() {
@@ -129,6 +131,11 @@ export class FormManager {
                 this.requestFormContainer.style.opacity = '1';
                 this.requestFormContainer.style.transform = 'translateY(0)';
             }, 10);
+
+            // Mark overlay as form-open to hide logo and adjust stacking
+            if (this.heroOverlay) {
+                this.heroOverlay.classList.add('form-open');
+            }
         }
     }
     
@@ -144,6 +151,11 @@ export class FormManager {
                 
                 // Reset form when hiding
                 this.clearForm();
+
+                // Remove form-open state on overlay
+                if (this.heroOverlay) {
+                    this.heroOverlay.classList.remove('form-open');
+                }
             }, ANIMATION_SETTINGS.FORM_TRANSITION_DURATION);
         }
     }

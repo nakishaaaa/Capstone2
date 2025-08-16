@@ -29,6 +29,8 @@ export class RequestsModule {
     window.viewRequest = (id) => this.viewRequestDetails(id)
     window.viewRequestHistory = () => this.viewHistory()
     window.backToRequests = () => this.backToRequests()
+    // Notes expand/collapse toggle for long text
+    window.toggleNote = (id) => this.toggleNote(id)
   }
 
   async loadRequests() {
@@ -104,7 +106,7 @@ export class RequestsModule {
         },
         credentials: 'include',
         body: JSON.stringify({
-          request_id: requestId,
+          id: requestId,
           status: status,
           csrf_token: csrfData.token
         })
@@ -113,14 +115,17 @@ export class RequestsModule {
       const data = await response.json()
       
       if (data.success) {
-        this.toast.success(`Request ${status} successfully!`)
+        const action = status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : status
+        this.toast.success(`Request ${action} successfully!`)
         await this.loadRequests() // Reload to get updated data
       } else {
-        throw new Error(data.message || `Failed to ${status} request`)
+        const action = status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : status
+        throw new Error((data.message || data.error) || `Failed to ${action} request`)
       }
     } catch (error) {
       console.error(`Error updating request status:`, error)
-      this.toast.error(`Failed to ${status} request: ` + error.message)
+      const action = status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : status
+      this.toast.error(`Failed to ${action} request: ` + error.message)
     }
   }
 
@@ -166,8 +171,19 @@ export class RequestsModule {
     </div>
 
     ${request.notes ? `
-      <div class="info-row" style="color: #444;">
-        <strong>Notes:</strong> ${this.escapeHtml(request.notes)}
+      <div class="info-row" style="color: #444; display: flex; align-items: flex-start; gap: 6px;">
+        <strong style="white-space: nowrap;">Notes:</strong>
+        <span id="note-${request.id}"
+              class="note-text"
+              data-collapsed="true"
+              style="display: inline-block; flex: 1; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; line-height: 1.2em; max-height: 3.6em; overflow: hidden;">
+          ${this.escapeHtml(request.notes)}
+        </span>
+        <button id="toggle-note-${request.id}"
+                onclick="toggleNote(${request.id})"
+                style="background: none; border: none; color: #007bff; cursor: pointer; padding: 0; margin-left: 4px; flex: 0 0 auto;">
+          See more
+        </button>
       </div>
     ` : ''}
 
@@ -203,6 +219,33 @@ export class RequestsModule {
     `
 
     this.modal.open('Request Details', modalContent)
+    // After modal renders, decide if toggle is needed
+    setTimeout(() => {
+      const span = document.getElementById(`note-${request.id}`)
+      const btn = document.getElementById(`toggle-note-${request.id}`)
+      if (span && btn) {
+        // If content height fits in collapsed area, hide toggle
+        if (span.scrollHeight <= span.clientHeight + 1) {
+          btn.style.display = 'none'
+        }
+      }
+    }, 0)
+  }
+
+  toggleNote(id) {
+    const span = document.getElementById(`note-${id}`)
+    const btn = document.getElementById(`toggle-note-${id}`)
+    if (!span || !btn) return
+    const collapsed = span.dataset.collapsed !== 'false'
+    if (collapsed) {
+      span.style.maxHeight = 'none'
+      span.dataset.collapsed = 'false'
+      btn.textContent = 'See less'
+    } else {
+      span.style.maxHeight = '3.6em'
+      span.dataset.collapsed = 'true'
+      btn.textContent = 'See more'
+    }
   }
 
   displayError(message) {
@@ -495,6 +538,7 @@ export class RequestsModule {
     tbody.innerHTML = this.historyData.map(request => `
       <tr>
         <td>#${request.id}</td>
+        <td>${this.formatDate(request.created_at)}</td>
         <td>${this.escapeHtml(request.name || 'N/A')}</td>
         <td>${this.formatCategory(request.category)}</td>
         <td>${this.escapeHtml(request.size || 'N/A')}</td>

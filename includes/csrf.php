@@ -46,4 +46,17 @@ class CSRFToken {
         return $_SESSION['csrf_token'];
     }
 }
+
+// Helper function for backward compatibility
+function validateCSRFToken($token) {
+    return CSRFToken::validate($token);
+}
+
+function generateCSRFToken() {
+    return CSRFToken::generate();
+}
+
+function getCSRFToken() {
+    return CSRFToken::getToken();
+}
 ?>
