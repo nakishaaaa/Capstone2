@@ -470,7 +470,7 @@ if (!$isUserLoggedIn) {
         </div>
     </div>
 
-    <script src="js/user_page.js"></script>
+    <script type="module" src="js/user_page.main.js"></script>
     <script src="js/slideshow.js"></script>
 </body>
 </html>
