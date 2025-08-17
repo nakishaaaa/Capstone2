@@ -10,9 +10,9 @@ body {
 }
 
 .container {
-    min-height: 120vh;
     display: flex;
     flex-direction: column;
+    background: transparent; 
 }
 
 .header {
@@ -375,6 +375,7 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    background: transparent; /* ensure content area doesn't cover slideshow */
 }
 
 .hero-section {
@@ -385,6 +386,7 @@ body {
     justify-content: center;
     min-height: 100vh;
     overflow: hidden;
+    background: transparent; /* transparent over slideshow */
 }
 
 .slideshow-container {
@@ -464,6 +466,7 @@ body {
     justify-content: center;
     padding: 0 2rem 2rem;
     z-index: 20;
+    background: transparent; /* avoid any white background */
 }
 
 
@@ -593,10 +596,6 @@ body {
 .form-title {
     text-align: center;
     font-size: 2rem;
-    margin: 0;
-    color: #333;
-    font-weight: 600;
-    flex: 1;
 }
 
 .btn-close-form {

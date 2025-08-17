@@ -5,7 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forgot Password</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="css/reset_style.css">
+    <link rel="stylesheet" href="css/index.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('images/053 bg1.jpg') center/cover no-repeat;
+            position: relative;
+        }
+    </style>
 </head>
 <body>
     <?php

@@ -36,9 +36,22 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Password</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="css/styles1.css">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="css/index.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('images/053 bg1.jpg') center/cover no-repeat;
+            position: relative;
+        }
+    </style>
     
 </head>
 <body>
@@ -50,11 +63,8 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
         <div class="login-card active">
             <div class="form-header">
                 <div class="form-subtitle">Reset Password</div>
-                <div class="form-title">Create new password.</div>
-                <div class="login-link">
-                    Remember your password? <a href="index.php">Log In</a>
-                </div>
             </div>
+            <div class="form-title">Create new password</div>
 
             <?php
             if (isset($_GET['status']) && isset($_GET['message'])) {
@@ -87,6 +97,10 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
                             <i class="fas fa-eye" id="password_confirmation-icon"></i>
                         </button>
                     </div>
+                </div>
+                
+                <div class="login-link" style="margin: 0.25rem 0 0.75rem; text-align: right; color: #bbb; font-size: 13px;">
+                    Remember your password? <a href="index.php" style="color:#4facfe; font-weight:600;">Log In</a>
                 </div>
                 
                 <div class="button-group">
