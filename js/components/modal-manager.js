@@ -56,7 +56,7 @@ export class ModalManager {
             showCloseButton
               ? `
             <button class="close-modal" onclick="window.modalManager.close()">
-              <i class="fas fa-times"></i>
+              <i class="fa-solid fa-xmark"></i>
             </button>
           `
               : ""

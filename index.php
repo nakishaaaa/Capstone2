@@ -231,6 +231,33 @@ function isActiveForm($formName, $activeForm) {
       </div>
     </section>
 
+    <section id="gallery" class="content-section gallery-section">
+      <div class="section-header">
+        <h2>From the Archive</h2>
+        <p>Diretsong obra mula sa hood</p>
+      </div>
+      <div class="gallery-grid">
+        <figure class="gallery-item">
+          <img src="images/gallery/photo1.jpg">
+        </figure>
+        <figure class="gallery-item">
+          <img src="images/gallery/photo2.jpg">
+        </figure>
+        <figure class="gallery-item">
+          <img src="images/gallery/photo3.jpg">
+        </figure>
+        <figure class="gallery-item">
+          <img src="images/gallery/photo4.jpg">
+        </figure>
+        <figure class="gallery-item">
+          <img src="images/gallery/photo5.jpg">
+        </figure>
+        <figure class="gallery-item">
+          <img src="images/gallery/photo6.jpg">
+        </figure>
+      </div>
+    </section>
+
     <section id="how" class="content-section how-section">
       <div class="section-header">
         <h2>How It Works</h2>
@@ -286,6 +313,16 @@ function isActiveForm($formName, $activeForm) {
       <div class="chat-icon">
         <i class="fas fa-comments"></i>
       </div>
+    </div>
+    <!-- Lightbox overlay for gallery -->
+    <div id="lightbox" class="lightbox-overlay" aria-hidden="true" role="dialog">
+      <button class="lightbox-close" aria-label="Close">&times;</button>
+      <button class="lightbox-nav prev" aria-label="Previous">&#10094;</button>
+      <div class="lightbox-content">
+        <img id="lightboxImage" alt="" />
+        <div class="lightbox-caption" id="lightboxCaption"></div>
+      </div>
+      <button class="lightbox-nav next" aria-label="Next">&#10095;</button>
     </div>
   </main>
 
@@ -423,6 +460,78 @@ function isActiveForm($formName, $activeForm) {
     }
     setupPasswordToggle('login-password', 'toggle-login-password', 'login-eye-icon');
     setupPasswordToggle('register-password', 'toggle-register-password', 'register-eye-icon');
+
+    // Gallery Lightbox
+    (function(){
+      var images = Array.prototype.slice.call(document.querySelectorAll('.gallery-grid img'));
+      if (!images.length) return;
+
+      // Hint cursor
+      images.forEach(function(img){ img.style.cursor = 'zoom-in'; });
+
+      var overlay = document.getElementById('lightbox');
+      var lbImg = document.getElementById('lightboxImage');
+      var lbCaption = document.getElementById('lightboxCaption');
+      var btnClose = overlay ? overlay.querySelector('.lightbox-close') : null;
+      var btnPrev = overlay ? overlay.querySelector('.lightbox-nav.prev') : null;
+      var btnNext = overlay ? overlay.querySelector('.lightbox-nav.next') : null;
+      var current = 0;
+
+      function openAt(index){
+        current = index;
+        var src = images[current].getAttribute('src');
+        var alt = images[current].getAttribute('alt') || '';
+        if (lbImg) {
+          lbImg.src = src;
+          lbImg.alt = alt;
+        }
+        if (lbCaption) lbCaption.textContent = alt;
+        if (overlay) {
+          overlay.classList.add('open');
+          overlay.setAttribute('aria-hidden','false');
+        }
+        document.body.style.overflow = 'hidden';
+      }
+
+      function close(){
+        if (overlay) {
+          overlay.classList.remove('open');
+          overlay.setAttribute('aria-hidden','true');
+        }
+        document.body.style.overflow = '';
+      }
+
+      function show(delta){
+        var len = images.length;
+        var next = (current + delta + len) % len;
+        openAt(next);
+      }
+
+      images.forEach(function(img, idx){
+        img.addEventListener('click', function(){ openAt(idx); });
+      });
+
+      if (btnClose) btnClose.addEventListener('click', close);
+      if (btnPrev) btnPrev.addEventListener('click', function(){ show(-1); });
+      if (btnNext) btnNext.addEventListener('click', function(){ show(1); });
+
+      if (overlay) {
+        overlay.addEventListener('click', function(e){
+          // close only when clicking outside the content
+          var content = overlay.querySelector('.lightbox-content');
+          if (e.target === overlay || (content && !content.contains(e.target) && !e.target.classList.contains('lightbox-nav'))) {
+            close();
+          }
+        });
+      }
+
+      document.addEventListener('keydown', function(e){
+        if (!overlay || !overlay.classList.contains('open')) return;
+        if (e.key === 'Escape') close();
+        else if (e.key === 'ArrowRight') show(1);
+        else if (e.key === 'ArrowLeft') show(-1);
+      });
+    })();
   });
   </script>
   <script src="js/slideshow.js"></script>

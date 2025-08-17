@@ -225,94 +225,37 @@ if (!$isUserLoggedIn) {
                     </a>
                 </div>
             </div> 
-            <section id="services" class="content-section services-section">
-                <div class="section-header">
-                    <h2>Our Services</h2>
-                    <p>High-quality prints and office services tailored to your needs</p>
-                </div>
-                <div class="services-grid">
-                    <div class="service-card">
-                        <div class="service-icon"><i class="fas fa-shirt"></i></div>
-                        <h3>T-Shirt Print</h3>
-                        <p>Custom designs with vibrant colors and durable materials.</p>
-                    </div>
-                    <div class="service-card">
-                        <div class="service-icon"><i class="fas fa-tags"></i></div>
-                        <h3>Tag & Sticker</h3>
-                        <p>Labels and stickers for branding, packaging, and events.</p>
-                    </div>
-                    <div class="service-card">
-                        <div class="service-icon"><i class="fas fa-id-card"></i></div>
-                        <h3>Cards</h3>
-                        <p>ID, business, and custom cards with premium finishes.</p>
-                    </div>
-                    <div class="service-card">
-                        <div class="service-icon"><i class="fas fa-print"></i></div>
-                        <h3>Document & Photo</h3>
-                        <p>Clear document prints and photo prints in all standard sizes.</p>
-                    </div>
-                    <div class="service-card">
-                        <div class="service-icon"><i class="fas fa-copy"></i></div>
-                        <h3>Photo Copy</h3>
-                        <p>Fast and accurate photocopy with high-resolution output.</p>
-                    </div>
-                    <div class="service-card">
-                        <div class="service-icon"><i class="fas fa-layer-group"></i></div>
-                        <h3>Lamination</h3>
-                        <p>Protect your prints with high-quality lamination.</p>
-                    </div>
-                </div>
-            </section>
-
+            
             <section id="how" class="content-section how-section">
                 <div class="section-header">
                     <h2>How It Works</h2>
                     <p>Simple steps from request to delivery</p>
                 </div>
+
                 <div class="how-grid">
-                    <div class="step-card">
-                        <span class="step-number">1</span>
-                        <h3>Submit Request</h3>
-                        <p>Click "Request an Order" and provide the details and files.</p>
-                    </div>
-                    <div class="step-card">
-                        <span class="step-number">2</span>
-                        <h3>We Review</h3>
-                        <p>Our team confirms specs, timeline, and pricing.</p>
-                    </div>
-                    <div class="step-card">
-                        <span class="step-number">3</span>
-                        <h3>Production</h3>
-                        <p>We print and prepare your order with care and quality.</p>
-                    </div>
-                    <div class="step-card">
-                        <span class="step-number">4</span>
-                        <h3>Pick Up / Delivery</h3>
-                        <p>Receive your finished order on schedule.</p>
-                    </div>
+                <div class="step-card">
+                    <span class="step-number">1</span>
+                    <h3>Submit Request</h3>
+                    <p>Click "Request an Order" and provide the details and files.</p>
+                </div>
+                <div class="step-card">
+                    <span class="step-number">2</span>
+                    <h3>We Review</h3>
+                    <p>Our team confirms specs, timeline, and pricing.</p>
+                </div>
+                <div class="step-card">
+                    <span class="step-number">3</span>
+                    <h3>Production</h3>
+                    <p>We print and prepare your order with care and quality.</p>
+                </div>
+                <div class="step-card">
+                    <span class="step-number">4</span>
+                    <h3>Pick Up / Delivery</h3>
+                    <p>Receive your finished order on schedule.</p>
+                </div>
                 </div>
             </section>
 
-            <section id="testimonials" class="content-section testimonials-section">
-                <div class="section-header">
-                    <h2>What Customers Say</h2>
-                    <p>Real feedback from our satisfied clients</p>
-                </div>
-                <div class="testimonials-grid">
-                    <div class="testimonial-card">
-                        <p class="quote">“Top-notch quality and very fast turnaround!”</p>
-                        <div class="author">— Jamie R.</div>
-                    </div>
-                    <div class="testimonial-card">
-                        <p class="quote">“They handled my custom shirt order perfectly.”</p>
-                        <div class="author">— Marco D.</div>
-                    </div>
-                    <div class="testimonial-card">
-                        <p class="quote">“Great customer service. Highly recommended.”</p>
-                        <div class="author">— Aira P.</div>
-                    </div>
-                </div>
-            </section>
 
             <div class="chat-button" onclick="openSupportModal()">
                 <span>Support</span>

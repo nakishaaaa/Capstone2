@@ -69,14 +69,12 @@ export class RequestsModule {
     document.getElementById('pending-requests').textContent = stats.pending || 0
     document.getElementById('approved-requests').textContent = stats.approved || 0
     document.getElementById('rejected-requests').textContent = stats.rejected || 0
-    
-    // Update dashboard total requests
+
     const totalRequestsElement = document.getElementById('total-requests')
     if (totalRequestsElement) {
       totalRequestsElement.textContent = stats.pending || 0
     }
 
-    // Update sidebar badge for pending requests
     this.updateRequestsBadge(stats.pending || 0)
   }
 
@@ -120,7 +118,7 @@ export class RequestsModule {
       if (data.success) {
         const action = status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : status
         this.toast.success(`Request ${action} successfully!`)
-        await this.loadRequests() // Reload to get updated data
+        await this.loadRequests()
       } else {
         const action = status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : status
         throw new Error((data.message || data.error) || `Failed to ${action} request`)
@@ -139,98 +137,201 @@ export class RequestsModule {
       return
     }
 
+    // Clean leading whitespace/newlines so the note starts at the very top
+    const cleanedNotes = this.escapeHtml((request.notes || '').trimStart())
+
     const modalContent = `
-      <div class="request-details-modal" style="font-family: Arial, sans-serif; padding: 1.2rem; background: #fff; border-radius: 8px; border: 1px solid #ddd; max-width: 500px; margin: auto;">
-    <h3 style="margin-bottom: 1rem; color: #333; font-weight: 600; font-size: 1.25rem;">
-      Request Details #${request.id}
-    </h3>
+      <div class="request-details-modal" style="
+        font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+        padding: 1.5rem;
+        background: #ffffff;
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        max-width: 600px;
+        margin: 1rem auto;
+        color: #2d3748;
+      ">
+        <div class="request-modal-header" style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.25rem;
+          padding-bottom: 0.75rem;
+          border-bottom: 1px solid #e2e8f0;
+        ">
+          <h3 style="
+            margin: 0;
+            color: #1a202c;
+            font-weight: 600;
+            font-size: 1.375rem;
+          ">
+            Request #${request.id}
+          </h3>
+        </div>
 
-    <div class="request-info" style="display: flex; flex-direction: column; gap: 0.6rem;">
-      <div class="info-row" style="color: #444;">
-      <strong>Customer:</strong> ${this.escapeHtml(request.name || 'N/A')}
-    </div>
-    <div class="info-row" style="color: #444;">
-      <strong>Contact:</strong> ${this.escapeHtml(request.contact_number || 'N/A')}
-    </div>
-    <div class="info-row" style="color: #444;">
-      <strong>Service:</strong> ${this.formatCategory(request.category)}
-    </div>
-    <div class="info-row" style="color: #444;">
-      <strong>Type/Size:</strong> ${this.escapeHtml(request.size)}
-    </div>
-    <div class="info-row" style="color: #444;">
-      <strong>Quantity:</strong> ${request.quantity}
-    </div>
-    <div class="info-row" style="color: #444;">
-      <strong>Status:</strong> 
-      <span class="status-badge ${request.status}" style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; text-transform: capitalize; 
-        background: ${request.status === 'pending' ? '#fff3cd' : request.status === 'approved' ? '#d4edda' : '#f8d7da'}; 
-        color: ${request.status === 'pending' ? '#856404' : request.status === 'approved' ? '#155724' : '#721c24'};">
-        ${request.status}
-      </span>
-    </div>
-    <div class="info-row" style="color: #444;">
-      <strong>Date Submitted:</strong> ${this.formatDate(request.created_at)}
-    </div>
+        <div class="request-info" style="
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+          margin-bottom: 1.25rem;
+        ">
+          <div class="info-item">
+            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Customer</div>
+            <div style="font-weight: 500; color: #2d3748;">${this.escapeHtml(request.name || 'N/A')}</div>
+          </div>
+          <div class="info-item">
+            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Contact</div>
+            <div style="font-weight: 500; color: #2d3748;">${this.escapeHtml(request.contact_number || 'N/A')}</div>
+          </div>
+          <div class="info-item">
+            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Service</div>
+            <div style="font-weight: 500; color: #2d3748;">${this.formatCategory(request.category)}</div>
+          </div>
+          <div class="info-item">
+            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Type/Size</div>
+            <div style="font-weight: 500; color: #2d3748;">${this.escapeHtml(request.size)}</div>
+          </div>
+          <!-- Notes section consolidated below (with Show more/less) -->
+          
+          ${request.image_path ? `
+            <div class="info-item">
+              <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Attached Image</div>
+              <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; display:flex; align-items:center; justify-content:center; min-height: 120px;">
+                <img src="${this.escapeHtml(request.image_path)}" alt="Request Image" style="max-width:100%; max-height:200px; border-radius:6px; object-fit:contain;">
+              </div>
+              <div style="margin-top: 0.4rem; display: flex; justify-content: flex-start;">
+                <a href="${this.escapeHtml(request.image_path)}" download target="_blank" rel="noopener" 
+                   style="display:inline-flex; align-items:center; gap:0.4rem; padding: 0.4rem 0.75rem; border-radius: 6px; background: #f1f5f9; color: #1f2937; border: 1px solid #cbd5e1; text-decoration: none;">
+                  <i class="fa-solid fa-download"></i>
+                  Download image
+                </a>
+              </div>
+            </div>
+          ` : ''}
 
-    ${request.notes ? `
-      <div class="info-row" style="color: #444; display: flex; align-items: flex-start; gap: 6px;">
-        <strong style="white-space: nowrap;">Notes:</strong>
-        <span id="note-${request.id}"
-              class="note-text"
-              data-collapsed="true"
-              style="display: inline-block; flex: 1; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; line-height: 1.2em; max-height: 3.6em; overflow: hidden;">
-          ${this.escapeHtml(request.notes)}
-        </span>
-        <button id="toggle-note-${request.id}"
-                onclick="toggleNote(${request.id})"
-                style="background: none; border: none; color: #007bff; cursor: pointer; padding: 0; margin-left: 4px; flex: 0 0 auto;">
-          See more
-        </button>
+          <div class="info-item">
+            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Status</div>
+            <span class="status-badge status-${request.status}" style="
+              display: inline-block;
+              padding: 0.25rem 0.5rem;
+              border-radius: 6px;
+              font-size: 0.7rem;
+              font-weight: 600;
+              letter-spacing: 0.3px;
+              text-transform: uppercase;
+              ${request.status === 'pending' ? 'background: #fffbeb; color: #b45309; border: 1px solid #fcd34d;' : ''}
+              ${request.status === 'approved' ? 'background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7;' : ''}
+              ${request.status === 'rejected' ? 'background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5;' : ''}
+            ">
+              ${request.status}
+            </span>
+          </div>
+          ${request.notes ? `
+            <div class="info-item" style="grid-column: span 2; margin-top: 0.5rem;">
+              <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Notes</div>
+              <div style="
+                background: #f8fafc;
+                padding: 0.3rem 0.75rem 0.75rem;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                color: #4a5568;
+                position: relative;
+              ">
+                <div id="note-${request.id}" 
+                     style="
+                       max-height: 4.5rem;
+                       overflow: hidden;
+                       transition: max-height 0.3s ease;
+                       white-space: pre-wrap;
+                       word-break: break-word;
+                       margin-right: 0.5rem;
+                       line-height: 1.5;
+                       display: block;
+                       padding-top: 0;
+                       margin-top: 0;
+                     "
+                     data-collapsed="true">${cleanedNotes}</div>
+                <button id="toggle-note-${request.id}"
+                        style="
+                          background: none;
+                          border: none;
+                          color: #3b82f6;
+                          cursor: pointer;
+                          padding: 0.15rem 0 0;
+                          font-size: 0.8rem;
+                          font-weight: 500;
+                          display: flex;
+                          align-items: center;
+                          gap: 0.25rem;
+                          margin-top: 0.35rem;
+                        ">
+                  <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; transition: transform 0.2s;"></i>
+                  Show more
+                </button>
+              </div>
+            </div>
+          ` : ''}
+
+          ${request.admin_response ? `
+            <div class="info-item" style="grid-column: span 2; margin-top: 0.5rem;">
+              <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Admin Response</div>
+              <div style="
+                background: #f0f9ff;
+                padding: 0.75rem;
+                border-radius: 8px;
+                border: 1px solid #bae6fd;
+                color: #0369a1;
+                line-height: 1.5;
+              ">
+                ${this.escapeHtml(request.admin_response)}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        ${request.status === 'pending' ? `
+          <div class="modal-actions" style="margin-top: 1.2rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button class="btn btn-success" style="padding: 0.5rem 1rem; border-radius: 6px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
+                    onclick="approveRequest(${request.id}); window.modalManager.close();">
+              <i class="fa-solid fa-check"></i> Approve
+            </button>
+            <button class="btn btn-danger" style="padding: 0.5rem 1rem; border-radius: 6px; background: #dc3545; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
+                    onclick="rejectRequest(${request.id}); window.modalManager.close();">
+              <i class="fa-solid fa-xmark"></i> Reject
+            </button>
+          </div>
+        ` : ''}
       </div>
-    ` : ''}
-
-    ${request.image_path ? `
-      <div class="info-row" style="color: #444;">
-        <strong>Attached Image:</strong><br>
-        <img src="${request.image_path}" alt="Request Image" 
-             style="max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid #ccc; margin-top: 0.4rem;">
-      </div>
-    ` : ''}
-
-    ${request.admin_response ? `
-      <div class="info-row" style="color: #444;">
-        <strong>Admin Response:</strong> ${this.escapeHtml(request.admin_response)}
-      </div>
-    ` : ''}
-  </div>
-
-  ${request.status === 'pending' ? `
-    <div class="modal-actions" style="margin-top: 1.2rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
-      <button class="btn btn-success" style="padding: 0.5rem 1rem; border-radius: 6px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
-              onclick="approveRequest(${request.id}); window.modalManager.close();">
-        <i class="fas fa-check"></i> Approve
-      </button>
-      <button class="btn btn-danger" style="padding: 0.5rem 1rem; border-radius: 6px; background: #dc3545; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
-              onclick="rejectRequest(${request.id}); window.modalManager.close();">
-        <i class="fas fa-times"></i> Reject
-      </button>
-    </div>
-  ` : ''}
-</div>
 
     `
 
     this.modal.open('Request Details', modalContent)
-    // After modal renders, decide if toggle is needed
     setTimeout(() => {
-      const span = document.getElementById(`note-${request.id}`)
-      const btn = document.getElementById(`toggle-note-${request.id}`)
-      if (span && btn) {
-        // If content height fits in collapsed area, hide toggle
-        if (span.scrollHeight <= span.clientHeight + 1) {
-          btn.style.display = 'none'
+      const noteElement = document.getElementById(`note-${request.id}`)
+      const toggleButton = document.getElementById(`toggle-note-${request.id}`)
+      
+      if (noteElement && toggleButton) {
+  
+        const textLen = (noteElement.textContent || '').trim().length
+        const isOverflowing = noteElement.scrollHeight > (noteElement.clientHeight + 2)
+        if (!isOverflowing && textLen < 50) {
+          toggleButton.style.display = 'none'
         }
+        
+        toggleButton.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const icon = toggleButton.querySelector('i')
+          if (noteElement.dataset.collapsed === 'true') {
+            noteElement.style.maxHeight = 'none'
+            noteElement.dataset.collapsed = 'false'
+            toggleButton.innerHTML = '<i class="fa-solid fa-chevron-up" style="font-size: 0.7rem; transition: transform 0.2s;"></i> Show less'
+          } else {
+            noteElement.style.maxHeight = '4.5rem'
+            noteElement.dataset.collapsed = 'true'
+            toggleButton.innerHTML = '<i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; transition: transform 0.2s;"></i> Show more'
+          }
+        })
       }
     }, 0)
   }
@@ -245,7 +346,7 @@ export class RequestsModule {
       span.dataset.collapsed = 'false'
       btn.textContent = 'See less'
     } else {
-      span.style.maxHeight = '3.6em'
+      span.style.maxHeight = '4.5rem'
       span.dataset.collapsed = 'true'
       btn.textContent = 'See more'
     }
@@ -474,7 +575,7 @@ export class RequestsModule {
     // Update section header
     const sectionHeader = document.querySelector('#requests .section-header h1')
     if (sectionHeader) {
-      sectionHeader.innerHTML = '<i class="fas fa-history"></i> Request History'
+      sectionHeader.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> Request History'
     }
 
     // Update section description
@@ -488,10 +589,10 @@ export class RequestsModule {
     if (requestsActions) {
       requestsActions.innerHTML = `
         <button class="btn btn-secondary" onclick="backToRequests()">
-          <i class="fas fa-arrow-left"></i> Back to Current Requests
+          <i class="fa-solid fa-arrow-left"></i> Back to Current Requests
         </button>
         <button class="btn btn-primary" onclick="viewRequestHistory()">
-          <i class="fas fa-sync"></i> Refresh History
+          <i class="fa-solid fa-rotate-right"></i> Refresh History
         </button>
       `
     }
@@ -518,7 +619,7 @@ export class RequestsModule {
         <tr>
           <td colspan="9" style="text-align: center; padding: 3rem;">
             <div style="color: #6c757d;">
-              <i class="fas fa-history" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <i class="fa-solid fa-clock-rotate-left" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
               <h3>No Request History</h3>
               <p>No requests have been cleared yet.</p>
             </div>
@@ -593,14 +694,14 @@ export class RequestsModule {
           <div class="request-actions">
             ${request.status === 'pending' ? `
               <button class="btn-approve" onclick="approveRequest(${request.id})" title="Approve">
-                <i class="fas fa-check"></i>
+                <i class="fa-solid fa-check"></i>
               </button>
               <button class="btn-reject" onclick="rejectRequest(${request.id})" title="Reject">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-xmark"></i>
               </button>
             ` : ''}
             <button class="btn-view" onclick="viewRequest(${request.id})" title="View Details">
-              <i class="fas fa-eye"></i>
+              <i class="fa-solid fa-eye"></i>
             </button>
           </div>
         </td>
