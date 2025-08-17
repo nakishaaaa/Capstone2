@@ -141,7 +141,7 @@ body::before {
     gap: 0.5rem;
     font-size: 2.0rem; 
     font-weight: 400; 
-    font-family: 'UnifrakturMaguntia', serif;
+    font-family: 'UnifrakturMaguntia', '', serif;
     line-height: 1;
     color: transparent; 
     -webkit-text-stroke: 1px #ffffff;
@@ -152,6 +152,11 @@ body::before {
     transform: translate(-50%, -50%);
     white-space: nowrap;
     pointer-events: none; 
+}
+
+.brand span {
+    font-family: 'UnifrakturMaguntia', 'UnifrakturCook', serif;
+    color: #ffffff;
 }
 
 .services {
@@ -997,6 +1002,77 @@ body::before {
     color: #3366cc;
 }
 
+/* Vertically center password toggles in input containers */
+.input-container { position: relative; }
+.input-container .password-toggle {
+    /* center vertically regardless of input height */
+    top: 0;
+    bottom: 0;
+    margin: auto 0;
+    transform: none;
+    padding: 0;
+    width: 24px; /* give button a box to center the img */
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+}
+
+.password-toggle img,
+button#toggle-login-password img,
+button#toggle-register-password img,
+#login-eye-icon,
+#register-eye-icon,
+#password-icon,
+#password_confirmation-icon {
+    width: 20px;
+    height: 20px;
+    display: block;
+    filter: brightness(0) invert(1) !important;
+}
+
+/* Reset Password page precise centering (inside .main-container) */
+.main-container .input-container { position: relative; }
+.main-container .input-container .password-toggle {
+    top: 0 !important;
+    bottom: 0 !important;
+    margin: auto 0 !important;
+    transform: none !important;
+    height: 100% !important; /* match input height */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+.main-container .input-container .password-toggle img {
+    position: relative;
+    top: -3px; /* slight upward nudge for visual centering */
+    line-height: 0;
+}
+
+.input-container .password-toggle {
+    /* final override: center vertically regardless of input height */
+    top: 0 !important;
+    bottom: 0 !important;
+    margin: auto 0 !important;
+    transform: none !important;
+    padding: 0;
+    width: 24px; /* keep narrow click area at the right */
+    height: 100%; /* match input height to ensure perfect vertical centering */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+}
+
+#password-icon,
+#password_confirmation-icon {
+    width: 20px;
+    height: 20px;
+    display: block;
+    filter: brightness(0) invert(1) !important;
+}
+
 .login-overlay { 
     display: none; 
     width: 100%; 
@@ -1018,7 +1094,6 @@ body::before {
     100%{transform:scale(1)} 
 }
 
-/* ===== STATUS MESSAGE STYLES ===== */
 .status-message {
     padding: 10px;
     margin: 10px 0;
@@ -1038,7 +1113,6 @@ body::before {
     border: 1px solid #f5c6cb;
 }
 
-/* ===== AI HIGHLIGHT STYLES ===== */
 .ai-highlight {
     position: relative;
     box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.35), 0 0 14px rgba(0, 153, 255, 0.65);
@@ -1091,7 +1165,6 @@ body::before {
     left: 18px;
 }
 
-/* ===== MODAL STYLES ===== */
 .modal {
     display: none;
     position: fixed;
@@ -1129,7 +1202,7 @@ body::before {
     color: #000;
 }
 
-/* ===== ALERT STYLES ===== */
+/* ALERT STYLES  */
 .alert {
     padding: 1rem;
     border-radius: 8px;
@@ -1169,7 +1242,7 @@ body::before {
     font-size: 1.2rem;
 }
 
-/* ===== CONTENT SECTIONS (Services, How It Works, Testimonials) ===== */
+/* CONTENT SECTIONS */
 .content-section {
     position: relative;
     z-index: 30;
@@ -1321,7 +1394,6 @@ body::before {
     font-size: 0.95rem;
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 1024px) {
     .services-grid { grid-template-columns: repeat(2, 1fr); }
     .how-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1363,6 +1435,7 @@ body::before {
     
     .brand {
         font-size: 1.3rem;
+        font-family: 'UnifrakturMaguntia', 'UnifrakturCook', serif;
         position: absolute;
         left: 50%;
         top: 50%;

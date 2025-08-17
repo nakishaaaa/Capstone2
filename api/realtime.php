@@ -160,12 +160,17 @@ function getRecentActivity() {
     
     try {
         $stmt = $pdo->query("
-            (SELECT 'sale' as type, id, total_amount as amount, created_at 
+            (SELECT 'sale' as type, id, total_amount as amount, created_at, NULL as conversation_id
              FROM sales ORDER BY created_at DESC LIMIT 5)
             UNION ALL
-            (SELECT 'request' as type, id, NULL as amount, created_at 
+            (SELECT 'request' as type, id, NULL as amount, created_at, NULL as conversation_id
              FROM user_requests ORDER BY created_at DESC LIMIT 5)
-            ORDER BY created_at DESC LIMIT 10
+            UNION ALL
+            (SELECT 'support_message' as type, id, NULL as amount, created_at, conversation_id
+             FROM support_messages 
+             WHERE is_admin = 0 
+             ORDER BY created_at DESC LIMIT 10)
+            ORDER BY created_at DESC LIMIT 15
         ");
         
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

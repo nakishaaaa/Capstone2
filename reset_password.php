@@ -84,7 +84,7 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
                     <div class="input-container">
                         <input type="password" id="password" name="password" required placeholder="Enter new password">
                         <button type="button" class="password-toggle" onclick="togglePassword('password')">
-                            <i class="fas fa-eye" id="password-icon"></i>
+                            <img src="images/svg/eye-slash.svg" id="password-icon" alt="Show password" width="20" height="20">
                         </button>
                     </div>
                 </div>
@@ -94,7 +94,7 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
                     <div class="input-container">
                         <input type="password" id="password_confirmation" name="password_confirmation" required placeholder="Confirm new password">
                         <button type="button" class="password-toggle" onclick="togglePassword('password_confirmation')">
-                            <i class="fas fa-eye" id="password_confirmation-icon"></i>
+                            <img src="images/svg/eye-slash.svg" id="password_confirmation-icon" alt="Show password" width="20" height="20">
                         </button>
                     </div>
                 </div>
@@ -113,16 +113,16 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
     <script>
         function togglePassword(inputId) {
             const input = document.getElementById(inputId);
-            const icon = document.getElementById(inputId + '-icon');
-            
+            const iconImg = document.getElementById(inputId + '-icon');
+            if (!input || !iconImg) return;
             if (input.type === 'password') {
                 input.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
+                iconImg.src = 'images/svg/eye.svg';
+                iconImg.alt = 'Hide password';
             } else {
                 input.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
+                iconImg.src = 'images/svg/eye-slash.svg';
+                iconImg.alt = 'Show password';
             }
         }
     </script>

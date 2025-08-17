@@ -31,6 +31,7 @@ if (!$isUserLoggedIn) {
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
     <title>053 PRINTS - User Dashboard</title>
     <link rel="stylesheet" href="css/user_page.css">
 </head>
@@ -379,7 +380,7 @@ if (!$isUserLoggedIn) {
                                 <div class="password-input-group">
                                     <input type="password" id="currentPassword" name="current_password" required>
                                     <button type="button" class="password-toggle" data-target="currentPassword">
-                                        <i class="fas fa-eye"></i>
+                                        <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
                                     </button>
                                 </div>
                             </div>
@@ -389,7 +390,7 @@ if (!$isUserLoggedIn) {
                                 <div class="password-input-group">
                                     <input type="password" id="newPassword" name="new_password" required minlength="6">
                                     <button type="button" class="password-toggle" data-target="newPassword">
-                                        <i class="fas fa-eye"></i>
+                                        <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
                                     </button>
                                 </div>
                                 <small class="form-help">Password must be at least 6 characters long</small>
@@ -400,7 +401,7 @@ if (!$isUserLoggedIn) {
                                 <div class="password-input-group">
                                     <input type="password" id="confirmPassword" name="confirm_password" required minlength="6">
                                     <button type="button" class="password-toggle" data-target="confirmPassword">
-                                        <i class="fas fa-eye"></i>
+                                        <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
                                     </button>
                                 </div>
                             </div>

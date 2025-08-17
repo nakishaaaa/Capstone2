@@ -15,19 +15,13 @@ class SupportMessaging {
         this.isSubmitting = false;
         this.lastSubmitTime = 0;
         this.submitCount = 0;
+        this.timestampUpdateInterval = null;
         // Previous conversations modal elements
         this.prevModal = document.getElementById('previousConversationsModal');
         this.prevOpenBtn = document.getElementById('openPreviousConversationsBtn');
         this.prevCloseBtn = document.getElementById('closePreviousConversations');
         this.conversationsListEl = document.getElementById('conversationsList');
         this.conversationDetailEl = document.getElementById('conversationDetail');
-        // Previous conversations modal elements
-        this.prevModal = document.getElementById('previousConversationsModal');
-        this.prevOpenBtn = document.getElementById('openPreviousConversationsBtn');
-        this.prevCloseBtn = document.getElementById('closePreviousConversations');
-        this.conversationsListEl = document.getElementById('conversationsList');
-        this.conversationDetailEl = document.getElementById('conversationDetail');
-
         
         if (!this.modal || !this.form) {
             console.warn('Support modal or form not found');
@@ -322,6 +316,8 @@ class SupportMessaging {
         }
         
         this.loadConversations();
+        // Start periodic timestamp updates while modal is open
+        this.startTimestampUpdates();
     }
 
     closePreviousConversations() {
@@ -330,6 +326,11 @@ class SupportMessaging {
         this.prevModal.classList.remove('active');
         document.body.style.overflow = '';
         if (this.conversationDetailEl) this.conversationDetailEl.style.display = 'none';
+        // Stop periodic updates when closing
+        if (this.timestampUpdateInterval) {
+            clearInterval(this.timestampUpdateInterval);
+            this.timestampUpdateInterval = null;
+        }
     }
 
     async loadConversations() {
@@ -352,6 +353,8 @@ class SupportMessaging {
                     this.viewConversation(id);
                 });
             });
+            // Update timestamps immediately after render
+            this.updateTimestamps();
         } catch (e) {
             console.error(e);
             this.conversationsListEl.innerHTML = '<div class="conv-error">Failed to load conversations. Please try again.</div>';
@@ -364,7 +367,7 @@ class SupportMessaging {
         return `
         <div class="conversation-card" data-conv-id="${c.conversation_id}">
             <div class="conv-meta">
-                <span class="conv-time">Last updated ${c.last_updated_human}</span>
+                <span class="conv-time" data-timestamp="${c.last_updated}">Last updated ${this.timeAgo(c.last_updated)}</span>
                 <span class="conv-count">${c.message_count}</span>
             </div>
             <div class="conv-subject">${subject}</div>
@@ -392,7 +395,7 @@ class SupportMessaging {
                 <div class="message-row ${m.is_admin ? 'from-admin' : 'from-user'}">
                     <div class="message-header">
                         <span class="sender">${(m.sender_name||'').replace(/</g,'&lt;')}</span>
-                        <span class="time">${m.time_ago}</span>
+                        <span class="time" data-timestamp="${m.created_at}">${this.timeAgo(m.created_at)}</span>
                     </div>
                     <div class="message-body">${(m.message||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
                 </div>
@@ -410,6 +413,11 @@ class SupportMessaging {
                     </div>
                 </div>
             `;
+            // Refresh timestamps immediately for the newly rendered view
+            this.updateTimestamps();
+            // Ensure we show the latest messages at the bottom
+            const messagesEl = this.conversationDetailEl.querySelector('.conversation-messages');
+            if (messagesEl) this.scrollToBottom(messagesEl);
             const backBtn = this.conversationDetailEl.querySelector('#backToList');
             if (backBtn) backBtn.addEventListener('click', () => {
                 this.conversationDetailEl.style.display = 'none';
@@ -481,3 +489,47 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 export default SupportMessaging;
+
+// --- Time handling helpers ---
+SupportMessaging.prototype.timeAgo = function(datetime) {
+    const now = new Date();
+    const past = new Date(datetime);
+    const diffInSeconds = Math.floor((now - past) / 1000);
+    if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
+    return `${Math.floor(diffInSeconds / 31536000)}y ago`;
+};
+
+SupportMessaging.prototype.startTimestampUpdates = function() {
+    if (this.timestampUpdateInterval) return;
+    this.timestampUpdateInterval = setInterval(() => this.updateTimestamps(), 30000);
+};
+
+SupportMessaging.prototype.updateTimestamps = function() {
+    // Update conversation cards
+    document.querySelectorAll('.conv-time[data-timestamp]').forEach(el => {
+        const ts = el.getAttribute('data-timestamp');
+        if (ts) {
+            el.textContent = `Last updated ${this.timeAgo(ts)}`;
+        }
+    });
+    // Update message rows
+    document.querySelectorAll('.message-row .time[data-timestamp]').forEach(el => {
+        const ts = el.getAttribute('data-timestamp');
+        if (ts) {
+            el.textContent = this.timeAgo(ts);
+        }
+    });
+};
+
+// --- Scrolling helper ---
+SupportMessaging.prototype.scrollToBottom = function(container) {
+    if (!container) return;
+    // Use rAF so the layout is settled
+    requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+    });
+};

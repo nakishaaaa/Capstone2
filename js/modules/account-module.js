@@ -54,16 +54,20 @@ export class AccountManager {
             toggle.addEventListener('click', () => {
                 const targetId = toggle.dataset.target;
                 const targetInput = document.getElementById(targetId);
-                const icon = toggle.querySelector('i');
+                const iconImg = toggle.querySelector('img');
                 
                 if (targetInput.type === 'password') {
                     targetInput.type = 'text';
-                    icon.classList.remove('fa-eye');
-                    icon.classList.add('fa-eye-slash');
+                    if (iconImg) {
+                        iconImg.src = 'images/svg/eye-black.svg';
+                        iconImg.alt = 'Hide password';
+                    }
                 } else {
                     targetInput.type = 'password';
-                    icon.classList.remove('fa-eye-slash');
-                    icon.classList.add('fa-eye');
+                    if (iconImg) {
+                        iconImg.src = 'images/svg/eye-slash-black.svg';
+                        iconImg.alt = 'Show password';
+                    }
                 }
             });
         });
@@ -191,15 +195,15 @@ export class AccountManager {
             
             // Reset password visibility
             const passwordInputs = form.querySelectorAll('input[type="text"]');
-            const toggles = form.querySelectorAll('.password-toggle i');
+            const toggles = form.querySelectorAll('.password-toggle img');
             
             passwordInputs.forEach(input => {
                 input.type = 'password';
             });
             
-            toggles.forEach(icon => {
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
+            toggles.forEach(iconImg => {
+                iconImg.src = 'images/svg/eye-slash.svg';
+                iconImg.alt = 'Show password';
             });
         }
     }

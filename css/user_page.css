@@ -132,7 +132,7 @@ body {
     gap: 0.5rem;
     font-size: 2.0rem; 
     font-weight: 400; 
-    font-family: 'UnifrakturMaguntia', serif;
+    font-family: 'UnifrakturMaguntia', 'UnifrakturCook', serif;
     line-height: 1;
     color: transparent; 
     -webkit-text-stroke: 1px #ffffff;
@@ -143,6 +143,11 @@ body {
     transform: translate(-50%, -50%);
     white-space: nowrap;
     pointer-events: none; 
+}
+
+.brand span {
+    font-family: 'UnifrakturMaguntia', 'UnifrakturCook', serif;
+    color: #ffffff;
 }
 
 .services {
@@ -1074,6 +1079,12 @@ transition: color 0.2s ease;
 color: #495057;
 }
 
+.password-toggle img {
+width: 20px;
+height: 20px;
+display: block;
+}
+
 .form-help {
 display: block;
 margin-top: 0.5rem;
@@ -1167,7 +1178,7 @@ font-size: 1.2rem;
     }
     
     .container {
-        padding-top: 0; /* Remove extra space under fixed header so slideshow touches navbar */
+        padding-top: 0; 
     }
     
     .logo {
@@ -1176,7 +1187,7 @@ font-size: 1.2rem;
     
     .brand {
         font-size: 1.3rem;
-        position: absolute; /* keep centered on mobile */
+        position: absolute; 
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
@@ -1186,7 +1197,7 @@ font-size: 1.2rem;
     
     .services {
         font-size: 0.9rem;
-        display: none; /* Hide on mobile for cleaner look */
+        display: none; 
     }
     
     .user-dropdown-btn {

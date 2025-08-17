@@ -374,12 +374,13 @@ export class DashboardModule {
           this.loadChartData(this.currentPeriod)
         }
         
-        this.lastStatsData = data
-        
-        // Show subtle notification for new requests
-        if (data.requests?.pending_requests > (this.lastStatsData?.requests?.pending_requests || 0)) {
-          this.toast.info('New customer request received!')
+        // Show subtle notification for new requests (only if we have previous data to compare)
+        if (this.lastStatsData && data.requests?.pending_requests > (this.lastStatsData?.requests?.pending_requests || 0)) {
+          console.log('Dashboard: Request count increased, but NOT showing toast for support messages')
+          // Don't show toast - this could be triggered by support messages affecting stats
         }
+        
+        this.lastStatsData = data
         
         // Show notification for new sales
         if (salesChanged && data.sales?.total_revenue > 0) {

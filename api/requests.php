@@ -45,10 +45,20 @@ function handleGetRequests() {
     
     // Check authentication - admin can see all, users see only their own
     $userData = getUserSessionData();
-    if (!$userData['is_logged_in']) {
+    
+    // Also check for admin-specific session variables
+    $isAdmin = isset($_SESSION['admin_name']) && isset($_SESSION['admin_email']) && 
+               isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'admin';
+    
+    if (!$userData['is_logged_in'] && !$isAdmin) {
         http_response_code(401);
         echo json_encode(['error' => 'Unauthorized']);
         return;
+    }
+    
+    if ($isAdmin) {
+        $userData['role'] = 'admin';
+        $userData['is_logged_in'] = true;
     }
     
     try {

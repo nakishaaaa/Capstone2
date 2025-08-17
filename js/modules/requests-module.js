@@ -289,7 +289,7 @@ export class RequestsModule {
         this.handleRealTimeStatsUpdate(data)
       })
 
-      // Handle activity updates (new requests)
+      // Handle activity updates (new requests) - only for actual requests, not support messages
       this.sseClient.on('activity_update', (activity) => {
         this.handleRealTimeActivityUpdate(activity)
       })
@@ -339,20 +339,29 @@ export class RequestsModule {
 
   handleRealTimeActivityUpdate(activity) {
     try {
-      // Check if there are new request activities
-      const requestActivities = activity.filter(item => item.type === 'request')
+      if (!this.lastActivityData) {
+        this.lastActivityData = activity
+        return 
+      }
       
-      if (requestActivities.length > 0) {
-        console.log('Requests: New request activity detected', requestActivities)
-        
-        // Show notification and refresh requests list
+      const currentRequests = activity.filter(item => item.type === 'request')
+      const previousRequests = this.lastActivityData.filter(item => item.type === 'request')
+      
+      const newRequests = currentRequests.filter(current => 
+        !previousRequests.some(prev => prev.id === current.id)
+      )
+      
+      console.log('Requests: New requests detected:', newRequests)
+      
+      if (newRequests.length > 0) {
         this.toast.success('New customer request!')
         
-        // Auto-refresh the requests list to show new requests
         setTimeout(() => {
           this.loadRequests()
-        }, 500) // Small delay to ensure database is updated
+        }, 500) 
       }
+      
+      this.lastActivityData = activity
     } catch (error) {
       console.error('Requests: Error handling real-time activity update:', error)
     }
@@ -361,7 +370,6 @@ export class RequestsModule {
   hasRequestsDataChanged(newData) {
     if (!this.lastRequestsData) return true
     
-    // Compare requests data to detect changes
     const oldRequests = this.lastRequestsData.requests
     const newRequests = newData.requests
     

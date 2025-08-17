@@ -1,5 +1,6 @@
 export class AdminSupportManager {
-    constructor() {
+    constructor(toast) {
+        this.toast = toast;
         this.currentConversations = [];
         this.currentMessages = [];
         this.selectedConversationId = null;
@@ -73,6 +74,9 @@ export class AdminSupportManager {
                 this.currentConversations = result.data.conversations;
                 this.updateConversationsList();
                 this.updateSupportStats(result.data.stats);
+                
+                // Check for unread messages on initial load
+                this.checkForUnreadMessages(result.data.stats);
             } else {
                 console.error('Failed to load conversations:', result.message);
                 this.showError('Failed to load conversations');
@@ -494,18 +498,35 @@ export class AdminSupportManager {
             }
         });
     }
+    
+    checkForUnreadMessages(stats) {
+        if (stats && stats.unread > 0 && this.toast) {
+            const unreadCount = stats.unread;
+            const message = unreadCount === 1 
+                ? 'You have 1 unread message' 
+                : `You have ${unreadCount} unread messages`;
+            this.toast.info(message);
+        }
+    }
 
     handleActivityUpdate(activities) {
         // Check if there are new support messages
         const supportActivities = activities.filter(activity => 
-            activity.type === 'support_message' || 
-            (activity.type === 'request' && activity.category === 'support')
+            activity.type === 'support_message'
         );
         
         if (supportActivities.length > 0) {
             console.log('Admin Support: New support activity detected');
-            // Refresh conversations to show new messages
+            // Refresh conversations to update unread counts and ordering
             this.loadConversations();
+
+            // If the current conversation received a new user message, refresh its messages view
+            const hasCurrentConvUpdate = supportActivities.some(a => 
+                a.type === 'support_message' && a.conversation_id && a.conversation_id === this.selectedConversationId
+            );
+            if (hasCurrentConvUpdate && this.selectedConversationId) {
+                this.loadConversationMessages(this.selectedConversationId);
+            }
         }
     }
 
