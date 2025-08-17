@@ -221,6 +221,9 @@ export class AdminSupportManager {
                 element.textContent = value;
             }
         });
+
+        // Update sidebar badge for unread support messages
+        this.updateSupportBadge(stats.unread || 0);
     }
     
     async openMessageModal(messageId) {
@@ -629,3 +632,21 @@ export class AdminSupportManager {
 }
 
 export default AdminSupportManager;
+
+// Helper to update the sidebar support badge
+AdminSupportManager.prototype.updateSupportBadge = function(count) {
+    try {
+        const badge = document.getElementById('supportBadge');
+        if (!badge) return;
+        const value = Number(count) || 0;
+        if (value > 0) {
+            badge.textContent = value > 99 ? '99+' : String(value);
+            badge.style.display = 'inline-block';
+        } else {
+            badge.textContent = '0';
+            badge.style.display = 'none';
+        }
+    } catch (e) {
+        console.warn('Failed to update support badge', e);
+    }
+}

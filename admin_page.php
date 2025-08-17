@@ -62,12 +62,15 @@ if (!$isAdminLoggedIn) {
                 </a></li>
                 <li><a href="#notifications" class="nav-link" data-section="notifications">
                     <i class="fas fa-bell"></i> Notifications
+                    <span class="nav-badge" id="notificationsBadge" aria-label="Unread notifications" title="Unread notifications" style="display:none">0</span>
                 </a></li>
                 <li><a href="#requests" class="nav-link" data-section="requests">
                     <i class="fas fa-inbox"></i> Requests
+                    <span class="nav-badge" id="requestsBadge" aria-label="Pending requests" title="Pending requests" style="display:none">0</span>
                 </a></li>
                 <li><a href="#customersupport" class="nav-link" data-section="customersupport">
                     <i class="fas fa-headset"></i> Customer Support
+                    <span class="nav-badge" id="supportBadge" aria-label="Unread support messages" title="Unread support messages" style="display:none">0</span>
                 </a></li>
                 <li><a href="#user-management" class="nav-link" data-section="user-management">
                     <i class="fas fa-user"></i> User Management
@@ -149,7 +152,7 @@ if (!$isAdminLoggedIn) {
                     <!-- Dashboard Charts -->
                     <div class="dashboard-charts">
                         <div class="chart-container">
-                            <h3>Sales Overview</h3>
+                            <h3>Sales Analytics</h3>
                             <canvas id="salesOverviewChart"></canvas>
                         </div>
                         <div class="chart-container">

@@ -17,15 +17,22 @@ export class NotificationsModule {
       if (result.success) {
         this.notifications = result.data
         console.log("Notifications loaded successfully:", this.notifications.length, "items")
+        // Update sidebar badge on load as well (initial page load/background refresh)
+        const unreadCount = Array.isArray(this.notifications)
+          ? this.notifications.filter(n => !n.is_read).length
+          : 0
+        this.updateNotificationsBadge(unreadCount)
       } else {
         console.error("Error loading notifications:", result.error)
         this.toast.error("Error loading notifications: " + result.error)
         this.notifications = []
+        this.updateNotificationsBadge(0)
       }
     } catch (error) {
       console.error("Error loading notifications:", error)
       this.toast.error("Error connecting to database for notifications")
       this.notifications = []
+      this.updateNotificationsBadge(0)
     }
   }
 
@@ -37,6 +44,8 @@ export class NotificationsModule {
 
     if (this.notifications.length === 0) {
       container.innerHTML = '<div style="text-align: center; padding: 2rem;">No notifications available</div>'
+      // Update sidebar badge: hide when zero
+      this.updateNotificationsBadge(0)
       return
     }
 
@@ -70,6 +79,10 @@ export class NotificationsModule {
     `,
       )
       .join("")
+
+    // Update sidebar badge with unread count
+    const unreadCount = this.notifications.filter(n => !n.is_read).length
+    this.updateNotificationsBadge(unreadCount)
   }
 
   async markAsRead(id) {
@@ -116,6 +129,23 @@ export class NotificationsModule {
     } catch (error) {
       console.error("Error dismissing notification:", error)
       this.toast.error("Error dismissing notification")
+    }
+  }
+
+  updateNotificationsBadge(count) {
+    try {
+      const badge = document.getElementById('notificationsBadge')
+      if (!badge) return
+      const value = Number(count) || 0
+      if (value > 0) {
+        badge.textContent = value > 99 ? '99+' : String(value)
+        badge.style.display = 'inline-block'
+      } else {
+        badge.textContent = '0'
+        badge.style.display = 'none'
+      }
+    } catch (e) {
+      console.warn('Failed to update notifications badge', e)
     }
   }
 }

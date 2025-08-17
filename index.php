@@ -305,6 +305,19 @@ function isActiveForm($formName, $activeForm) {
       showForm('login-form');
       const hero = document.querySelector('.hero-section');
       if (hero) hero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Shake the login card for visual feedback
+      const card = document.getElementById('login-form');
+      if (card) {
+        card.classList.remove('shake');
+        // force reflow to restart animation
+        void card.offsetWidth;
+        card.classList.add('shake');
+        const cleanup = () => {
+          card.classList.remove('shake');
+          card.removeEventListener('animationend', cleanup);
+        };
+        card.addEventListener('animationend', cleanup);
+      }
     }
 
     const aiTrigger = document.getElementById('aiTrigger');

@@ -75,6 +75,9 @@ export class RequestsModule {
     if (totalRequestsElement) {
       totalRequestsElement.textContent = stats.pending || 0
     }
+
+    // Update sidebar badge for pending requests
+    this.updateRequestsBadge(stats.pending || 0)
   }
 
 
@@ -617,3 +620,21 @@ export class RequestsModule {
 }
 
 export default RequestsModule
+
+// Helper to update the sidebar requests badge
+RequestsModule.prototype.updateRequestsBadge = function(count) {
+  try {
+    const badge = document.getElementById('requestsBadge')
+    if (!badge) return
+    const value = Number(count) || 0
+    if (value > 0) {
+      badge.textContent = value > 99 ? '99+' : String(value)
+      badge.style.display = 'inline-block'
+    } else {
+      badge.textContent = '0'
+      badge.style.display = 'none'
+    }
+  } catch (e) {
+    console.warn('Failed to update requests badge', e)
+  }
+}

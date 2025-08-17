@@ -249,6 +249,18 @@ export class InventoryModule {
         this.modal.close()
         await this.loadInventoryData()
 
+        try {
+          if (window.notificationsModule && typeof window.notificationsModule.loadNotifications === 'function') {
+            window.notificationsModule.loadNotifications()
+            const currentSection = window.adminDashboard?.navigation?.getCurrentSection?.()
+            if (currentSection === 'notifications' && typeof window.notificationsModule.displayNotifications === 'function') {
+              window.notificationsModule.displayNotifications()
+            }
+          }
+        } catch (e) {
+          console.warn('Inventory: Failed to refresh notifications after stock update', e)
+        }
+
         const stockChange = newStock - currentProduct.stock
         const changeText = stockChange > 0 ? `+${stockChange}` : `${stockChange}`
         this.toast.info(`"${currentProduct.name}" stock: ${currentProduct.stock} → ${newStock} (${changeText})`)

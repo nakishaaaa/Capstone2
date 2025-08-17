@@ -287,6 +287,14 @@ export class POSModule {
         this.printReceipt(transactionData.transaction_id, transactionData)
         this.clearTransaction()
         await this.loadProducts() // Refresh products to update stock
+        // Immediately refresh notifications (badge + list if open)
+        try {
+          if (window.notificationsModule && typeof window.notificationsModule.loadNotifications === 'function') {
+            window.notificationsModule.loadNotifications()
+          }
+        } catch (e) {
+          console.warn('POS: Failed to refresh notifications after sale', e)
+        }
       } else {
         this.toast.error("Error processing transaction: " + result.error)
         await this.loadProducts()

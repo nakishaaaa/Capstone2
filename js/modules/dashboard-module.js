@@ -29,7 +29,6 @@ export class DashboardModule {
     } catch (error) {
       console.error("Error loading dashboard stats:", error)
       this.toast.error("Error connecting to database for stats")
-      // Use fallback data
       this.updateStatsDisplay({
         total_sales: 0,
         total_orders: 0,
@@ -54,7 +53,7 @@ export class DashboardModule {
       if (element) {
         element.textContent = value
         
-        // Add attention-grabbing effects for requests and low stock when value > 0
+
         const statCard = element.closest('.stat-card')
         if (statCard) {
           // Remove existing attention classes
@@ -365,19 +364,30 @@ export class DashboardModule {
         
         this.updateStatsDisplay(statsData)
         
-        // Check if sales data changed - if so, refresh charts
         const salesChanged = this.lastStatsData?.sales?.total_revenue !== data.sales?.total_revenue ||
                             this.lastStatsData?.sales?.total_sales !== data.sales?.total_sales
+        
+        try {
+          const unread = data.notifications?.unread_notifications || 0
+          if (window.notificationsModule && typeof window.notificationsModule.updateNotificationsBadge === 'function') {
+            window.notificationsModule.updateNotificationsBadge(unread)
+          }
+          const currentSection = window.adminDashboard?.navigation?.getCurrentSection?.()
+          if (currentSection === 'notifications' && typeof window.notificationsModule?.displayNotifications === 'function') {
+            window.notificationsModule.displayNotifications()
+          }
+        } catch (e) {
+          console.warn('Dashboard: failed to update notifications UI from SSE', e)
+        }
         
         if (salesChanged) {
           console.log('Dashboard: Sales data changed, refreshing charts...')
           this.loadChartData(this.currentPeriod)
         }
         
-        // Show subtle notification for new requests (only if we have previous data to compare)
+
         if (this.lastStatsData && data.requests?.pending_requests > (this.lastStatsData?.requests?.pending_requests || 0)) {
           console.log('Dashboard: Request count increased, but NOT showing toast for support messages')
-          // Don't show toast - this could be triggered by support messages affecting stats
         }
         
         this.lastStatsData = data

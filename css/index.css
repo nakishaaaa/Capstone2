@@ -1094,6 +1094,20 @@ button#toggle-register-password img,
     100%{transform:scale(1)} 
 }
 
+/* Shake effect for drawing attention to the login card */
+.shake {
+    animation: shake 0.45s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(-10px); }
+    30% { transform: translateX(10px); }
+    45% { transform: translateX(-8px); }
+    60% { transform: translateX(8px); }
+    75% { transform: translateX(-6px); }
+}
+
 .status-message {
     padding: 10px;
     margin: 10px 0;

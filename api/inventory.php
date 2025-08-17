@@ -152,7 +152,36 @@ function updateProduct($id, $data) {
             $data['image_url'] ?? 'images/placeholder.jpg',
             $id
         ]);
-        
+
+        try {
+            $checkStmt = $pdo->prepare("SELECT name, stock, min_stock FROM inventory WHERE id = ? AND status = 'active'");
+            $checkStmt->execute([$id]);
+            $product = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($product && intval($product['stock']) <= intval($product['min_stock'])) {
+                $notificationTitle = "Low Stock Alert: " . $product['name'];
+                // Avoid duplicate unread notifications for the same product
+                $existsStmt = $pdo->prepare("SELECT id FROM notifications WHERE title = ? AND is_read = FALSE");
+                $existsStmt->execute([$notificationTitle]);
+                
+                if (!$existsStmt->fetch()) {
+                    $message = intval($product['stock']) == 0 ?
+                        $product['name'] . " is out of stock" :
+                        $product['name'] . " stock is low (" . intval($product['stock']) . " remaining)";
+                    
+                    $insStmt = $pdo->prepare("INSERT INTO notifications (title, message, type) VALUES (?, ?, ?)");
+                    $insStmt->execute([
+                        $notificationTitle,
+                        $message,
+                        intval($product['stock']) == 0 ? 'error' : 'warning'
+                    ]);
+                }
+            }
+        } catch (Exception $e) {
+            // Log but do not fail the main update due to notification issues
+            error_log("Inventory update: failed to create low-stock notification for product $id - " . $e->getMessage());
+        }
+
         echo json_encode(['success' => true, 'message' => 'Product updated successfully']);
     } catch(PDOException $e) {
         error_log("Database error in updateProduct: " . $e->getMessage());
