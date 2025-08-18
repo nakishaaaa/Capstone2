@@ -88,8 +88,8 @@ if (!$isUserLoggedIn) {
                         </div>
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-actions">
-                            <a href="index.php" class="dropdown-action logout-action">
-                                <i class="fas fa-sign-out-alt" style="color: #ff4757;"></i>
+                            <a href="api/user_logout.php" class="dropdown-action logout-action">
+                                <i class="fas fa-right-from-bracket" style="color: #ff4757;"></i>
                                 Sign out
                             </a>
                         </div>

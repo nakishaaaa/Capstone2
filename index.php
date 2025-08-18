@@ -234,7 +234,7 @@ function isActiveForm($formName, $activeForm) {
     <section id="gallery" class="content-section gallery-section">
       <div class="section-header">
         <h2>From the Archive</h2>
-        <p>Diretsong obra mula sa hood</p>
+        <p>Some of our works</p>
       </div>
       <div class="gallery-grid">
         <figure class="gallery-item">

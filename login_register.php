@@ -61,12 +61,18 @@ if (isset($_POST['login'])) {
                     session_regenerate_id(true);
                 }
 
-                // Set role-specific session variables only (no legacy keys)
+                // Set role-specific session variables and standard session variables
                 $role = $user['role'];
                 $_SESSION[$role . '_user_id'] = $user['id'];
                 $_SESSION[$role . '_name'] = $user['name'];
                 $_SESSION[$role . '_email'] = $user['email'];
                 $_SESSION[$role . '_role'] = $user['role'];
+                
+                // Also set standard session variables for compatibility
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_name'] = $user['name'];
+                $_SESSION['user_email'] = $user['email'];
+                $_SESSION['user_role'] = $user['role'];
 
                 // Redirect based on user role
                 if ($user['role'] === 'admin') {
