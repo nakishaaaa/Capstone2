@@ -17,12 +17,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// Require strictly a logged-in user role (no fallback to other roles)
-$userData = getUserSessionData('user');
-if (!$userData['is_logged_in']) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized - user role required']);
-    exit();
+// Check for user-specific session variables first (user_user_id, user_name, etc.)
+if (isset($_SESSION['user_user_id']) && isset($_SESSION['user_name'])) {
+    $userData = [
+        'user_id' => $_SESSION['user_user_id'],
+        'name' => $_SESSION['user_name'],
+        'email' => $_SESSION['user_email'] ?? '',
+        'role' => $_SESSION['user_role'],
+        'is_logged_in' => true
+    ];
+} else {
+    // Fallback to general session if it's a user role
+    $userData = getUserSessionData();
+    if (!$userData['is_logged_in'] || $userData['role'] !== 'user') {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized - user role required']);
+        exit();
+    }
 }
 
 $method = $_SERVER['REQUEST_METHOD'];

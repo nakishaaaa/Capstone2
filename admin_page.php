@@ -75,7 +75,7 @@ if (!$isAdminLoggedIn) {
                 <li><a href="#user-management" class="nav-link" data-section="user-management">
                     <i class="fas fa-user"></i> User Management
                 </a></li>
-                <li><a href="api/admin_logout.php" class="nav-link logout">
+                <li><a href="#" class="nav-link logout" onclick="handleLogout('admin')">
                     <i class="fas fa-right-from-bracket"></i> Logout
                 </a></li>
             </ul>

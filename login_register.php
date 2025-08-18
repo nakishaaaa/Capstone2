@@ -70,9 +70,9 @@ if (isset($_POST['login'])) {
                 
                 // Also set standard session variables for compatibility
                 $_SESSION['user_id'] = $user['id'];
-                $_SESSION['user_name'] = $user['name'];
-                $_SESSION['user_email'] = $user['email'];
-                $_SESSION['user_role'] = $user['role'];
+                $_SESSION['name'] = $user['name'];
+                $_SESSION['email'] = $user['email'];
+                $_SESSION['role'] = $user['role'];
 
                 // Redirect based on user role
                 if ($user['role'] === 'admin') {

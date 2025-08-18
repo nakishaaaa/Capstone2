@@ -8,17 +8,53 @@ import { NotificationsModule } from "./modules/notifications-module.js"
 import { RequestsModule } from "./modules/requests-module.js"
 import { NavigationModule } from "./modules/navigation-module.js"
 import AdminSupportManager from "./modules/admin-support-module.js"
+import { csrfService } from "./modules/csrf-module.js"
+import { ApiClient } from "./core/api-client.js"
 
 class AdminDashboard {
   constructor() {
     this.modules = {}
+    this.apiClient = new ApiClient()
     this.init()
+  }
+
+  defineLogoutHandler() {
+    // Expose a global logout function used by onclick handlers in the page
+    window.handleLogout = async (role = "admin") => {
+      try {
+        await csrfService.ensure()
+        const token = csrfService.getToken()
+
+        const data = await this.apiClient.request("logout.php", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": token || "",
+          },
+          credentials: "include",
+          body: JSON.stringify({ role }),
+        })
+
+        if (data && data.success) {
+          window.location.href = "index.php"
+        } else {
+          alert((data && data.error) || "Logout failed. Redirecting to login...")
+          window.location.href = "index.php"
+        }
+      } catch (error) {
+        console.error("Logout error:", error)
+        window.location.href = "index.php"
+      }
+    }
   }
 
   async init() {
     console.log("Initializing refactored admin dashboard with database connection...")
 
     try {
+      // Ensure CSRF is loaded early
+      await csrfService.load()
+
       // Initialize core components
       this.toast = new ToastManager()
       this.modal = new ModalManager()
@@ -44,6 +80,9 @@ class AdminDashboard {
 
       // Setup event listeners
       this.setupEventListeners()
+
+      // Define global logout handler
+      this.defineLogoutHandler()
 
       // Load initial data
       await this.loadInitialData()

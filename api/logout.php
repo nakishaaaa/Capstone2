@@ -51,7 +51,7 @@ try {
     } else {
         // Clear all session data (full logout)
         session_destroy();
-        session_start(); // Restart for response
+        header("Location: ../index.php");
         echo json_encode(['success' => true, 'message' => 'Logged out successfully']);
     }
 } catch (Exception $e) {

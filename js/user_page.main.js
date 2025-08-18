@@ -1,5 +1,6 @@
 import { ANIMATION_SETTINGS } from './modules/config-module.js';
 import { csrfService } from './modules/csrf-module.js';
+import { ApiClient } from './core/api-client.js';
 import './modules/ui-module.js';
 import { FormManager } from './modules/form-module.js';
 import { UserDropdownManager } from './modules/user-dropdown-module.js';
@@ -18,6 +19,7 @@ class UserPageApp {
         this.aiPhotoEditor = null;
         this.aiDropdownManager = null;
         this.supportMessaging = null;
+        this.apiClient = new ApiClient();
         
         this.init();
     }
@@ -31,6 +33,9 @@ class UserPageApp {
         
         // Make instances globally available for backward compatibility
         this.exposeGlobalInstances();
+        
+        // Define global logout handler
+        this.defineLogoutHandler();
         
         console.log('User Page Application initialized successfully');
     }
@@ -62,6 +67,40 @@ class UserPageApp {
         
         // Expose CSRF service
         window.csrfService = csrfService;
+        // Expose API client (optional for reuse)
+        window.apiClient = this.apiClient;
+    }
+
+    defineLogoutHandler() {
+        // Expose a global logout function used by onclick handlers in the page
+        const api = this.apiClient;
+        window.handleLogout = async (role = 'user') => {
+            try {
+                // Ensure CSRF token is available
+                await csrfService.ensure();
+                const token = csrfService.getToken();
+
+                const data = await api.request('logout.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': token || ''
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ role })
+                });
+
+                if (data && data.success) {
+                    window.location.href = 'index.php';
+                } else {
+                    alert(data?.error || 'Logout failed. Redirecting to login...');
+                    window.location.href = 'index.php';
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = 'index.php';
+            }
+        };
     }
 }
 
