@@ -37,8 +37,7 @@ if (!$isStaffLoggedIn) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
     <script>
-        // Pass user role to JavaScript
-        const userRole = '<?php echo $role; ?>';
+        window.userRole = '<?php echo $role; ?>';
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

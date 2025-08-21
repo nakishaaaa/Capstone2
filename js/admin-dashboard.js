@@ -86,6 +86,8 @@ class AdminDashboard {
       // Only expose requests module for admin users
       if (this.modules.requests) {
         window.requestsModule = this.modules.requests
+        window.refreshRequests = () => window.requestsModule.loadRequests()
+        window.viewRequestHistory = () => window.requestsModule.viewHistory()
       }
       
       window.adminSupportModule = this.modules.adminSupport
