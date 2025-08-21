@@ -368,7 +368,6 @@ class SupportMessaging {
         <div class="conversation-card" data-conv-id="${c.conversation_id}">
             <div class="conv-meta">
                 <span class="conv-time" data-timestamp="${c.last_updated}">Last updated ${this.timeAgo(c.last_updated)}</span>
-                <span class="conv-count">${c.message_count}</span>
             </div>
             <div class="conv-subject">${subject}</div>
             <div class="conv-preview">${preview}</div>

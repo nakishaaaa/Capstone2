@@ -66,9 +66,19 @@ export class RequestsModule {
   updateStats(stats) {
     if (!stats) return
     
-    document.getElementById('pending-requests').textContent = stats.pending || 0
-    document.getElementById('approved-requests').textContent = stats.approved || 0
-    document.getElementById('rejected-requests').textContent = stats.rejected || 0
+    // Check if the required DOM elements exist (they won't exist for cashier accounts)
+    const pendingElement = document.getElementById('pending-requests')
+    const approvedElement = document.getElementById('approved-requests')
+    const rejectedElement = document.getElementById('rejected-requests')
+    
+    if (!pendingElement || !approvedElement || !rejectedElement) {
+      // User doesn't have access to requests section, skip update
+      return
+    }
+    
+    pendingElement.textContent = stats.pending || 0
+    approvedElement.textContent = stats.approved || 0
+    rejectedElement.textContent = stats.rejected || 0
 
     const totalRequestsElement = document.getElementById('total-requests')
     if (totalRequestsElement) {
@@ -143,7 +153,6 @@ export class RequestsModule {
     const modalContent = `
       <div class="request-details-modal" style="
         font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
-        padding: 1.5rem;
         background: #ffffff;
         border-radius: 12px;
         border: none;
@@ -151,13 +160,16 @@ export class RequestsModule {
         max-width: 600px;
         margin: 1rem auto;
         color: #2d3748;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
       ">
         <div class="request-modal-header" style="
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 1.25rem;
-          padding-bottom: 0.75rem;
+          margin-bottom: 0;
+          padding: 1.5rem 1.5rem 0.75rem;
           border-bottom: 1px solid #e2e8f0;
         ">
           <h3 style="
@@ -170,7 +182,12 @@ export class RequestsModule {
           </h3>
         </div>
 
-        <div class="request-info" style="
+        <div class="modal-content-scrollable" style="
+          padding: 1.5rem;
+          overflow-y: auto;
+          flex: 1;
+        ">
+          <div class="request-info" style="
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 1rem;
@@ -192,7 +209,6 @@ export class RequestsModule {
             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Type/Size</div>
             <div style="font-weight: 500; color: #2d3748;">${this.escapeHtml(request.size)}</div>
           </div>
-          <!-- Notes section consolidated below (with Show more/less) -->
           
           ${request.image_path ? `
             <div class="info-item">
@@ -209,6 +225,12 @@ export class RequestsModule {
               </div>
             </div>
           ` : ''}
+          
+          <div class="info-item">
+            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Quantity</div>
+            <div style="font-weight: 500; color: #2d3748;">${request.quantity || 'N/A'}</div>
+          </div>
+          <!-- Notes section consolidated below (with Show more/less) -->
 
           <div class="info-item">
             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Status</div>
@@ -291,7 +313,13 @@ export class RequestsModule {
         </div>
 
         ${request.status === 'pending' ? `
-          <div class="modal-actions" style="margin-top: 1.2rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <div class="action-buttons" style="
+            display: flex;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem 1.5rem;
+            justify-content: flex-end;
+            border-radius: 0 0 12px 12px;
+          ">
             <button class="btn btn-success" style="padding: 0.5rem 1rem; border-radius: 6px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
                     onclick="approveRequest(${request.id}); window.modalManager.close();">
               <i class="fa-solid fa-check"></i> Approve

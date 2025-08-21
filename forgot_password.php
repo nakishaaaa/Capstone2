@@ -42,10 +42,6 @@
         
         <div class="login-content">
             <div class="login-card active">
-                <div style="text-align:center; margin-bottom: 2rem;">
-                    <i class="fas fa-unlock-alt" style="font-size:2rem; color:#4facfe;"></i>
-                </div>
-                
                 <div class="form-title">Forgot Password</div>
                 
                 <p style="text-align:center; color:#888; margin-bottom:2rem; font-size: 14px;">

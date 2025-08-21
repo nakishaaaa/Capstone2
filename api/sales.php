@@ -355,27 +355,25 @@ function processSale($data) {
             }
         }
         
-        // Check for low stock and create notifications
-        $stmt = $pdo->query("SELECT id, name, stock, min_stock FROM inventory WHERE stock <= min_stock AND status = 'active'");
-        $lowStockItems = $stmt->fetchAll();
-        
-        foreach ($lowStockItems as $item) {
-            // Check if notification already exists
-            $stmt = $pdo->prepare("SELECT id FROM notifications WHERE title = ? AND is_read = FALSE");
-            $notificationTitle = "Low Stock Alert: " . $item['name'];
-            $stmt->execute([$notificationTitle]);
+        // Check for low stock and create notifications for items that were sold
+        foreach ($data['items'] as $item) {
+            // Get updated stock after the sale
+            $stmt = $pdo->prepare("SELECT name, stock, min_stock FROM inventory WHERE id = ? AND status = 'active'");
+            $stmt->execute([$item['id']]);
+            $product = $stmt->fetch();
             
-            if (!$stmt->fetch()) {
-                // Create new notification
-                $message = $item['stock'] == 0 ? 
-                    "{$item['name']} is out of stock" : 
-                    "{$item['name']} stock is low ({$item['stock']} remaining)";
+            if ($product && $product['stock'] <= $product['min_stock']) {
+                // Always create a new notification when stock decreases and is below minimum
+                $notificationTitle = "Low Stock Alert: " . $product['name'];
+                $message = $product['stock'] == 0 ? 
+                    "{$product['name']} is out of stock" : 
+                    "{$product['name']} stock is low ({$product['stock']} remaining)";
                 
                 $stmt = $pdo->prepare("INSERT INTO notifications (title, message, type) VALUES (?, ?, ?)");
                 $stmt->execute([
                     $notificationTitle,
                     $message,
-                    $item['stock'] == 0 ? 'error' : 'warning'
+                    $product['stock'] == 0 ? 'error' : 'warning'
                 ]);
             }
         }

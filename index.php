@@ -145,32 +145,44 @@ function isActiveForm($formName, $activeForm) {
 
             <div class="login-card <?= isActiveForm('register', $activeForm); ?>" id="register-form">
               <form action="login_register.php" method="post">
-                <h2>Register</h2>
+                <h2>Register <span style="color: #4facfe;">•</span></h2>
                 <?php showError($errors['register']); ?>
-                <input type="text" name="username" placeholder="Username">
-                <input type="email" name="email" placeholder="Email">
-                <div style="position:relative;">
-                  <input type="password" name="password" id="register-password" placeholder="Password">
-                  <button type="button" id="toggle-register-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
-                    <img id="register-eye-icon" src="images/svg/eye.svg" alt="Show Password" width="20" height="20">
-                  </button>
+                <div class="form-row">
+                  <div class="form-group half-width">
+                    <label for="first_name">First Name*</label>
+                    <input type="text" name="first_name" id="first_name" placeholder="First Name" required>
+                  </div>
+                  <div class="form-group half-width">
+                    <label for="last_name">Last Name*</label>
+                    <input type="text" name="last_name" id="last_name" placeholder="Last Name" required>
+                  </div>
                 </div>
-                <select name="role" id="role" required>
-                  <option value="" disabled selected> --SELECT ROLE-- </option>
-                  <option value="admin">Admin</option>
-                  <option value="user">User</option>
-                </select>
-                <style>
-                  select {
-                    width: 100%;
-                    padding: 0.75rem 1rem;
-                    margin-bottom: 1rem;
-                    border: 1px solid #ddd;
-                    border-radius: 0.75rem;
-                    font-size: 1rem;
-                    outline: none;
-                  }
-                </style>
+                <div class="form-row">
+                  <div class="form-group half-width">
+                    <label for="username">Username*</label>
+                    <input type="text" name="username" id="username" placeholder="Username" required>
+                  </div>
+                  <div class="form-group half-width">
+                    <label for="contact_number">Contact Number*</label>
+                    <div class="contact-input-container">
+                      <span class="country-code">+63</span>
+                      <input type="tel" name="contact_number" id="contact_number" placeholder="9123456789" maxlength="10" pattern="[0-9]{10}" required>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="email">Email*</label>
+                  <input type="email" name="email" id="email" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                  <label for="register-password">Password*</label>
+                  <div style="position:relative;">
+                    <input type="password" name="password" id="register-password" placeholder="Password" required>
+                    <button type="button" id="toggle-register-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
+                      <img id="register-eye-icon" src="images/svg/eye.svg" alt="Show Password" width="20" height="20">
+                    </button>
+                  </div>
+                </div>
                 <button type="submit" name="register">Register</button>
 
                 <p>Already have an account? <a href="#" onclick="showForm('login-form'); return false;">Login</a></p>
@@ -460,6 +472,29 @@ function isActiveForm($formName, $activeForm) {
     }
     setupPasswordToggle('login-password', 'toggle-login-password', 'login-eye-icon');
     setupPasswordToggle('register-password', 'toggle-register-password', 'register-eye-icon');
+
+    // Contact number validation
+    const contactInput = document.getElementById('contact_number');
+    if (contactInput) {
+      contactInput.addEventListener('input', function(e) {
+        // Remove any non-digit characters
+        let value = e.target.value.replace(/\D/g, '');
+        
+        // Limit to 10 digits
+        if (value.length > 10) {
+          value = value.slice(0, 10);
+        }
+        
+        e.target.value = value;
+      });
+
+      contactInput.addEventListener('keypress', function(e) {
+        // Only allow digits
+        if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
+          e.preventDefault();
+        }
+      });
+    }
 
     // Gallery Lightbox
     (function(){

@@ -114,8 +114,8 @@ function handleGetSupportMessages($pdo) {
                 sm.user_name,
                 sm.user_email,
                 MAX(sm.created_at) AS last_updated,
-                (SELECT s2.subject FROM support_messages s2 
-                 WHERE s2.conversation_id = sm.conversation_id AND s2.subject IS NOT NULL AND TRIM(s2.subject) != ''
+                (SELECT COALESCE(NULLIF(TRIM(s2.subject), ''), 'General') FROM support_messages s2 
+                 WHERE s2.conversation_id = sm.conversation_id AND s2.is_admin = 0
                  ORDER BY s2.created_at ASC LIMIT 1) AS subject,
                 (SELECT s3.message FROM support_messages s3 
                  WHERE s3.conversation_id = sm.conversation_id 
@@ -142,7 +142,7 @@ function handleGetSupportMessages($pdo) {
                 'conversation_id' => $conv['conversation_id'],
                 'user_name' => $conv['user_name'],
                 'user_email' => $conv['user_email'],
-                'subject' => $conv['subject'] ?: 'General Support',
+                'subject' => $conv['subject'],
                 'last_message' => $conv['last_message'],
                 'last_message_is_admin' => (bool)$conv['last_message_is_admin'],
                 'last_updated' => $conv['last_updated'],
@@ -297,10 +297,15 @@ function handleReplyToMessage($pdo, $input) {
     }
     
     // Insert admin reply as a new message
+    // Get the original subject from the conversation
+    $subjectStmt = $pdo->prepare("SELECT subject FROM support_messages WHERE conversation_id = ? AND subject IS NOT NULL AND TRIM(subject) != '' ORDER BY created_at ASC LIMIT 1");
+    $subjectStmt->execute([$originalMessage['conversation_id']]);
+    $originalSubject = $subjectStmt->fetchColumn();
+    
     $stmt = $pdo->prepare("
         INSERT INTO support_messages 
-        (conversation_id, user_name, user_email, admin_name, message, is_admin, created_at) 
-        VALUES (?, ?, ?, ?, ?, TRUE, NOW())
+        (conversation_id, user_name, user_email, admin_name, subject, message, is_admin, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, TRUE, NOW())
     ");
     
     $stmt->execute([
@@ -308,6 +313,7 @@ function handleReplyToMessage($pdo, $input) {
         $originalMessage['user_name'],
         $originalMessage['user_email'],
         $adminName,
+        $originalSubject,
         $response
     ]);
     
@@ -352,11 +358,16 @@ function handleReplyToConversation($pdo, $input) {
         throw new Exception('Conversation not found');
     }
     
+    // Get the original subject from the conversation
+    $subjectStmt = $pdo->prepare("SELECT subject FROM support_messages WHERE conversation_id = ? AND subject IS NOT NULL AND TRIM(subject) != '' ORDER BY created_at ASC LIMIT 1");
+    $subjectStmt->execute([$conversationId]);
+    $originalSubject = $subjectStmt->fetchColumn();
+    
     // Insert admin reply
     $stmt = $pdo->prepare("
         INSERT INTO support_messages 
-        (conversation_id, user_name, user_email, admin_name, message, is_admin, created_at) 
-        VALUES (?, ?, ?, ?, ?, TRUE, NOW())
+        (conversation_id, user_name, user_email, admin_name, subject, message, is_admin, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, TRUE, NOW())
     ");
     
     $stmt->execute([
@@ -364,6 +375,7 @@ function handleReplyToConversation($pdo, $input) {
         $conversation['user_name'],
         $conversation['user_email'],
         $adminName,
+        $originalSubject,
         $response
     ]);
     

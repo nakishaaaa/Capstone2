@@ -178,6 +178,16 @@ function handleSendMessage($pdo) {
         $conversationId = 'CHAT-' . date('Y') . '-' . ($user_id ?? 'guest') . '-' . time();
     }
     
+    // If this is a reply to existing conversation and no subject provided, get the original subject
+    if (!empty($conversationId) && empty($subject)) {
+        $stmt = $pdo->prepare("SELECT subject FROM support_messages WHERE conversation_id = ? AND subject IS NOT NULL AND TRIM(subject) != '' ORDER BY created_at ASC LIMIT 1");
+        $stmt->execute([$conversationId]);
+        $originalSubject = $stmt->fetchColumn();
+        if ($originalSubject) {
+            $subject = $originalSubject;
+        }
+    }
+    
     // Insert message
     $stmt = $pdo->prepare("
         INSERT INTO support_messages 

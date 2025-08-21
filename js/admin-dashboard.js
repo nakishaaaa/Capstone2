@@ -7,7 +7,8 @@ import { ProductManagementModule } from "./modules/product-management-module.js"
 import { NotificationsModule } from "./modules/notifications-module.js"
 import { RequestsModule } from "./modules/requests-module.js"
 import { NavigationModule } from "./modules/navigation-module.js"
-import AdminSupportManager from "./modules/admin-support-module.js"
+import AdminSupportModule from './modules/admin-support-module.js';
+import UserManagementModule from './modules/user-management-module.js';
 import { csrfService } from "./modules/csrf-module.js"
 import { ApiClient } from "./core/api-client.js"
 
@@ -66,8 +67,14 @@ class AdminDashboard {
       this.modules.pos = new POSModule(this.toast)
       this.modules.productManagement = new ProductManagementModule(this.toast, this.modal)
       this.modules.notifications = new NotificationsModule(this.toast)
-      this.modules.requests = new RequestsModule(this.toast, this.modal)
-      this.modules.adminSupport = new AdminSupportManager(this.toast, this.modal)
+      
+      // Only initialize requests module for admin users
+      if (window.userRole === 'admin') {
+        this.modules.requests = new RequestsModule(this.toast, this.modal)
+      }
+      
+      // Pass the SSE client from dashboard module to admin support module
+      this.modules.adminSupport = new AdminSupportModule(this.toast, this.modules.dashboard.sseClient)
 
       // Make modules globally accessible for onclick handlers
       window.modalManager = this.modal
@@ -75,7 +82,12 @@ class AdminDashboard {
       window.posModule = this.modules.pos
       window.productManagementModule = this.modules.productManagement
       window.notificationsModule = this.modules.notifications
-      window.requestsModule = this.modules.requests
+      
+      // Only expose requests module for admin users
+      if (this.modules.requests) {
+        window.requestsModule = this.modules.requests
+      }
+      
       window.adminSupportModule = this.modules.adminSupport
 
       // Setup event listeners
@@ -161,10 +173,12 @@ class AdminDashboard {
           await this.modules.notifications.displayNotifications()
           break
         case "requests":
-          await this.modules.requests.loadRequests()
+          if (this.modules.requests) {
+            await this.modules.requests.loadRequests()
+          }
           break
         case "customer-support":
-          await this.modules.adminSupport.loadSupportMessages()
+          await this.modules.adminSupport.loadConversations()
           break
       }
     } catch (error) {

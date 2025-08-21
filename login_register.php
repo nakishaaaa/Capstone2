@@ -5,14 +5,27 @@ require_once 'includes/config.php'; // Include the database connection
 // Handle registration form submission
 if (isset($_POST['register'])) {
     // Get form data safely
-    $name = isset($_POST['username']) ? $_POST['username'] : '';
-    $email = isset($_POST['email']) ? $_POST['email'] : '';
+    $first_name = isset($_POST['first_name']) ? trim($_POST['first_name']) : '';
+    $last_name = isset($_POST['last_name']) ? trim($_POST['last_name']) : '';
+    $username = isset($_POST['username']) ? trim($_POST['username']) : '';
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $contact_number = isset($_POST['contact_number']) ? trim($_POST['contact_number']) : '';
     // Hash the password for security
     $password = isset($_POST['password']) ? password_hash($_POST['password'], PASSWORD_DEFAULT) : '';
-    $role = isset($_POST['role']) ? $_POST['role'] : '';
+
+    // Validate contact number format (10 digits)
+    if ($contact_number && !preg_match('/^[0-9]{10}$/', $contact_number)) {
+        $_SESSION['register_error'] = 'Contact number must be exactly 10 digits!';
+        $_SESSION['active_form'] = 'register';
+        header("Location: index.php");
+        exit();
+    }
+
+    // Format contact number with +63 prefix
+    $full_contact_number = $contact_number ? '+63' . $contact_number : '';
 
     // Check if all fields are filled
-    if ($name && $email && $password && $role) {
+    if ($first_name && $last_name && $username && $email && $password && $contact_number) {
         // Check if the email is already registered
         $checkEmail = $conn->query("SELECT email FROM users WHERE email = '$email'");
         if ($checkEmail && $checkEmail->num_rows > 0) {
@@ -20,15 +33,23 @@ if (isset($_POST['register'])) {
             $_SESSION['register_error'] = 'Email is already registered!';
             $_SESSION['active_form'] = 'register';
         } else {
-            // Insert new user into the database
-            if ($conn->query("INSERT INTO users (name, email, password, role) VALUES ('$name', '$email', '$password', '$role')")) {
-                // Registration successful
-                $_SESSION['register_success'] = 'Registration successful! You can now log in.';
-                $_SESSION['active_form'] = 'login';
-            } else {
-                // Database insert failed
-                $_SESSION['register_error'] = 'Registration failed. Please try again.';
+            // Check if the username is already taken
+            $checkUsername = $conn->query("SELECT name FROM users WHERE name = '$username'");
+            if ($checkUsername && $checkUsername->num_rows > 0) {
+                // Username already exists
+                $_SESSION['register_error'] = 'Username is already taken!';
                 $_SESSION['active_form'] = 'register';
+            } else {
+                // Insert new user into the database with contact number and default role 'user'
+                if ($conn->query("INSERT INTO users (name, firstname, lastname, email, contact_number, password, role) VALUES ('$username', '$first_name', '$last_name', '$email', '$full_contact_number', '$password', 'user')")) {
+                    // Registration successful
+                    $_SESSION['register_success'] = 'Registration successful! You can now log in.';
+                    $_SESSION['active_form'] = 'login';
+                } else {
+                    // Database insert failed
+                    $_SESSION['register_error'] = 'Registration failed. Please try again.';
+                    $_SESSION['active_form'] = 'register';
+                }
             }
         }
     } else {
@@ -56,13 +77,27 @@ if (isset($_POST['login'])) {
             $user = $result->fetch_assoc();
             // Verify the password
             if (password_verify($password, $user['password'])) {
+                // Check if account is active
+                if (isset($user['status']) && $user['status'] === 'inactive') {
+                    $_SESSION['login_error'] = 'Your account has been deactivated. Please contact an administrator.';
+                    $_SESSION['active_form'] = 'login';
+                    header("Location: index.php");
+                    exit();
+                }
+                
+                // Debug: Log the user role for troubleshooting
+                error_log("Login Debug - User: " . $user['name'] . ", Role: '" . $user['role'] . "', Role Length: " . strlen($user['role']));
+                
                 // Regenerate session ID on successful login for security
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_regenerate_id(true);
                 }
 
+                // Update last login timestamp
+                $conn->query("UPDATE users SET last_login = NOW() WHERE id = " . $user['id']);
+                
                 // Set role-specific session variables and standard session variables
-                $role = $user['role'];
+                $role = trim($user['role']); // Trim any whitespace
                 $_SESSION[$role . '_user_id'] = $user['id'];
                 $_SESSION[$role . '_name'] = $user['name'];
                 $_SESSION[$role . '_email'] = $user['email'];
@@ -72,16 +107,25 @@ if (isset($_POST['login'])) {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['email'] = $user['email'];
-                $_SESSION['role'] = $user['role'];
+                $_SESSION['role'] = $role;
+
+                // Debug: Log redirect decision
+                error_log("Login Debug - Redirect check: Role is '" . $role . "', Admin check: " . ($role === 'admin' ? 'true' : 'false') . ", Cashier check: " . ($role === 'cashier' ? 'true' : 'false'));
 
                 // Redirect based on user role
-                if ($user['role'] === 'admin') {
+                if ($role === 'admin' || $role === 'cashier') {
+                    error_log("Login Debug - Redirecting to admin_page.php");
                     header("Location: admin_page.php");
                 } else {
+                    error_log("Login Debug - Redirecting to user_page.php");
                     header("Location: user_page.php");
                 }
                 exit();
+            } else {
+                error_log("Login Debug - Password verification failed for user: " . $username);
             }
+        } else {
+            error_log("Login Debug - User not found: " . $username);
         }
     }
 

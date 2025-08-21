@@ -12,18 +12,20 @@ ini_set('log_errors', 1);
 
 session_start();
 
-// Require only admin-specific session variables (no legacy fallback)
-$isAdminLoggedIn = false;
+// Allow both admin and cashier roles to access this dashboard
+$isStaffLoggedIn = false;
 $adminName = '';
 $adminEmail = '';
+$role = $_SESSION['role'] ?? null;
 
-if (isset($_SESSION['admin_name']) && isset($_SESSION['admin_email']) && isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'admin') {
-    $isAdminLoggedIn = true;
-    $adminName = $_SESSION['admin_name'];
-    $adminEmail = $_SESSION['admin_email'];
+if ($role === 'admin' || $role === 'cashier') {
+    $isStaffLoggedIn = true;
+    // Prefer standard session variables set during login
+    $adminName = $_SESSION['name'] ?? ($_SESSION['admin_name'] ?? '');
+    $adminEmail = $_SESSION['email'] ?? ($_SESSION['admin_email'] ?? '');
 }
 
-if (!$isAdminLoggedIn) {
+if (!$isStaffLoggedIn) {
     header("Location: index.php");
     exit();
 }
@@ -33,7 +35,11 @@ if (!$isAdminLoggedIn) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Inventory Management System</title>
+    <title>Admin Dashboard</title>
+    <script>
+        // Pass user role to JavaScript
+        const userRole = '<?php echo $role; ?>';
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/admin_page.css">
@@ -57,13 +63,16 @@ if (!$isAdminLoggedIn) {
                 <li><a href="#pos" class="nav-link" data-section="pos">
                     <i class="fas fa-cash-register"></i> Point of Sale
                 </a></li>
+                <?php if ($role === 'admin'): ?>
                 <li><a href="#sales-management" class="nav-link" data-section="sales-management">
                     <i class="fas fa-cogs"></i> Product Management
                 </a></li>
+                <?php endif; ?>
                 <li><a href="#notifications" class="nav-link" data-section="notifications">
                     <i class="fas fa-bell"></i> Notifications
                     <span class="nav-badge" id="notificationsBadge" aria-label="Unread notifications" title="Unread notifications" style="display:none">0</span>
                 </a></li>
+                <?php if ($role === 'admin'): ?>
                 <li><a href="#requests" class="nav-link" data-section="requests">
                     <i class="fas fa-inbox"></i> Requests
                     <span class="nav-badge" id="requestsBadge" aria-label="Pending requests" title="Pending requests" style="display:none">0</span>
@@ -75,6 +84,7 @@ if (!$isAdminLoggedIn) {
                 <li><a href="#user-management" class="nav-link" data-section="user-management">
                     <i class="fas fa-user"></i> User Management
                 </a></li>
+                <?php endif; ?>
                 <li><a href="#" class="nav-link logout" onclick="handleLogout('admin')">
                     <i class="fas fa-right-from-bracket"></i> Logout
                 </a></li>
@@ -262,7 +272,8 @@ if (!$isAdminLoggedIn) {
                 </div>
             </section>
 
-            <!-- Product Management Section -->
+            <!-- Sales Management Section (Admin Only) -->
+            <?php if ($role === 'admin'): ?>
             <section id="sales-management" class="content-section">
                 <div class="section-header">
                     <h1>Product Management</h1>
@@ -296,6 +307,7 @@ if (!$isAdminLoggedIn) {
                     </table>
                 </div>
             </section>
+            <?php endif; ?>
 
             <!-- Notifications Section -->
             <section id="notifications" class="content-section">
@@ -313,7 +325,8 @@ if (!$isAdminLoggedIn) {
                 </div>
             </section>
 
-            <!-- Requests Section -->
+            <!-- Reports Section (Admin Only) -->
+            <?php if ($role === 'admin'): ?>
             <section id="requests" class="content-section">
                 <div class="section-header">
                     <h1>Customer Requests</h1>
@@ -401,8 +414,155 @@ if (!$isAdminLoggedIn) {
                     </table>
                 </div>
             </section>
+            <?php endif; ?>
 
-            <!-- Customer Support Section -->
+            <!-- User Management Section (Admin Only) -->
+            <?php if ($role === 'admin'): ?>
+            <section id="user-management" class="content-section">
+                <div class="section-header">
+                    <h1>User Management</h1>
+                    <div class="section-description">
+                        <p style="color: #666; font-size: 0.9rem; margin: 0;">Manage user accounts, roles, and permissions</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-primary" onclick="openAddUserModal()">
+                            <i class="fas fa-user-plus"></i> Add User
+                        </button>
+                        <button class="btn btn-secondary" onclick="userManagement.showRolePermissions()" style="
+                            padding: 0.5rem 1rem;
+                            border: 1px solid #d1d5db;
+                            border-radius: 4px;
+                            background: #ffffff;
+                            color: #374151;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">
+                            <i class="fas fa-key"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- User Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card small">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="total-users">0</div>
+                            <div class="stat-label">Total Staff</div>
+                        </div>
+                    </div>
+                    <div class="stat-card small">
+                        <div class="stat-icon">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="admin-users">0</div>
+                            <div class="stat-label">Admins</div>
+                        </div>
+                    </div>
+                    <div class="stat-card small">
+                        <div class="stat-icon">
+                            <i class="fas fa-cash-register"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="cashier-users">0</div>
+                            <div class="stat-label">Cashiers</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Management Controls -->
+                <div class="user-management-controls" style="
+                    background: #ffffff;
+                    border: 1px solid #e5e5e5;
+                    border-radius: 8px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                ">
+                    <div class="search-filter-container" style="
+                        display: flex;
+                        gap: 1rem;
+                        align-items: center;
+                        flex-wrap: wrap;
+                    ">
+                        <input type="text" id="userSearch" placeholder="Search users..." class="search-input" style="
+                            flex: 1;
+                            min-width: 200px;
+                            padding: 0.5rem;
+                            border: 1px solid #d1d5db;
+                            border-radius: 4px;
+                            font-size: 0.875rem;
+                            background: #ffffff;
+                            color: #374151;
+                        ">
+                        <select id="roleFilter" onchange="filterUsers()" style="
+                            padding: 0.5rem;
+                            border: 1px solid #d1d5db;
+                            border-radius: 4px;
+                            font-size: 0.875rem;
+                            background: #ffffff;
+                            color: #374151;
+                            min-width: 120px;
+                        ">
+                            <option value="all">All Roles</option>
+                            <option value="admin">Admin</option>
+                            <option value="cashier">Cashier</option>
+                            <option value="user">User</option>
+                        </select>
+                        <select id="statusFilter" onchange="filterUsers()" style="
+                            padding: 0.5rem;
+                            border: 1px solid #d1d5db;
+                            border-radius: 4px;
+                            font-size: 0.875rem;
+                            background: #ffffff;
+                            color: #374151;
+                            min-width: 120px;
+                        ">
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Users Table -->
+                <div class="users-table-container" style="
+                    background: #ffffff;
+                    border: 1px solid #e5e5e5;
+                    border-radius: 8px;
+                    overflow: hidden;
+                ">
+                    <table class="inventory-table" id="usersTable" style="
+                        width: 100%;
+                        border-collapse: collapse;
+                        background: #ffffff;
+                    ">
+                        <thead style="background: #f8f9fa; border-bottom: 2px solid #e5e5e5;">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e5e5;">ID</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e5e5;">Name</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e5e5;">Email</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e5e5;">Role</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e5e5;">Status</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e5e5;">Created</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e5e5;">Last Login</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e5e5;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 2rem; color: #6b7280;">Loading users...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <?php endif; ?>
+
+            <!-- Customer Support Section (Admin Only) -->
+            <?php if ($role === 'admin'): ?>
             <section id="customersupport" class="content-section">
                 <div class="section-header">
                     <h1>Customer Support</h1>
@@ -499,6 +659,7 @@ if (!$isAdminLoggedIn) {
                     </div>
                 </div>
             </section>
+            <?php endif; ?>
         </main>
     </div>
 
@@ -547,11 +708,143 @@ if (!$isAdminLoggedIn) {
         </div>
     </div>
 
+    <!-- User Management Modals -->
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New User</h3>
+                <button class="modal-close" onclick="closeAddUserModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label for="userName">Full Name</label>
+                        <input type="text" id="userName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userEmail">Email</label>
+                        <input type="email" id="userEmail" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userPassword">Password</label>
+                        <input type="password" id="userPassword" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="addUserRole">Role</label>
+                        <select id="addUserRole" name="role" required>
+                            <option value="">Select Role</option>
+                            <option value="admin">Admin - Full access to all features</option>
+                            <option value="cashier">Cashier - POS and inventory view only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="userStatus">Status</label>
+                        <select id="userStatus" name="status">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeAddUserModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit User</h3>
+                <button class="modal-close" onclick="closeEditUserModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId" name="user_id">
+                    <div class="form-group">
+                        <label for="editUserName">Full Name</label>
+                        <input type="text" id="editUserName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editUserEmail">Email</label>
+                        <input type="email" id="editUserEmail" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editUserRole">Role</label>
+                        <select id="editUserRole" name="role" required>
+                            <option value="admin">Admin - Full access to all features</option>
+                            <option value="cashier">Cashier - POS and inventory view only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="resetPassword" name="reset_password"> Reset Password
+                        </label>
+                        <input type="password" id="newPassword" name="new_password" placeholder="New password (if resetting)" style="display: none;">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditUserModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Permissions Modal -->
+    <div id="rolePermissionsModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>Role Permissions</h3>
+                <button class="modal-close" onclick="closeRolePermissionsModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="permissions-grid">
+                    <div class="role-section">
+                        <h4><i class="fas fa-user-shield"></i> Admin</h4>
+                        <ul class="permissions-list">
+                            <li><i class="fas fa-check text-success"></i> Full dashboard access</li>
+                            <li><i class="fas fa-check text-success"></i> User management</li>
+                            <li><i class="fas fa-check text-success"></i> Product management</li>
+                            <li><i class="fas fa-check text-success"></i> Inventory management</li>
+                            <li><i class="fas fa-check text-success"></i> POS operations</li>
+                            <li><i class="fas fa-check text-success"></i> Customer support</li>
+                            <li><i class="fas fa-check text-success"></i> Reports and analytics</li>
+                        </ul>
+                    </div>
+                    <div class="role-section">
+                        <h4><i class="fas fa-cash-register"></i> Cashier</h4>
+                        <ul class="permissions-list">
+                            <li><i class="fas fa-check text-success"></i> POS operations</li>
+                            <li><i class="fas fa-check text-success"></i> View inventory</li>
+                            <li><i class="fas fa-check text-success"></i> Process transactions</li>
+                            <li><i class="fas fa-check text-success"></i> View customer requests</li>
+                            <li><i class="fas fa-times text-danger"></i> User management</li>
+                            <li><i class="fas fa-times text-danger"></i> Product management</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modalOverlay" class="modal-overlay">
         <div id="modalContent" class="modal-content">
         </div>
     </div>
 
+    <script>
+        // Set CSRF token for API requests
+        <?php
+        require_once 'includes/csrf.php';
+        $csrfToken = getCSRFToken();
+        ?>
+        window.csrfToken = '<?php echo $csrfToken; ?>';
+        window.currentAdminId = <?php echo $_SESSION['admin_user_id'] ?? 'null'; ?>;
+    </script>
     <script type="module" src="js/admin-dashboard.js"></script>
 </body>
 </html>

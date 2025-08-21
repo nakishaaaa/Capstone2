@@ -890,6 +890,99 @@ body::before {
     max-width: 400px;
 }
 
+#register-form {
+    width: 650px !important;
+    max-width: 95vw !important;
+    margin: 0 auto !important;
+}
+
+.login-content {
+    max-width: none !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group.half-width {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.contact-input-container {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+}
+
+.contact-input-container:focus-within {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.country-code {
+    background: white;
+    padding: 0.75rem 1rem;
+    border-right: 1px solid #ddd;
+    font-weight: 600;
+    color: #495057;
+    white-space: nowrap;
+}
+
+.contact-input-container input {
+    border: none !important;
+    box-shadow: none !important;
+    flex: 1;
+    margin: 0;
+    background: white !important;
+    color: #333 !important;
+    padding: 0.75rem 1rem;
+}
+
+.contact-input-container input:focus {
+    outline: none;
+    border: none !important;
+    box-shadow: none !important;
+}
+
 .login-card.active {
     display: block;
 }

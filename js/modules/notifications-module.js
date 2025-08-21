@@ -53,7 +53,7 @@ export class NotificationsModule {
       .map(
         (notification) => `
       <div class="notification-item ${!notification.is_read ? "unread" : ""}">
-        <div class="notification-icon">
+        <div class="notification-icon ${notification.type}">
           <i class="fas fa-${Utils.getNotificationIcon(notification.type)}"></i>
         </div>
         <div class="notification-content">

@@ -1,5 +1,5 @@
 export class AdminSupportManager {
-    constructor(toast) {
+    constructor(toast, sseClient = null) {
         this.toast = toast;
         this.currentConversations = [];
         this.currentMessages = [];
@@ -10,7 +10,7 @@ export class AdminSupportManager {
             status: '',
             search: ''
         };
-        this.sseClient = null;
+        this.sseClient = sseClient;
         this.timestampUpdateInterval = null;
         
         this.init();
@@ -439,32 +439,30 @@ export class AdminSupportManager {
     }
 
     initializeRealTimeUpdates() {
-        // Initialize SSE connection for real-time updates
-        try {
-            this.sseClient = new EventSource('/Capstone2/api/realtime.php');
-            
-            this.sseClient.onopen = () => {
-                console.log('Admin Support: Real-time connection established');
-            };
-            
-            this.sseClient.onerror = (error) => {
-                console.warn('Admin Support: Real-time connection error, using manual refresh');
-            };
+        // Use existing SSE client if available
+        if (this.sseClient) {
+            console.log('Admin Support: Using existing SSE client for real-time updates');
             
             // Listen for heartbeat to update timestamps
-            this.sseClient.addEventListener('heartbeat', (event) => {
+            this.sseClient.on('heartbeat', (data) => {
                 this.updateTimestamps();
             });
             
             // Listen for activity updates that might include new support messages
-            this.sseClient.addEventListener('activity_update', (event) => {
-                const data = JSON.parse(event.data);
-                // Check if there are new support messages and refresh if needed
+            this.sseClient.on('activity_update', (data) => {
                 this.handleActivityUpdate(data);
             });
             
-        } catch (error) {
-            console.error('Admin Support: Failed to initialize SSE client:', error);
+            // Listen for connection status
+            this.sseClient.on('connection', (data) => {
+                if (data.status === 'connected') {
+                    console.log('Admin Support: Real-time connection established');
+                } else if (data.status === 'error') {
+                    console.warn('Admin Support: Real-time connection error, using manual refresh');
+                }
+            });
+        } else {
+            console.warn('Admin Support: No SSE client available, using manual refresh only');
         }
         
         // Start timestamp update interval as fallback
@@ -547,10 +545,11 @@ export class AdminSupportManager {
     }
 
     destroy() {
-        // Clean up SSE connection
+        // Clean up SSE event listeners (don't close the shared client)
         if (this.sseClient) {
-            this.sseClient.close();
-            this.sseClient = null;
+            this.sseClient.off('heartbeat');
+            this.sseClient.off('activity_update');
+            this.sseClient.off('connection');
         }
         
         // Clear timestamp update interval

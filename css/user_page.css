@@ -1936,7 +1936,7 @@ box-shadow: none;
     padding: 2rem;
     /* Fill remaining space and scroll inside body */
     flex: 1 1 auto;
-    overflow-y: auto;
+    overflow-y: hidden;
 }
 
 
@@ -2042,6 +2042,7 @@ box-shadow: none;
 .conversation-detail {
     border-top: 1px dashed #e5e5e5;
     padding-top: 0.5rem;
+    margin-top: -2rem;
 }
 
 .conversation-reply {
@@ -2071,7 +2072,7 @@ box-shadow: none;
 .reply-actions {
     display: flex;
     justify-content: flex-end;
-    margin-top: 0.75rem;
+    margin-top: 0.10rem;
 }
 
 .reply-actions .support-send-btn {
