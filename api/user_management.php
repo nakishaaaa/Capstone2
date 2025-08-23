@@ -87,11 +87,11 @@ function getUsersList($pdo) {
         $status_filter = $_GET['status'] ?? 'all';
         
         // Exclude customer accounts (role='user') from user management
-        $sql = "SELECT id, name, email, role, status, created_at, last_login FROM users WHERE role != 'user'";
+        $sql = "SELECT id, username, email, role, status, created_at, last_login FROM users WHERE role != 'user'";
         $params = [];
         
         if (!empty($search)) {
-            $sql .= " AND (name LIKE ? OR email LIKE ?)";
+            $sql .= " AND (username LIKE ? OR email LIKE ?)";
             $searchTerm = "%$search%";
             $params[] = $searchTerm;
             $params[] = $searchTerm;

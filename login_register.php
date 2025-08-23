@@ -34,14 +34,14 @@ if (isset($_POST['register'])) {
             $_SESSION['active_form'] = 'register';
         } else {
             // Check if the username is already taken
-            $checkUsername = $conn->query("SELECT name FROM users WHERE name = '$username'");
+            $checkUsername = $conn->query("SELECT username FROM users WHERE username = '$username'");
             if ($checkUsername && $checkUsername->num_rows > 0) {
                 // Username already exists
                 $_SESSION['register_error'] = 'Username is already taken!';
                 $_SESSION['active_form'] = 'register';
             } else {
                 // Insert new user into the database with contact number and default role 'user'
-                if ($conn->query("INSERT INTO users (name, firstname, lastname, email, contact_number, password, role) VALUES ('$username', '$first_name', '$last_name', '$email', '$full_contact_number', '$password', 'user')")) {
+                if ($conn->query("INSERT INTO users (username, firstname, lastname, email, contact_number, password, role) VALUES ('$username', '$first_name', '$last_name', '$email', '$full_contact_number', '$password', 'user')")) {
                     // Registration successful
                     $_SESSION['register_success'] = 'Registration successful! You can now log in.';
                     $_SESSION['active_form'] = 'login';
@@ -72,7 +72,7 @@ if (isset($_POST['login'])) {
     // Check if both fields are filled
     if ($username && $password) {
         // Look up the user by username
-        $result = $conn->query("SELECT * FROM users WHERE name = '$username'");
+        $result = $conn->query("SELECT * FROM users WHERE username = '$username'");
         if ($result && $result->num_rows > 0) {
             $user = $result->fetch_assoc();
             // Verify the password
@@ -86,7 +86,7 @@ if (isset($_POST['login'])) {
                 }
                 
                 // Debug: Log the user role for troubleshooting
-                error_log("Login Debug - User: " . $user['name'] . ", Role: '" . $user['role'] . "', Role Length: " . strlen($user['role']));
+                error_log("Login Debug - User: " . $user['username'] . ", Role: '" . $user['role'] . "', Role Length: " . strlen($user['role']));
                 
                 // Regenerate session ID on successful login for security
                 if (session_status() === PHP_SESSION_ACTIVE) {
@@ -99,13 +99,14 @@ if (isset($_POST['login'])) {
                 // Set role-specific session variables and standard session variables
                 $role = trim($user['role']); // Trim any whitespace
                 $_SESSION[$role . '_user_id'] = $user['id'];
-                $_SESSION[$role . '_name'] = $user['name'];
+                $_SESSION[$role . '_name'] = $user['username'];
                 $_SESSION[$role . '_email'] = $user['email'];
                 $_SESSION[$role . '_role'] = $user['role'];
                 
                 // Also set standard session variables for compatibility
                 $_SESSION['user_id'] = $user['id'];
-                $_SESSION['name'] = $user['name'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['name'] = $user['username'];
                 $_SESSION['email'] = $user['email'];
                 $_SESSION['role'] = $role;
 

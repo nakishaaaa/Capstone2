@@ -1,4 +1,7 @@
 <?php
+// Start session for user tracking
+session_start();
+
 // Enable error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -27,6 +30,8 @@ try {
                 getChartData($_GET['period'] ?? 'daily');
             } elseif (isset($_GET['report'])) {
                 getSalesReport($_GET['start_date'] ?? null, $_GET['end_date'] ?? null);
+            } elseif (isset($_GET['transaction_id'])) {
+                getTransactionDetails($_GET['transaction_id']);
             } else {
                 getAllSales();
             }
@@ -290,11 +295,12 @@ function processSale($data) {
         
         $pdo->beginTransaction();
         
-        // Insert sale
-        $stmt = $pdo->prepare("INSERT INTO sales (transaction_id, customer_name, total_amount, tax_amount, payment_method, amount_received, change_amount) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        // Insert sale with cashier_id
+        $stmt = $pdo->prepare("INSERT INTO sales (transaction_id, customer_name, cashier_id, total_amount, tax_amount, payment_method, amount_received, change_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([
             $data['transaction_id'],
             $data['customer_name'] ?? 'Walk-in Customer',
+            $_SESSION['user_id'] ?? null, // Track who processed the transaction
             floatval($data['total_amount']),
             floatval($data['tax_amount']),
             $data['payment_method'],
@@ -393,9 +399,11 @@ function getAllSales() {
     try {
         $stmt = $pdo->query("SELECT s.*, 
             GROUP_CONCAT(CONCAT(si.product_name, ' x', si.quantity) SEPARATOR ', ') as products,
-            SUM(si.quantity) as total_quantity
+            SUM(si.quantity) as total_quantity,
+            COALESCE(u.username, 'System User') as cashier_name
             FROM sales s
             LEFT JOIN sales_items si ON s.id = si.sale_id
+            LEFT JOIN users u ON s.cashier_id = u.id
             GROUP BY s.id
             ORDER BY s.created_at DESC
             LIMIT 100");
@@ -420,9 +428,11 @@ function getSalesReport($startDate, $endDate) {
         
         $stmt = $pdo->prepare("SELECT s.*, 
             GROUP_CONCAT(CONCAT(si.product_name, ' x', si.quantity) SEPARATOR ', ') as products,
-            SUM(si.quantity) as total_quantity
+            SUM(si.quantity) as total_quantity,
+            COALESCE(u.username, 'System User') as cashier_name
             FROM sales s
             LEFT JOIN sales_items si ON s.id = si.sale_id
+            LEFT JOIN users u ON s.cashier_id = u.id
             $whereClause
             GROUP BY s.id
             ORDER BY s.created_at DESC");
@@ -447,6 +457,41 @@ function getSalesReport($startDate, $endDate) {
         ]);
     } catch(PDOException $e) {
         error_log("Database error in getSalesReport: " . $e->getMessage());
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+}
+
+function getTransactionDetails($transactionId) {
+    global $pdo;
+    try {
+        // Get transaction details with cashier info
+        $stmt = $pdo->prepare("SELECT s.*, 
+            COALESCE(u.username, 'System User') as cashier_name
+            FROM sales s
+            LEFT JOIN users u ON s.cashier_id = u.id
+            WHERE s.transaction_id = ?");
+        $stmt->execute([$transactionId]);
+        $transaction = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$transaction) {
+            echo json_encode(['success' => false, 'error' => 'Transaction not found']);
+            return;
+        }
+        
+        // Get transaction items
+        $stmt = $pdo->prepare("SELECT si.*
+            FROM sales_items si
+            WHERE si.sale_id = ?
+            ORDER BY si.id");
+        $stmt->execute([$transaction['id']]);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $transaction['items'] = $items;
+        
+        echo json_encode(['success' => true, 'data' => $transaction]);
+        
+    } catch(PDOException $e) {
+        error_log("Database error in getTransactionDetails: " . $e->getMessage());
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
 }

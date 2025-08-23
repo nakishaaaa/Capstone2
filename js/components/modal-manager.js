@@ -3,13 +3,14 @@ export class ModalManager {
     constructor() {
       this.overlay = document.getElementById("modalOverlay")
       this.content = document.getElementById("modalContent")
+      this.preventOutsideClick = false
       this.setupEventListeners()
     }
   
     setupEventListeners() {
       if (this.overlay) {
         this.overlay.addEventListener("click", (e) => {
-          if (e.target === this.overlay) {
+          if (e.target === this.overlay && !this.preventOutsideClick) {
             this.close()
           }
         })
@@ -23,9 +24,10 @@ export class ModalManager {
       })
     }
   
-    open(title, content) {
+    open(title, content, options = {}) {
       if (!this.overlay || !this.content) return
   
+      this.preventOutsideClick = options.preventOutsideClick || false
       this.content.innerHTML = content
       this.overlay.style.display = "flex"
       this.overlay.classList.add("active")
@@ -55,10 +57,8 @@ export class ModalManager {
           ${
             showCloseButton
               ? `
-            <button class="close-modal" onclick="window.modalManager.close()">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          `
+          <button class="modal-close" onclick="window.modalManager.close()">×</button>
+        `
               : ""
           }
         </div>

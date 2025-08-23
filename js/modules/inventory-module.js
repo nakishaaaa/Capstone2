@@ -161,7 +161,7 @@ export class InventoryModule {
       </div>
     `
 
-    this.modal.open("Restock Product", content)
+    this.modal.open("Restock Product", content, { preventOutsideClick: true })
     this.setupRestockPreview(product.stock, product.min_stock)
   }
 

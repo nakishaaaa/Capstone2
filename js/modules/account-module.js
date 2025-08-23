@@ -126,9 +126,19 @@ export class AccountManager {
 
             if (data.success) {
                 const user = data.user;
-                document.getElementById('accountName').textContent = user.name || 'N/A';
+                // Combine firstname and lastname for full name with proper capitalization
+                const capitalizeWords = (str) => {
+                    return str.split(' ').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                    ).join(' ');
+                };
+                
+                const fullName = `${user.firstname || ''} ${user.lastname || ''}`.trim();
+                const capitalizedFullName = fullName ? capitalizeWords(fullName) : 'N/A';
+                document.getElementById('accountName').textContent = capitalizedFullName;
                 document.getElementById('accountEmail').textContent = user.email || 'N/A';
-                document.getElementById('accountRole').textContent = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'N/A';
+                document.getElementById('accountUsername').textContent = user.username || 'N/A';
+                document.getElementById('accountContact').textContent = user.contact_number || 'N/A';
                 document.getElementById('accountCreated').textContent = user.created_at || 'N/A';
             } else {
                 window.showModal('error', data.error || 'Failed to load user information');

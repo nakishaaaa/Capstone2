@@ -136,6 +136,9 @@ export class FormManager {
             if (this.heroOverlay) {
                 this.heroOverlay.classList.add('form-open');
             }
+            
+            // Auto-populate full name with user's firstname and lastname
+            this.populateUserInfo();
         }
     }
     
@@ -256,6 +259,50 @@ export class FormManager {
         }
         
         return true;
+    }
+    
+    async populateUserInfo() {
+        try {
+            const response = await fetch(API_ENDPOINTS.USER_ACCOUNT, {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const user = data.user;
+                // Combine firstname and lastname for full name with proper capitalization
+                const capitalizeWords = (str) => {
+                    return str.split(' ').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                    ).join(' ');
+                };
+                
+                const fullName = `${user.firstname || ''} ${user.lastname || ''}`.trim();
+                const capitalizedFullName = fullName ? capitalizeWords(fullName) : '';
+                
+                // Populate the name field if it exists and is empty
+                const nameField = document.getElementById('name');
+                if (nameField && !nameField.value) {
+                    nameField.value = capitalizedFullName;
+                }
+                
+                // Populate the contact number field if it exists and is empty
+                const contactField = document.getElementById('contact_number');
+                if (contactField && !contactField.value && user.contact_number) {
+                    // Remove +63 prefix if present for display in the form
+                    let contactNumber = user.contact_number;
+                    if (contactNumber.startsWith('+63')) {
+                        contactNumber = contactNumber.substring(3);
+                    }
+                    contactField.value = contactNumber;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading user info for form:', error);
+            // Don't show error to user, just continue without auto-populating
+        }
     }
     
     clearForm() {

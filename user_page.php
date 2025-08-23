@@ -183,15 +183,18 @@ if (!$isUserLoggedIn) {
                                 
                                 <div class="form-group">
                                     <label for="contact_number">Contact Number</label>
-                                    <input type="tel"
-                                           id="contact_number"
-                                           name="contact_number"
-                                           placeholder="Contact Number"
-                                           required
-                                           pattern="^\d{11}$"
-                                           maxlength="11"
-                                           title="Please enter exactly 11 digits"
-                                           oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                    <div class="contact-input-group">
+                                        <span class="country-prefix">+63</span>
+                                        <input type="tel"
+                                               id="contact_number"
+                                               name="contact_number"
+                                               placeholder="9XXXXXXXXX"
+                                               required
+                                               pattern="^\d{10}$"
+                                               maxlength="10"
+                                               title="Please enter exactly 10 digits"
+                                               oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                    </div>
                                 </div>
                             </div>
 
@@ -294,6 +297,10 @@ if (!$isUserLoggedIn) {
                         <h3>Account Information</h3>
                         <div class="info-grid">
                             <div class="info-item">
+                                <label>Username</label>
+                                <span id="accountUsername">Loading...</span>
+                            </div>
+                            <div class="info-item">
                                 <label>Full Name</label>
                                 <span id="accountName">Loading...</span>
                             </div>
@@ -302,8 +309,8 @@ if (!$isUserLoggedIn) {
                                 <span id="accountEmail">Loading...</span>
                             </div>
                             <div class="info-item">
-                                <label>Account Type</label>
-                                <span id="accountRole">Loading...</span>
+                                <label>Contact Number</label>
+                                <span id="accountContact">Loading...</span>
                             </div>
                             <div class="info-item">
                                 <label>Member Since</label>

@@ -683,8 +683,8 @@ body {
 .file-upload {
     position: relative;
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .file-upload input[type="file"] {
@@ -705,6 +705,7 @@ body {
     gap: 0.5rem;
     transition: background 0.3s ease;
     font-size: 0.9rem;
+    width: fit-content;
 }
 
 .file-upload-label:hover {
@@ -714,6 +715,41 @@ body {
 .file-name {
     color: #666;
     font-size: 0.9rem;
+    word-break: break-all;
+    max-width: 100%;
+    margin-top: 0.25rem;
+}
+
+/* Contact Number Input Group */
+.contact-input-group {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+}
+
+.country-prefix {
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-right: 1px solid #ddd;
+    color: #495057;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.contact-input-group input {
+    border: none;
+    outline: none;
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+}
+
+.contact-input-group:focus-within {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
 /* Form Actions */
@@ -1968,6 +2004,9 @@ box-shadow: none;
 .conversations-list {
     display: grid;
     gap: 0.75rem;
+    max-height: 700px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
 }
 
 .conversation-card {
@@ -1979,8 +2018,7 @@ box-shadow: none;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(0,0,0,0.06);
     transition: transform 0.1s ease, box-shadow 0.2s ease;
-    height: 120px;          
-    overflow: hidden;      
+    min-height: 80px;          
     display: flex;          
     flex-direction: column;
     justify-content: space-between;

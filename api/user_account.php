@@ -72,7 +72,7 @@ try {
 
 function getUserInfo($pdo, $user_id) {
     try {
-        $stmt = $pdo->prepare("SELECT id, name, email, role, created_at FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT id, username, firstname, lastname, email, contact_number, role, created_at FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $user = $stmt->fetch();
         

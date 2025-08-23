@@ -416,7 +416,7 @@ export class ProductManagementModule {
       </div>
     `
 
-    this.modal.open("Edit Product", content)
+    this.modal.open("Edit Product", content, { preventOutsideClick: true })
     this.setupEditStockPreview(product.stock, product.min_stock)
   }
 

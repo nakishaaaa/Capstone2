@@ -147,6 +147,12 @@ export class DashboardModule {
       this.charts.sales.destroy()
     }
     
+    // Create gradient
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
+    gradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.15)');
+    gradient.addColorStop(1, 'rgba(99, 102, 241, 0.02)');
+    
     this.charts.sales = new Chart(ctx, {
       type: "line",
       data: {
@@ -155,20 +161,43 @@ export class DashboardModule {
           {
             label: "Sales (₱)",
             data: chartData?.data || [],
-            borderColor: CONFIG.CHART_COLORS.primary,
-            backgroundColor: `${CONFIG.CHART_COLORS.primary}1A`,
+            borderColor: '#6366f1',
+            backgroundColor: gradient,
+            borderWidth: 3,
             tension: 0.4,
             fill: true,
+            pointBackgroundColor: '#6366f1',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 3,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointHoverBackgroundColor: '#4f46e5',
+            pointHoverBorderColor: '#ffffff',
+            pointHoverBorderWidth: 3
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            borderColor: '#6366f1',
+            borderWidth: 1,
+            cornerRadius: 8,
+            displayColors: false,
             callbacks: {
+              title: function(context) {
+                return context[0].label;
+              },
               label: (context) => `Sales: ${Utils.formatCurrency(context.parsed.y)}`
             }
           }
@@ -176,14 +205,36 @@ export class DashboardModule {
         scales: {
           y: {
             beginAtZero: true,
+            grid: {
+              color: 'rgba(107, 114, 128, 0.1)',
+              drawBorder: false
+            },
             ticks: {
+              color: '#6b7280',
+              font: {
+                size: 12,
+                weight: '500'
+              },
               callback: (value) => Utils.formatCurrency(value),
+              padding: 10
             },
           },
           x: {
             grid: {
               display: false
+            },
+            ticks: {
+              color: '#6b7280',
+              font: {
+                size: 12,
+                weight: '500'
+              }
             }
+          }
+        },
+        elements: {
+          line: {
+            borderJoinStyle: 'round'
           }
         },
         animation: {

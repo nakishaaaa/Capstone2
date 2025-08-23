@@ -21,7 +21,7 @@ $role = $_SESSION['role'] ?? null;
 if ($role === 'admin' || $role === 'cashier') {
     $isStaffLoggedIn = true;
     // Prefer standard session variables set during login
-    $adminName = $_SESSION['name'] ?? ($_SESSION['admin_name'] ?? '');
+    $adminName = $_SESSION['username'] ?? ($_SESSION['admin_name'] ?? '');
     $adminEmail = $_SESSION['email'] ?? ($_SESSION['admin_email'] ?? '');
 }
 
@@ -66,6 +66,9 @@ if (!$isStaffLoggedIn) {
                 <li><a href="#sales-management" class="nav-link" data-section="sales-management">
                     <i class="fas fa-cogs"></i> Product Management
                 </a></li>
+                <li><a href="#sales-report" class="nav-link" data-section="sales-report">
+                    <i class="fas fa-chart-line"></i> Sales Report
+                </a></li>
                 <?php endif; ?>
                 <li><a href="#notifications" class="nav-link" data-section="notifications">
                     <i class="fas fa-bell"></i> Notifications
@@ -96,7 +99,16 @@ if (!$isStaffLoggedIn) {
             <section id="dashboard" class="content-section active">
                 <div class="section-header">
                     <h1>Dashboard</h1>
-                    <div class="date-time" id="current-datetime"></div>
+                    <div class="header-right">
+                        <div class="logged-in-user" title="Logged in account">
+                            <i class="fas <?php echo $role === 'admin' ? 'fa-user-shield' : 'fa-cash-register'; ?>"></i>
+                            <span>
+                                <?php echo htmlspecialchars($adminName ?: $adminEmail); ?>
+                                (<?php echo htmlspecialchars(ucfirst($role)); ?>)
+                            </span>
+                        </div>
+                        <div class="date-time" id="current-datetime"></div>
+                    </div>
                 </div>
                 
                 <div class="stats-grid">
@@ -222,7 +234,7 @@ if (!$isStaffLoggedIn) {
                 <div class="pos-container">
                     <div class="pos-left">
                         <div class="product-search">
-                            <input type="text" id="productSearch" placeholder="Search products..." onkeyup="searchProducts()">
+                            <input type="text" id="productSearch" placeholder="Search products..." onkeyup="searchProducts()" autocomplete="off">
                         </div>
                         <div class="product-grid" id="productGrid">
                             <div style="grid-column: 1/-1; text-align: center; padding: 2rem;">
@@ -253,11 +265,11 @@ if (!$isStaffLoggedIn) {
                                 </div>
                             </div>
                             <div class="payment-section">
-                                <select id="paymentMethod">
+                                <select id="posPaymentMethod" autocomplete="off">
                                     <option value="cash">Cash</option>
                                     <option value="gcash">GCash</option>
                                 </select>
-                                <input type="number" id="amountReceived" placeholder="Amount Received" step="0.01">
+                                <input type="number" id="amountReceived" placeholder="Amount Received" step="0.01" autocomplete="off">
                                 <div class="change-display">
                                     <span>Change: </span>
                                     <span id="changeAmount">₱0.00</span>
@@ -301,6 +313,182 @@ if (!$isStaffLoggedIn) {
                         <tbody id="productsTableBody">
                             <tr>
                                 <td colspan="8" style="text-align: center; padding: 2rem;">Loading products...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Sales Report Section (Admin Only) -->
+            <section id="sales-report" class="content-section">
+                <div class="section-header">
+                    <h1>Sales Report</h1>
+                    <div class="report-actions">
+                        <button class="btn btn-primary" onclick="generateReport()">
+                            <i class="fas fa-chart-bar"></i> Generate Report
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportReport()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Report Filters -->
+                <div class="report-filters-container">
+                    <div class="report-filters">
+                        <div class="filter-group">
+                            <label for="reportDateRange">Date Range:</label>
+                            <select id="reportDateRange" onchange="updateDateInputs()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="this_week">This Week</option>
+                                <option value="last_week">Last Week</option>
+                                <option value="this_month">This Month</option>
+                                <option value="last_month">Last Month</option>
+                                <option value="this_year">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group" id="customDateInputs" style="display: none;">
+                            <label for="startDate">From:</label>
+                            <input type="date" id="startDate" autocomplete="off">
+                            <label for="endDate">To:</label>
+                            <input type="date" id="endDate" autocomplete="off">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="reportCategory">Category:</label>
+                            <select id="reportCategory">
+                                <option value="all">All Categories</option>
+                                <option value="electronics">Electronics</option>
+                                <option value="clothing">Clothing</option>
+                                <option value="food">Food & Beverages</option>
+                                <option value="books">Books</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="reportPaymentMethod">Payment Method:</label>
+                            <select id="reportPaymentMethod" autocomplete="off">
+                                <option value="all">All Methods</option>
+                                <option value="cash">Cash</option>
+                                <option value="gcash">GCash</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report Summary Cards -->
+                <div class="report-summary">
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-peso-sign"></i>
+                        </div>
+                        <div class="summary-content">
+                            <div class="summary-value" id="reportTotalSales">₱0.00</div>
+                            <div class="summary-label">Total Sales</div>
+                            <div class="summary-change" id="salesChange">+0%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="summary-content">
+                            <div class="summary-value" id="reportTotalTransactions">0</div>
+                            <div class="summary-label">Total Transactions</div>
+                            <div class="summary-change" id="transactionsChange">+0%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="summary-content">
+                            <div class="summary-value" id="reportAvgTransaction">₱0.00</div>
+                            <div class="summary-label">Avg Transaction</div>
+                            <div class="summary-change" id="avgChange">+0%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="summary-content">
+                            <div class="summary-value" id="reportTopProduct">-</div>
+                            <div class="summary-label">Top Product</div>
+                            <div class="summary-change" id="topProductSales">0 sold</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report Charts -->
+                <div class="report-charts-container">
+                    <div class="chart-row">
+                        <div class="chart-container large">
+                            <h3>Sales Trend</h3>
+                            <canvas id="salesTrendChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-row">
+                        <div class="chart-container medium">
+                            <h3>Sales by Category</h3>
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                        <div class="chart-container medium">
+                            <h3>Payment Methods</h3>
+                            <canvas id="paymentMethodChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-row">
+                        <div class="chart-container medium">
+                            <h3>Hourly Sales Distribution</h3>
+                            <canvas id="hourlySalesChart"></canvas>
+                        </div>
+                        <div class="chart-container medium">
+                            <h3>Top 10 Products</h3>
+                            <canvas id="topProductsReportChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Report Table -->
+                <div class="report-table-container">
+                    <div class="table-header">
+                        <h3>Detailed Sales Data</h3>
+                        <div class="table-controls">
+                            <input type="text" id="reportTableSearch" placeholder="Search transactions..." onkeyup="filterReportTable()" autocomplete="off">
+                            <select id="reportTableSort" onchange="sortReportTable()">
+                                <option value="date_desc">Date (Newest)</option>
+                                <option value="date_asc">Date (Oldest)</option>
+                                <option value="amount_desc">Amount (High to Low)</option>
+                                <option value="amount_asc">Amount (Low to High)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <table class="report-table" id="reportTable">
+                        <thead>
+                            <tr>
+                                <th>Transaction ID</th>
+                                <th>Date & Time</th>
+                                <th>Items</th>
+                                <th>Payment Method</th>
+                                <th>Amount</th>
+                                <th>Cashier</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 2rem;">Select date range and click "Generate Report" to view data</td>
                             </tr>
                         </tbody>
                     </table>
@@ -420,9 +608,6 @@ if (!$isStaffLoggedIn) {
             <section id="user-management" class="content-section">
                 <div class="section-header">
                     <h1>User Management</h1>
-                    <div class="section-description">
-                        <p style="color: #666; font-size: 0.9rem; margin: 0;">Manage user accounts, roles, and permissions</p>
-                    </div>
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-primary" onclick="openAddUserModal()">
                             <i class="fas fa-user-plus"></i> Add User
@@ -486,7 +671,7 @@ if (!$isStaffLoggedIn) {
                         align-items: center;
                         flex-wrap: wrap;
                     ">
-                        <input type="text" id="userSearch" placeholder="Search users..." class="search-input" style="
+                        <input type="text" id="userSearch" placeholder="Search users..." class="search-input" autocomplete="off" style="
                             flex: 1;
                             min-width: 200px;
                             padding: 0.5rem;
@@ -610,7 +795,7 @@ if (!$isStaffLoggedIn) {
                         <div class="conversations-header">
                             <h3>Conversations</h3>
                             <div class="conversations-search">
-                                <input type="text" id="conversationSearch" placeholder="Search conversations..." class="search-input-small">
+                                <input type="text" id="conversationSearch" placeholder="Search conversations..." class="search-input-small" autocomplete="off">
                             </div>
                         </div>
                         <div class="conversations-list" id="conversationsList">
@@ -718,16 +903,16 @@ if (!$isStaffLoggedIn) {
             <div class="modal-body">
                 <form id="addUserForm">
                     <div class="form-group">
-                        <label for="userName">Full Name</label>
-                        <input type="text" id="userName" name="name" required>
+                        <label for="userName">Username</label>
+                        <input type="text" id="userName" name="username" required autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="userEmail">Email</label>
-                        <input type="email" id="userEmail" name="email" required>
+                        <input type="email" id="userEmail" name="email" required autocomplete="email">
                     </div>
                     <div class="form-group">
                         <label for="userPassword">Password</label>
-                        <input type="password" id="userPassword" name="password" required>
+                        <input type="password" id="userPassword" name="password" required autocomplete="new-password">
                     </div>
                     <div class="form-group">
                         <label for="addUserRole">Role</label>
@@ -764,12 +949,12 @@ if (!$isStaffLoggedIn) {
                 <form id="editUserForm">
                     <input type="hidden" id="editUserId" name="user_id">
                     <div class="form-group">
-                        <label for="editUserName">Full Name</label>
-                        <input type="text" id="editUserName" name="name" required>
+                        <label for="editUserName">Username</label>
+                        <input type="text" id="editUserName" name="username" required autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="editUserEmail">Email</label>
-                        <input type="email" id="editUserEmail" name="email" required>
+                        <input type="email" id="editUserEmail" name="email" required autocomplete="email">
                     </div>
                     <div class="form-group">
                         <label for="editUserRole">Role</label>
@@ -782,7 +967,12 @@ if (!$isStaffLoggedIn) {
                         <label>
                             <input type="checkbox" id="resetPassword" name="reset_password"> Reset Password
                         </label>
-                        <input type="password" id="newPassword" name="new_password" placeholder="New password (if resetting)" style="display: none;">
+                        <div class="input-container" style="position: relative; display: none;" id="passwordContainer">
+                            <input type="password" id="newPassword" name="new_password" placeholder="New password (if resetting)" autocomplete="new-password" style="padding-right: 50px;">
+                            <button type="button" id="toggle-reset-password" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:5px;z-index:10;display:flex;align-items:center;justify-content:center;">
+                                <img id="reset-eye-icon" src="images/svg/eye-slash-black.svg" alt="Show Password" width="20" height="20">
+                            </button>
+                        </div>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeEditUserModal()">Cancel</button>

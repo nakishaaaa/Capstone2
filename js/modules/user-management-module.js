@@ -37,12 +37,16 @@ class UserManagementModule {
         // Reset password checkbox
         const resetPasswordCheckbox = document.getElementById('resetPassword');
         const newPasswordInput = document.getElementById('newPassword');
-        if (resetPasswordCheckbox && newPasswordInput) {
+        const passwordContainer = document.getElementById('passwordContainer');
+        if (resetPasswordCheckbox && newPasswordInput && passwordContainer) {
             resetPasswordCheckbox.addEventListener('change', () => {
-                newPasswordInput.style.display = resetPasswordCheckbox.checked ? 'block' : 'none';
+                passwordContainer.style.display = resetPasswordCheckbox.checked ? 'block' : 'none';
                 newPasswordInput.required = resetPasswordCheckbox.checked;
             });
         }
+
+        // Setup password toggle for reset password
+        this.setupPasswordToggle('newPassword', 'toggle-reset-password', 'reset-eye-icon');
     }
 
     async loadUsers() {
@@ -120,7 +124,7 @@ class UserManagementModule {
                 transition: background-color 0.2s;
             " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='${index % 2 === 0 ? '#ffffff' : '#f9fafb'}'">
                 <td style="padding: 0.75rem; color: #374151; font-weight: 500;">${user.id}</td>
-                <td style="padding: 0.75rem; color: #374151;">${this.escapeHtml(user.name)}</td>
+                <td style="padding: 0.75rem; color: #374151;">${this.escapeHtml(user.username)}</td>
                 <td style="padding: 0.75rem; color: #6b7280;">${this.escapeHtml(user.email)}</td>
                 <td style="padding: 0.75rem;">
                     <span style="
@@ -191,7 +195,7 @@ class UserManagementModule {
         const statusFilter = document.getElementById('statusFilter')?.value || 'all';
 
         this.filteredUsers = this.currentUsers.filter(user => {
-            const matchesSearch = user.name.toLowerCase().includes(search) || 
+            const matchesSearch = user.username.toLowerCase().includes(search) || 
                                 user.email.toLowerCase().includes(search);
             const matchesRole = roleFilter === 'all' || user.role === roleFilter;
             const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
@@ -223,11 +227,11 @@ class UserManagementModule {
         if (!user) return;
 
         document.getElementById('editUserId').value = user.id;
-        document.getElementById('editUserName').value = user.name;
+        document.getElementById('editUserName').value = user.username;
         document.getElementById('editUserEmail').value = user.email;
         document.getElementById('editUserRole').value = user.role;
         document.getElementById('resetPassword').checked = false;
-        document.getElementById('newPassword').style.display = 'none';
+        document.getElementById('passwordContainer').style.display = 'none';
         document.getElementById('newPassword').required = false;
 
         document.getElementById('editUserModal').style.display = 'flex';
@@ -359,6 +363,32 @@ class UserManagementModule {
         } catch (error) {
             console.error('Error toggling user status:', error);
             this.showError('Failed to toggle user status: ' + error.message);
+        }
+    }
+
+    // Password toggle functionality
+    setupPasswordToggle(inputId, buttonId, iconId) {
+        const input = document.getElementById(inputId);
+        const button = document.getElementById(buttonId);
+        const iconImg = document.getElementById(iconId);
+        const eyeSrc = 'images/svg/eye-black.svg';
+        const eyeSlashSrc = 'images/svg/eye-slash-black.svg';
+        
+        if (input && button && iconImg) {
+            button.addEventListener('click', () => {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    iconImg.src = eyeSrc;
+                    iconImg.alt = 'Hide Password';
+                } else {
+                    input.type = 'password';
+                    iconImg.src = eyeSlashSrc;
+                    iconImg.alt = 'Show Password';
+                }
+            });
+            // Set initial icon state
+            iconImg.src = eyeSlashSrc;
+            iconImg.alt = 'Show Password';
         }
     }
 

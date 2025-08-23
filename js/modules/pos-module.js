@@ -258,7 +258,7 @@ export class POSModule {
       document.getElementById("cartTotal").textContent.replace(CONFIG.CURRENCY, "").replace(",", ""),
     )
     const amountReceived = Number.parseFloat(document.getElementById("amountReceived").value) || 0
-    const paymentMethod = document.getElementById("paymentMethod").value
+    const paymentMethod = document.getElementById('posPaymentMethod').value;
 
     if (amountReceived < total) {
       this.toast.error("Insufficient payment amount!")

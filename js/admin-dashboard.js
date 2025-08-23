@@ -9,6 +9,7 @@ import { RequestsModule } from "./modules/requests-module.js"
 import { NavigationModule } from "./modules/navigation-module.js"
 import AdminSupportModule from './modules/admin-support-module.js';
 import UserManagementModule from './modules/user-management-module.js';
+import SalesReportModule from './modules/sales-report-module.js';
 import { csrfService } from "./modules/csrf-module.js"
 import { ApiClient } from "./core/api-client.js"
 
@@ -71,6 +72,7 @@ class AdminDashboard {
       // Only initialize requests module for admin users
       if (window.userRole === 'admin') {
         this.modules.requests = new RequestsModule(this.toast, this.modal)
+        this.modules.salesReport = new SalesReportModule(this.toast, this.apiClient)
       }
       
       // Pass the SSE client from dashboard module to admin support module
@@ -88,6 +90,17 @@ class AdminDashboard {
         window.requestsModule = this.modules.requests
         window.refreshRequests = () => window.requestsModule.loadRequests()
         window.viewRequestHistory = () => window.requestsModule.viewHistory()
+      }
+      
+      // Only expose sales report module for admin users
+      if (this.modules.salesReport) {
+        window.salesReportModule = this.modules.salesReport
+        // Expose global functions for onclick handlers
+        window.generateReport = () => this.modules.salesReport.generateReport()
+        window.exportReport = () => this.modules.salesReport.exportReport()
+        window.updateDateInputs = () => this.modules.salesReport.updateDateInputs()
+        window.filterReportTable = () => this.modules.salesReport.filterReportTable()
+        window.sortReportTable = () => this.modules.salesReport.sortReportTable()
       }
       
       window.adminSupportModule = this.modules.adminSupport
@@ -177,6 +190,12 @@ class AdminDashboard {
         case "requests":
           if (this.modules.requests) {
             await this.modules.requests.loadRequests()
+          }
+          break
+        case "sales-report":
+          if (this.modules.salesReport) {
+            // Sales report loads data on demand when user clicks generate
+            console.log('Sales report section activated')
           }
           break
         case "customer-support":

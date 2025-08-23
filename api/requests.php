@@ -65,7 +65,7 @@ function handleGetRequests() {
         if ($userData['role'] === 'admin') {
             // Admin sees all requests
             $stmt = $pdo->prepare("
-                SELECT r.*, u.name as user_name, u.email as user_email 
+                SELECT r.*, u.username as user_name, u.email as user_email 
                 FROM user_requests r 
                 LEFT JOIN users u ON r.user_id = u.id 
                 ORDER BY r.created_at DESC
@@ -74,7 +74,7 @@ function handleGetRequests() {
         } else {
             // Users see only their own requests
             $stmt = $pdo->prepare("
-                SELECT r.*, u.name as user_name, u.email as user_email 
+                SELECT r.*, u.username as user_name, u.email as user_email 
                 FROM user_requests r 
                 LEFT JOIN users u ON r.user_id = u.id 
                 WHERE r.user_id = ? 
