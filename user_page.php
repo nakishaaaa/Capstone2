@@ -86,6 +86,12 @@ if (!$isUserLoggedIn) {
                                 My Account
                             </a>
                         </div>
+                        <div class="dropdown-links">
+                            <a href="my_orders.php" class="dropdown-link" id="myOrdersBtn">
+                                <i class="fas fa-shopping-cart"></i>
+                                My Orders
+                            </a>
+                        </div>
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-actions">
                             <a href="#" class="dropdown-action logout-action" onclick="handleLogout('user')">

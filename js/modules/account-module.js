@@ -135,11 +135,19 @@ export class AccountManager {
                 
                 const fullName = `${user.firstname || ''} ${user.lastname || ''}`.trim();
                 const capitalizedFullName = fullName ? capitalizeWords(fullName) : 'N/A';
-                document.getElementById('accountName').textContent = capitalizedFullName;
-                document.getElementById('accountEmail').textContent = user.email || 'N/A';
-                document.getElementById('accountUsername').textContent = user.username || 'N/A';
-                document.getElementById('accountContact').textContent = user.contact_number || 'N/A';
-                document.getElementById('accountCreated').textContent = user.created_at || 'N/A';
+                
+                // Check if elements exist before setting textContent
+                const accountNameEl = document.getElementById('accountName');
+                const accountEmailEl = document.getElementById('accountEmail');
+                const accountUsernameEl = document.getElementById('accountUsername');
+                const accountContactEl = document.getElementById('accountContact');
+                const accountCreatedEl = document.getElementById('accountCreated');
+                
+                if (accountNameEl) accountNameEl.textContent = capitalizedFullName;
+                if (accountEmailEl) accountEmailEl.textContent = user.email || 'N/A';
+                if (accountUsernameEl) accountUsernameEl.textContent = user.username || 'N/A';
+                if (accountContactEl) accountContactEl.textContent = user.contact_number || 'N/A';
+                if (accountCreatedEl) accountCreatedEl.textContent = user.created_at || 'N/A';
             } else {
                 window.showModal('error', data.error || 'Failed to load user information');
             }
