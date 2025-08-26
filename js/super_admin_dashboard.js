@@ -207,10 +207,19 @@ class SuperAdminDashboard {
             link.classList.remove('active');
         });
         
-        // Show selected section
+        // Clear dynamic content first
+        const dynamicContent = document.getElementById('dynamic-content');
+        if (dynamicContent) {
+            dynamicContent.innerHTML = '';
+        }
+        
+        // Check if this is a static section first
         const targetSection = document.getElementById(sectionName);
         if (targetSection) {
             targetSection.classList.add('active');
+        } else {
+            // Load dynamic section
+            this.loadDynamicSection(sectionName);
         }
         
         // Add active class to clicked nav link
@@ -219,10 +228,13 @@ class SuperAdminDashboard {
             activeLink.classList.add('active');
         }
         
-        // Load section-specific data
-        if (sectionName === 'audit-trails') {
+        // Load section-specific data for static sections
+        if (sectionName === 'audit-trails' && targetSection) {
             this.loadAuditTrails();
         }
+        
+        // Update page title
+        this.updatePageTitle(sectionName);
         
         this.currentSection = sectionName;
     }
@@ -1151,6 +1163,7 @@ class SuperAdminDashboard {
 
 // Initialize dashboard instance
 const dashboard = new SuperAdminDashboard();
+window.superAdminDashboard = dashboard;
 
 // Make loadAuditTrails globally accessible
 window.loadAuditTrails = function() {

@@ -122,14 +122,14 @@ function getUsersList($pdo) {
 
 function addUser($pdo) {
     try {
-        $name = trim($_POST['name'] ?? '');
+        $username = trim($_POST['username'] ?? $_POST['name'] ?? ''); // Accept both username and name
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $role = $_POST['role'] ?? '';
         $status = $_POST['status'] ?? 'active';
         
         // Validate required fields
-        if (empty($name) || empty($email) || empty($password) || empty($role)) {
+        if (empty($username) || empty($email) || empty($password) || empty($role)) {
             http_response_code(400);
             echo json_encode(['error' => 'All fields are required']);
             return;
@@ -162,9 +162,9 @@ function addUser($pdo) {
         // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
-        // Insert new user (without status column for now)
-        $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())");
-        $stmt->execute([$name, $email, $hashed_password, $role]);
+        // Insert new user - use username field instead of name
+        $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->execute([$username, $email, $hashed_password, $role]);
         
         echo json_encode(['success' => true, 'message' => 'User added successfully']);
     } catch (Exception $e) {
@@ -176,15 +176,15 @@ function addUser($pdo) {
 function editUser($pdo) {
     try {
         $user_id = $_POST['user_id'] ?? '';
-        $name = trim($_POST['name'] ?? '');
+        $username = trim($_POST['username'] ?? $_POST['name'] ?? ''); // Accept both username and name
         $email = trim($_POST['email'] ?? '');
         $role = $_POST['role'] ?? '';
-        $status = $_POST['status'] ?? '';
+        $status = $_POST['status'] ?? 'active'; // Default status if not provided
         $reset_password = isset($_POST['reset_password']);
         $new_password = $_POST['new_password'] ?? '';
         
         // Validate required fields
-        if (empty($user_id) || empty($name) || empty($email) || empty($role)) {
+        if (empty($user_id) || empty($username) || empty($email) || empty($role)) {
             http_response_code(400);
             echo json_encode(['error' => 'All fields are required']);
             return;
@@ -222,14 +222,14 @@ function editUser($pdo) {
             return;
         }
         
-        // Update user (without status column for now)
+        // Update user - use username field instead of name
         if ($reset_password && !empty($new_password)) {
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, password = ? WHERE id = ?");
-            $stmt->execute([$name, $email, $role, $hashed_password, $user_id]);
+            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ?, password = ? WHERE id = ?");
+            $stmt->execute([$username, $email, $role, $hashed_password, $user_id]);
         } else {
-            $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?");
-            $stmt->execute([$name, $email, $role, $user_id]);
+            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ? WHERE id = ?");
+            $stmt->execute([$username, $email, $role, $user_id]);
         }
         
         echo json_encode(['success' => true, 'message' => 'User updated successfully']);
