@@ -3,7 +3,7 @@
  * Handles the support modal functionality and message sending
  */
 
-class SupportMessaging {
+export default class SupportMessaging {
     constructor() {
         // Singleton pattern to prevent multiple instances
         if (SupportMessaging.instance) {
@@ -49,6 +49,28 @@ class SupportMessaging {
         
         // Form submission
         this.form.addEventListener('submit', this.boundHandleSubmit);
+        
+        // Handle attachment button
+        const attachBtn = document.querySelector('.support-attachment-btn');
+        const attachInput = document.getElementById('supportAttachment');
+        const attachName = document.getElementById('attachmentName');
+        
+        if (attachBtn && attachInput) {
+            attachBtn.addEventListener('click', () => {
+                attachInput.click();
+            });
+            
+            attachInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && attachName) {
+                    attachName.textContent = file.name;
+                    attachName.style.display = 'inline';
+                } else if (attachName) {
+                    attachName.textContent = '';
+                    attachName.style.display = 'none';
+                }
+            });
+        }
         
         // Close modal when clicking outside
         this.modal.addEventListener('click', (e) => {
@@ -128,11 +150,13 @@ class SupportMessaging {
         this.lastSubmitTime = now;
         
         const formData = new FormData(this.form);
+        const priority = formData.get('priority')?.trim();
         const subject = formData.get('subject')?.trim();
         const message = formData.get('message')?.trim();
+        const attachment = formData.get('attachment');
         
         // Validation
-        if (!subject || !message) {
+        if (!priority || !subject || !message) {
             this.showError('Please fill in all required fields.');
             return;
         }
@@ -148,33 +172,38 @@ class SupportMessaging {
             
             // Completely disable form to prevent any further submissions
             this.form.style.pointerEvents = 'none';
-            this.form.querySelectorAll('input, textarea, button').forEach(el => {
+            this.form.querySelectorAll('input, textarea, button, select').forEach(el => {
                 el.disabled = true;
             });
             
-            // Get CSRF token
-            const csrfToken = await this.getCSRFToken();
+            // Prepare FormData for submission (to handle file uploads)
+            const submitFormData = new FormData();
+            submitFormData.append('priority', priority);
+            submitFormData.append('subject', subject);
+            submitFormData.append('message', message);
             
-            // Prepare data for submission
-            const submitData = {
-                subject: subject,
-                message: message,
-                csrf_token: csrfToken
-            };
+            if (attachment && attachment.size > 0) {
+                submitFormData.append('attachment', attachment);
+            }
             
-            const response = await fetch('/Capstone2/api/customer_support.php', {
+            const response = await fetch('/Capstone2/api/submit_support_ticket.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(submitData)
+                body: submitFormData
             });
             
             const result = await response.json();
             
             if (result.success) {
-                this.showSuccess('Your message has been sent successfully! We\'ll get back to you soon.');
+                this.showSuccess(`Support ticket #${result.ticket_id} submitted successfully! Our development team will respond soon.`);
                 this.form.reset(); // Clear form immediately after success
+                
+                // Clear attachment display
+                const attachName = document.getElementById('attachmentName');
+                if (attachName) {
+                    attachName.textContent = '';
+                    attachName.style.display = 'none';
+                }
+                
                 setTimeout(() => {
                     this.closeModal();
                 }, 2000);
@@ -191,7 +220,7 @@ class SupportMessaging {
             
             // Re-enable form elements
             this.form.style.pointerEvents = '';
-            this.form.querySelectorAll('input, textarea, button').forEach(el => {
+            this.form.querySelectorAll('input, textarea, button, select').forEach(el => {
                 el.disabled = false;
             });
         }
@@ -202,8 +231,8 @@ class SupportMessaging {
         if (submitBtn) {
             submitBtn.disabled = isLoading;
             submitBtn.innerHTML = isLoading ? 
-                '<i class="fas fa-spinner fa-spin"></i> Sending...' : 
-                'Send a message';
+                '<i class="fas fa-spinner fa-spin"></i> Submitting Ticket...' : 
+                '<i class="fas fa-paper-plane"></i> Submit Support Ticket';
         }
     }
     
@@ -487,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-export default SupportMessaging;
+// SupportMessaging class is now globally available
 
 // --- Time handling helpers ---
 SupportMessaging.prototype.timeAgo = function(datetime) {

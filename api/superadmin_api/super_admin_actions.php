@@ -654,6 +654,118 @@ try {
             echo json_encode(['success' => true, 'message' => 'Console errors cleared']);
             break;
 
+        case 'reply_to_ticket':
+            $ticket_id = $data['ticket_id'] ?? null;
+            $reply_message = $data['reply_message'] ?? '';
+            $new_status = $data['status'] ?? null;
+            
+            if (!$ticket_id || empty($reply_message)) {
+                echo json_encode(['success' => false, 'message' => 'Ticket ID and reply message are required']);
+                break;
+            }
+            
+            // Check if ticket exists
+            $stmt = $conn->prepare("SELECT id, user_id, subject FROM support_tickets WHERE id = ?");
+            $stmt->bind_param('i', $ticket_id);
+            $stmt->execute();
+            $ticket = $stmt->get_result()->fetch_assoc();
+            
+            if (!$ticket) {
+                echo json_encode(['success' => false, 'message' => 'Ticket not found']);
+                break;
+            }
+            
+            // Insert reply into support_replies table (create if doesn't exist)
+            $conn->query("CREATE TABLE IF NOT EXISTS support_replies (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ticket_id INT NOT NULL,
+                admin_id INT NOT NULL,
+                reply_message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ticket_id) REFERENCES support_tickets(id)
+            )");
+            
+            // Insert the reply
+            $stmt = $conn->prepare("INSERT INTO support_replies (ticket_id, admin_id, reply_message) VALUES (?, ?, ?)");
+            $admin_id = $_SESSION['user_id'] ?? 1; // Use session user ID or default to 1
+            $stmt->bind_param('iis', $ticket_id, $admin_id, $reply_message);
+            
+            if ($stmt->execute()) {
+                // Update ticket status if provided
+                if ($new_status) {
+                    $updateStmt = $conn->prepare("UPDATE support_tickets SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $updateStmt->bind_param('si', $new_status, $ticket_id);
+                    $updateStmt->execute();
+                }
+                
+                // Log the action
+                $description = "Replied to support ticket #$ticket_id";
+                $stmt = $conn->prepare("INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent) VALUES (?, 'ticket_reply', ?, ?, ?)");
+                $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+                $stmt->bind_param('isss', $admin_id, $description, $ip_address, $user_agent);
+                $stmt->execute();
+                
+                echo json_encode(['success' => true, 'message' => 'Reply sent successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to send reply']);
+            }
+            break;
+
+        case 'get_support_tickets':
+            $search = $_GET['search'] ?? '';
+            $status = $_GET['status'] ?? '';
+            $priority = $_GET['priority'] ?? '';
+            
+            $query = "SELECT id, user_id, username, subject, message, priority, status, attachment_path, created_at FROM support_tickets WHERE 1=1";
+            $params = [];
+            $types = '';
+            
+            if ($search) {
+                $query .= " AND (username LIKE ? OR subject LIKE ? OR message LIKE ?)";
+                $searchParam = "%$search%";
+                $params[] = $searchParam;
+                $params[] = $searchParam;
+                $params[] = $searchParam;
+                $types .= 'sss';
+            }
+            
+            if ($status && $status !== 'all') {
+                $query .= " AND status = ?";
+                $params[] = $status;
+                $types .= 's';
+            }
+            
+            if ($priority && $priority !== 'all') {
+                $query .= " AND priority = ?";
+                $params[] = $priority;
+                $types .= 's';
+            }
+            
+            $query .= " ORDER BY created_at DESC LIMIT 100";
+            
+            $stmt = $conn->prepare($query);
+            if ($params) {
+                $stmt->bind_param($types, ...$params);
+            }
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $tickets = $result->fetch_all(MYSQLI_ASSOC);
+            
+            // Get statistics
+            $stats = [];
+            $result = $conn->query("SELECT COUNT(*) as total FROM support_tickets WHERE status = 'open'");
+            $stats['open_tickets'] = $result->fetch_assoc()['total'];
+            
+            $result = $conn->query("SELECT COUNT(*) as total FROM support_tickets WHERE status = 'pending'");
+            $stats['pending_tickets'] = $result->fetch_assoc()['total'];
+            
+            $result = $conn->query("SELECT COUNT(*) as total FROM support_tickets WHERE status = 'resolved' AND DATE(created_at) = CURDATE()");
+            $stats['resolved_today'] = $result->fetch_assoc()['total'];
+            
+            echo json_encode(['success' => true, 'tickets' => $tickets, 'stats' => $stats]);
+            break;
+
         case 'get_dashboard_stats':
             // Get comprehensive dashboard statistics
             $stats = [];

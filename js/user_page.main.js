@@ -9,6 +9,7 @@ import { AIImageGenerator } from './modules/ai-image-generator-module.js';
 import { AIPhotoEditor } from './modules/ai-photo-editor-module.js';
 import { AIDropdownManager } from './modules/ai-dropdown-module.js';
 import SupportMessaging from './modules/support-module.js';
+import { DevTicketManager } from './modules/dev-ticket-module.js';
 
 class UserPageApp {
     constructor() {
@@ -19,6 +20,7 @@ class UserPageApp {
         this.aiPhotoEditor = null;
         this.aiDropdownManager = null;
         this.supportMessaging = null;
+        this.devTicketManager = null;
         this.apiClient = new ApiClient();
         
         this.init();
@@ -53,6 +55,7 @@ class UserPageApp {
         
         // Support functionality
         this.supportMessaging = new SupportMessaging();
+        this.devTicketManager = new DevTicketManager();
     }
     
     exposeGlobalInstances() {
@@ -64,6 +67,7 @@ class UserPageApp {
         window.aiPhotoEditor = this.aiPhotoEditor;
         window.aiDropdownManager = this.aiDropdownManager;
         window.supportMessaging = this.supportMessaging;
+        window.devTicketManager = this.devTicketManager;
         
         // Expose CSRF service
         window.csrfService = csrfService;

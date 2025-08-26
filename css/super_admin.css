@@ -618,6 +618,7 @@ input:checked + .slider:before {
 
 /* Modal Styles */
 .modal {
+    display: none !important;
     position: fixed;
     z-index: 1000;
     left: 0;
@@ -625,9 +626,14 @@ input:checked + .slider:before {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal[style*="display: none"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
 .modal-content {
@@ -1173,4 +1179,351 @@ input:checked + .slider:before {
     text-align: center;
     border-top: 1px solid #e5e5e5;
     background: #f8f9fa;
+}
+
+/* Customer Support Table Styles for Super Admin */
+.support-tickets-container {
+    background: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.support-tickets-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.support-tickets-table thead {
+    background: #1a1a1a;
+    color: #ffffff;
+}
+
+.support-tickets-table th {
+    padding: 16px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+    position: relative;
+}
+
+.support-tickets-table th:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 25%;
+    height: 50%;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.support-tickets-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.2s ease;
+}
+
+.support-tickets-table tbody tr:hover {
+    background: #f8f8f8;
+}
+
+.support-tickets-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.support-tickets-table td {
+    padding: 12px;
+    vertical-align: middle;
+    border: none;
+    color: #000000;
+}
+
+/* Ticket ID styling */
+.support-tickets-table td:first-child {
+    font-weight: 600;
+    color: #1a1a1a;
+    font-family: 'Courier New', monospace;
+}
+
+/* User column styling */
+.support-tickets-table td:nth-child(2) {
+    font-weight: 500;
+    color: #000000;
+}
+
+/* Subject column styling */
+.support-tickets-table td:nth-child(3) {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #333333;
+    line-height: 1.4;
+}
+
+/* Priority badges */
+.priority-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.priority-badge.high {
+    background: #000000;
+    color: #ffffff;
+}
+
+.priority-badge.medium {
+    background: #666666;
+    color: #ffffff;
+}
+
+.priority-badge.low {
+    background: #e5e5e5;
+    color: #000000;
+}
+
+/* Status badges */
+.status-badge.open {
+    background: #000000;
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.pending {
+    background: #666666;
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.resolved {
+    background: #e5e5e5;
+    color: #000000;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.closed {
+    background: #cccccc;
+    color: #000000;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Created date styling */
+.support-tickets-table td:nth-child(6) {
+    color: #666666;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Actions column */
+.support-tickets-table td:last-child {
+    text-align: center;
+}
+
+.ticket-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 0 2px;
+    font-size: 14px;
+    background: #ffffff;
+    color: #000000;
+}
+
+.ticket-action-btn:hover {
+    background: #000000;
+    color: #ffffff;
+    border-color: #000000;
+}
+
+/* Support filters styling */
+.support-filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8f8f8;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+}
+
+.filter-select,
+.search-input {
+    padding: 8px 12px;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    font-size: 14px;
+    background: #ffffff;
+    color: #000000;
+}
+
+.filter-select:focus,
+.search-input:focus {
+    outline: none;
+    border-color: #000000;
+}
+
+.search-input {
+    min-width: 200px;
+    flex: 1;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    background: #000000;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.filter-btn:hover {
+    background: #333333;
+}
+
+/* Loading and error states */
+.support-tickets-table .loading,
+.support-tickets-table .error-row {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666666;
+    font-style: italic;
+}
+
+.support-tickets-table .error-row {
+    color: #000000;
+    background: #f8f8f8;
+}
+
+.support-tickets-table .error-row i {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+/* Reply button styling */
+.ticket-action-btn.reply {
+    background: #1a1a1a;
+    color: #ffffff;
+    border: 1px solid #1a1a1a;
+}
+
+.ticket-action-btn.reply:hover {
+    background: #333333;
+    border-color: #333333;
+}
+
+/* Reply modal specific styling */
+#replyModal .modal-content {
+    max-width: 600px;
+}
+
+#replyModal textarea {
+    min-height: 120px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+#replyModal .form-group label {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+/* Ensure modal close button is clickable */
+#replyModal .close {
+    cursor: pointer;
+    z-index: 1001;
+    position: relative;
+    font-size: 24px;
+    line-height: 1;
+    color: #666666;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#replyModal .close:hover {
+    color: #000000;
+    background: #f0f0f0;
+    border-radius: 50%;
+}
+
+/* Responsive design for support table */
+@media (max-width: 768px) {
+    .support-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .search-input {
+        min-width: auto;
+    }
+    
+    .support-tickets-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .support-tickets-table {
+        min-width: 700px;
+        font-size: 13px;
+    }
+    
+    .support-tickets-table th,
+    .support-tickets-table td {
+        padding: 10px 8px;
+    }
+    
+    .priority-badge,
+    .status-badge {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+    
+    .ticket-action-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
 }

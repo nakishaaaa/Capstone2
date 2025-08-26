@@ -174,6 +174,7 @@ class SuperAdminDashboard {
         this.setupNavigation();
         this.setupEventListeners();
         this.loadInitialData();
+        this.handleInitialSection();
     }
 
     setupNavigation() {
@@ -196,15 +197,40 @@ class SuperAdminDashboard {
         });
     }
 
+    handleInitialSection() {
+        // Check which section is currently active and update navigation accordingly
+        const activeSection = document.querySelector('.content-section.active');
+        if (activeSection) {
+            const sectionId = activeSection.id;
+            
+            // Remove active class from all nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Add active class to the correct nav item
+            const targetNavItem = document.querySelector(`[data-section="${sectionId}"]`)?.closest('.nav-item');
+            if (targetNavItem) {
+                targetNavItem.classList.add('active');
+            }
+            
+            // Update current section
+            this.currentSection = sectionId;
+            
+            // Update page title
+            this.updatePageTitle(sectionId);
+        }
+    }
+
     switchSection(sectionName) {
         // Hide all sections
         document.querySelectorAll('.content-section').forEach(section => {
             section.classList.remove('active');
         });
         
-        // Remove active class from all nav links
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
+        // Remove active class from all nav items
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
         });
         
         // Clear dynamic content first
@@ -222,10 +248,10 @@ class SuperAdminDashboard {
             this.loadDynamicSection(sectionName);
         }
         
-        // Add active class to clicked nav link
-        const activeLink = document.querySelector(`[data-section="${sectionName}"]`);
-        if (activeLink) {
-            activeLink.classList.add('active');
+        // Add active class to clicked nav item
+        const activeNavItem = document.querySelector(`[data-section="${sectionName}"]`)?.closest('.nav-item');
+        if (activeNavItem) {
+            activeNavItem.classList.add('active');
         }
         
         // Load section-specific data for static sections
@@ -646,6 +672,114 @@ class SuperAdminDashboard {
         }
     }
 
+
+    loadCustomerSupport(container) {
+        container.innerHTML = `
+            <section id="customer-support" class="content-section active">
+                <div class="support-header">
+                    <h3>Customer Support</h3>
+                    <div class="support-stats">
+                        <div class="stat-item">
+                            <span class="stat-number" id="openTickets">-</span>
+                            <span class="stat-label">Open Tickets</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="pendingTickets">-</span>
+                            <span class="stat-label">Pending</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="resolvedToday">-</span>
+                            <span class="stat-label">Resolved Today</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="support-filters">
+                    <select id="ticketStatus" class="filter-select">
+                        <option value="all">All Status</option>
+                        <option value="open">Open</option>
+                        <option value="pending">Pending</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                    <select id="ticketPriority" class="filter-select">
+                        <option value="all">All Priority</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                    <input type="text" id="ticketSearch" placeholder="Search tickets..." class="search-input">
+                    <button class="filter-btn" onclick="filterSupportTickets()">Filter</button>
+                </div>
+
+                <div class="support-tickets-container">
+                    <table class="support-tickets-table">
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>User</th>
+                                <th>Subject</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supportTicketsBody">
+                            <tr>
+                                <td colspan="7" class="loading">Loading support tickets...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Ticket Details Modal -->
+                <div id="ticketModal" class="modal" style="display: none;">
+                    <div class="modal-content large">
+                        <div class="modal-header">
+                            <h4 id="ticketModalTitle">Ticket Details</h4>
+                            <span class="close" onclick="closeTicketModal()">&times;</span>
+                        </div>
+                        <div class="ticket-details" id="ticketDetails">
+                            <div class="loading">Loading ticket details...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reply Modal -->
+                <div id="replyModal" class="modal" style="display: none;" onclick="handleModalClick(event)">
+                    <div class="modal-content" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h4 id="replyModalTitle">Reply to Support Ticket</h4>
+                            <span class="close" onclick="window.closeReplyModal()">&times;</span>
+                        </div>
+                        <form id="replyForm" onsubmit="submitTicketReply(event)">
+                            <div class="form-group">
+                                <label for="replyMessage">Your Reply:</label>
+                                <textarea id="replyMessage" name="reply_message" rows="6" required 
+                                    placeholder="Type your response to the customer here..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="ticketStatus">Update Status:</label>
+                                <select id="ticketStatus" name="status">
+                                    <option value="">Keep current status</option>
+                                    <option value="open">Open</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="resolved">Resolved</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                            </div>
+                            <div class="modal-actions">
+                                <button type="button" class="cancel-btn" onclick="window.closeReplyModal()">Cancel</button>
+                                <button type="submit" class="save-btn">Send Reply</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        `;
+        this.loadSupportTickets();
+    }
 
     loadNotifications(container) {
         container.innerHTML = `
@@ -1149,6 +1283,120 @@ class SuperAdminDashboard {
         }
     }
 
+    async loadSupportTickets() {
+        try {
+            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_support_tickets' })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.displaySupportTickets(data.tickets || []);
+                this.updateSupportStats(data.stats || {});
+            } else {
+                document.getElementById('supportTicketsBody').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="error-row">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Error loading support tickets: ${data.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading support tickets:', error);
+            document.getElementById('supportTicketsBody').innerHTML = `
+                <tr>
+                    <td colspan="7" class="error-row">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Error loading support tickets
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    displaySupportTickets(tickets) {
+        const tbody = document.getElementById('supportTicketsBody');
+        
+        if (!tickets || tickets.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="no-data-row">
+                        <i class="fas fa-info-circle"></i>
+                        No support tickets found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = tickets.map(ticket => {
+            const priorityClass = this.getPriorityClass(ticket.priority);
+            const statusClass = this.getStatusClass(ticket.status);
+            
+            return `
+                <tr>
+                    <td>#${ticket.id}</td>
+                    <td>
+                        <div class="user-info">
+                            <i class="fas fa-user"></i>
+                            ${ticket.username || `User ID: ${ticket.user_id}`}
+                        </div>
+                    </td>
+                    <td class="ticket-subject">${ticket.subject}</td>
+                    <td>
+                        <span class="priority-badge ${priorityClass}">
+                            ${ticket.priority.toUpperCase()}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge ${statusClass}">
+                            ${ticket.status.toUpperCase()}
+                        </span>
+                    </td>
+                    <td>${new Date(ticket.created_at).toLocaleString()}</td>
+                    <td>
+                        <button class="ticket-action-btn view" onclick="viewTicketDetails(${ticket.id})" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="ticket-action-btn reply" onclick="replyToTicket(${ticket.id})" title="Reply">
+                            <i class="fas fa-reply"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    updateSupportStats(stats) {
+        document.getElementById('openTickets').textContent = stats.open || 0;
+        document.getElementById('pendingTickets').textContent = stats.pending || 0;
+        document.getElementById('resolvedToday').textContent = stats.resolved_today || 0;
+    }
+
+    getPriorityClass(priority) {
+        const classes = {
+            'high': 'danger',
+            'medium': 'warning',
+            'low': 'info'
+        };
+        return classes[priority] || 'secondary';
+    }
+
+    getStatusClass(status) {
+        const classes = {
+            'open': 'danger',
+            'pending': 'warning',
+            'resolved': 'success',
+            'closed': 'secondary'
+        };
+        return classes[status] || 'secondary';
+    }
+
     showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
@@ -1230,6 +1478,186 @@ function restoreFromBackup() {
 function downloadBackup(fileName) {
     // Implementation for downloading backup
     window.open(`api/superadmin_api/download_backup.php?file=${fileName}`, '_blank');
+}
+
+function closeTicketModal() {
+    const modal = document.getElementById('ticketModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.style.visibility = 'hidden';
+        modal.style.opacity = '0';
+    }
+}
+
+function viewTicketDetails(ticketId) {
+    // Implementation for viewing ticket details
+    console.log('View ticket:', ticketId);
+    // You can implement the actual ticket viewing functionality here
+}
+
+function filterSupportTickets() {
+    // Implementation for filtering support tickets
+    if (window.superAdminDashboard) {
+        window.superAdminDashboard.loadSupportTickets();
+    }
+}
+
+// Global variables for ticket reply
+let currentTicketId = null;
+
+// Reply to ticket function
+function replyToTicket(ticketId) {
+    currentTicketId = ticketId;
+    
+    // Update modal title
+    document.getElementById('replyModalTitle').textContent = `Reply to Ticket #${ticketId}`;
+    
+    // Clear form
+    document.getElementById('replyForm').reset();
+    
+    // Show modal
+    document.getElementById('replyModal').style.display = 'flex';
+}
+
+// Close reply modal
+// Force close any stuck modals immediately - run on page load and when switching to support section
+function forceCloseStuckModals() {
+    const replyModal = document.getElementById('replyModal');
+    if (replyModal && replyModal.style.display !== 'none') {
+        replyModal.style.display = 'none';
+        console.log('Forced close of stuck modal');
+    }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', forceCloseStuckModals);
+
+// Run when support section loads
+const originalLoadSupport = SuperAdminDashboard.prototype.loadSupport;
+if (originalLoadSupport) {
+    SuperAdminDashboard.prototype.loadSupport = function(container) {
+        const result = originalLoadSupport.call(this, container);
+        setTimeout(forceCloseStuckModals, 200);
+        return result;
+    };
+}
+
+// Handle modal click for closing
+window.handleModalClick = function(event) {
+    if (event.target.id === 'replyModal') {
+        window.closeReplyModal();
+    }
+}
+
+// Close reply modal
+window.closeReplyModal = function() {
+    console.log('Closing reply modal...');
+    const modal = document.getElementById('replyModal');
+    if (modal) {
+        // Force hide with multiple CSS properties
+        modal.style.display = 'none';
+        modal.style.visibility = 'hidden';
+        modal.style.opacity = '0';
+        modal.style.zIndex = '-1';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        
+        currentTicketId = null;
+        
+        // Clear form
+        const form = document.getElementById('replyForm');
+        if (form) {
+            form.reset();
+        }
+        
+        // Force remove modal completely
+        modal.remove();
+        
+        // Recreate modal element to ensure clean state
+        setTimeout(() => {
+            const supportSection = document.querySelector('#support');
+            if (supportSection && !document.getElementById('replyModal')) {
+                // Modal will be recreated when support section loads again
+                console.log('Modal removed and will be recreated');
+            }
+        }, 50);
+        
+        console.log('Modal closed successfully');
+    } else {
+        console.log('Modal not found');
+    }
+}
+
+// Add escape key handler
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const replyModal = document.getElementById('replyModal');
+        if (replyModal && replyModal.style.display === 'flex') {
+            window.closeReplyModal();
+        }
+    }
+});
+
+// Submit ticket reply
+async function submitTicketReply(event) {
+    event.preventDefault();
+    
+    if (!currentTicketId) {
+        alert('Error: No ticket selected');
+        return;
+    }
+    
+    const formData = new FormData(event.target);
+    const replyData = {
+        action: 'reply_to_ticket',
+        ticket_id: currentTicketId,
+        reply_message: formData.get('reply_message'),
+        status: formData.get('status') || null
+    };
+    
+    try {
+        const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(replyData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success notification
+            showNotification('Reply sent successfully!', 'success');
+            
+            // Close modal
+            closeReplyModal();
+            
+            // Refresh tickets list
+            if (window.superAdminDashboard) {
+                window.superAdminDashboard.loadSupportTickets();
+            }
+        } else {
+            alert('Error: ' + (result.message || 'Failed to send reply'));
+        }
+    } catch (error) {
+        console.error('Error sending reply:', error);
+        alert('Error: Failed to send reply');
+    }
+}
+
+// Show notification function
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
 }
 
 function deleteBackup(backupId) {

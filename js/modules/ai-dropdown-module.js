@@ -97,3 +97,6 @@ window.closeAIDropdown = function() {
         window.aiDropdownManager.closeDropdown();
     }
 };
+
+// Remove the DOMContentLoaded listener since the module is now imported
+// The main app will handle initialization

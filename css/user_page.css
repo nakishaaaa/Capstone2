@@ -836,7 +836,43 @@ body {
     background: #333333;
 }
 
+/* Dev Team Ticket Button */
+.dev-ticket-button {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 12rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #141414;
+    color: white;
+    border: none;
+    padding: 0.5rem 0.7rem;
+    border-radius: 40px;
+    box-shadow: 0 3px 10px rgba(27, 27, 27, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 1000;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
 
+.dev-ticket-button:hover {
+    background: #1a1a1a;
+    transform: translateY(-1px);
+}
+
+.ticket-icon {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
 
 /* Modal Styles */
 .modal {

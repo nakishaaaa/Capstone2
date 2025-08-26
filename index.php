@@ -500,6 +500,13 @@ function isActiveForm($formName, $activeForm) {
     // Per-page flag: has the login card appeared once this load?
     let hasShownLoginOnce = false;
     
+    // Track button clicks for shake effect
+    const buttonClickCounts = {
+      aiTrigger: 0,
+      userDropdownBtn: 0,
+      supportBtn: 0
+    };
+    
     // Show/hide login overlay based on visit status
     const loginOverlay = document.getElementById('loginOverlay');
     const heroLogo = document.getElementById('heroLogo');
@@ -519,28 +526,68 @@ function isActiveForm($formName, $activeForm) {
       }
     }
 
+    // Function to add shake effect to login card
+    function addShakeEffect() {
+      const loginCard = document.querySelector('.login-card.active') || document.getElementById('login-form');
+      if (loginCard) {
+        loginCard.classList.remove('shake');
+        // Force reflow to restart animation
+        void loginCard.offsetWidth;
+        loginCard.classList.add('shake');
+        const cleanup = () => {
+          loginCard.classList.remove('shake');
+          loginCard.removeEventListener('animationend', cleanup);
+        };
+        loginCard.addEventListener('animationend', cleanup);
+      }
+    }
+
     // Intercept gated features and prompt login
-    function requireLogin(e) {
+    function requireLogin(e, buttonType = null) {
       if (e) e.preventDefault();
-      showForm('login-form');
-      const hero = document.querySelector('.hero-section');
-      if (hero) hero.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Shake the login card for visual feedback (skip on first appearance after refresh)
-      const card = document.getElementById('login-form');
-      if (card) {
-        if (!hasShownLoginOnce) {
-          // First time showing after refresh: no shake, then mark as shown
-          hasShownLoginOnce = true;
+      
+      // Track button clicks for shake effect
+      if (buttonType && buttonClickCounts.hasOwnProperty(buttonType)) {
+        buttonClickCounts[buttonType]++;
+        
+        // Show login form
+        showForm('login-form');
+        const hero = document.querySelector('.hero-section');
+        if (hero) hero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add shake effect on second click and beyond
+        if (buttonClickCounts[buttonType] >= 2) {
+          setTimeout(() => {
+            addShakeEffect();
+          }, 300); // Small delay to ensure login form is visible
         } else {
-          card.classList.remove('shake');
-          // force reflow to restart animation
-          void card.offsetWidth;
-          card.classList.add('shake');
-          const cleanup = () => {
+          // First time showing after refresh: no shake, then mark as shown
+          if (!hasShownLoginOnce) {
+            hasShownLoginOnce = true;
+          }
+        }
+      } else {
+        // Original behavior for other buttons
+        showForm('login-form');
+        const hero = document.querySelector('.hero-section');
+        if (hero) hero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Shake the login card for visual feedback (skip on first appearance after refresh)
+        const card = document.getElementById('login-form');
+        if (card) {
+          if (!hasShownLoginOnce) {
+            // First time showing after refresh: no shake, then mark as shown
+            hasShownLoginOnce = true;
+          } else {
             card.classList.remove('shake');
-            card.removeEventListener('animationend', cleanup);
-          };
-          card.addEventListener('animationend', cleanup);
+            // force reflow to restart animation
+            void card.offsetWidth;
+            card.classList.add('shake');
+            const cleanup = () => {
+              card.classList.remove('shake');
+              card.removeEventListener('animationend', cleanup);
+            };
+            card.addEventListener('animationend', cleanup);
+          }
         }
       }
     }
@@ -551,7 +598,13 @@ function isActiveForm($formName, $activeForm) {
     const reqBtn = document.getElementById('showRequestFormBtn');
     const supportBtn = document.getElementById('supportBtn');
     const goLogin = document.getElementById('goToLoginFromDropdown');
-    [aiTrigger, aiGen, aiEdit, reqBtn, supportBtn, goLogin].forEach(btn => {
+    
+    // Add event listeners with button type tracking for specific buttons
+    if (aiTrigger) aiTrigger.addEventListener('click', (e) => requireLogin(e, 'aiTrigger'));
+    if (supportBtn) supportBtn.addEventListener('click', (e) => requireLogin(e, 'supportBtn'));
+    
+    // Other buttons without shake tracking
+    [aiGen, aiEdit, reqBtn, goLogin].forEach(btn => {
       if (btn) btn.addEventListener('click', requireLogin);
     });
 
@@ -587,7 +640,7 @@ function isActiveForm($formName, $activeForm) {
       userDropdownBtn.addEventListener('click', function(e){
         e.preventDefault();
         // Show login card when guest button is clicked
-        requireLogin(e);
+        requireLogin(e, 'userDropdownBtn');
       });
       document.addEventListener('click', function(e){
         if (!userDropdownBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {

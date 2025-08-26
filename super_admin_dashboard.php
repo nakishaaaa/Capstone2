@@ -254,8 +254,11 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
                     <h2>Audit Trails</h2>
                     <p>Monitor all user activities and system events</p>
                 </div>
-                
                 <div class="audit-controls">
+                    <div class="control-group">
+                        <label for="auditUser">User:</label>
+                        <input type="text" id="auditUser" placeholder="Search by username...">
+                    </div>
                     <div class="control-group">
                         <label for="auditDateRange">Date Range:</label>
                         <select id="auditDateRange">
@@ -274,10 +277,6 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
                             <option value="logout">Logout</option>
                             <option value="login_failed">Failed Login</option>
                         </select>
-                    </div>
-                    <div class="control-group">
-                        <label for="auditUser">User:</label>
-                        <input type="text" id="auditUser" placeholder="Search by username...">
                     </div>
                     <button class="btn-primary" onclick="loadAuditTrails()">
                         <i class="fas fa-search"></i>

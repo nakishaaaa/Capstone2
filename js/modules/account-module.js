@@ -233,3 +233,6 @@ window.resetPasswordForm = function() {
         window.accountManager.resetPasswordForm();
     }
 };
+
+// Remove the DOMContentLoaded listener since the module is now imported
+// The main app will handle initialization

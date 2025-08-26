@@ -272,6 +272,14 @@ if (!$isUserLoggedIn) {
                     <i class="fas fa-comments"></i>
                 </div>
             </div>
+            
+            <!-- Dev Team Ticket Button -->
+            <div class="dev-ticket-button" onclick="openDevTicketModal()">
+                <span>Report to Dev Team</span>
+                <div class="ticket-icon">
+                    <i class="fas fa-bug"></i>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -426,6 +434,58 @@ if (!$isUserLoggedIn) {
         </div>
     </div>
 
+    <!-- Dev Team Ticket Modal -->
+    <div id="devTicketModal" class="support-modal" style="display: none;">
+        <div class="support-modal-content">
+            <div class="support-modal-header">
+                <button class="support-back-btn" onclick="closeDevTicketModal()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2>Report to Dev Team</h2>
+            </div>
+            
+            <div class="support-modal-body">
+                <div class="support-header-info">
+                    <h3>Submit a Bug Report or Feature Request</h3>
+                    <p>Connect directly with our development team - we usually respond within a few hours</p>
+                </div>
+                
+                <form id="devTicketForm" class="support-form">
+                    <div class="support-form-group">
+                        <label for="devTicketPriority">Priority Level</label>
+                        <select id="devTicketPriority" name="priority" required>
+                            <option value="low">Low - Feature request or minor issue</option>
+                            <option value="medium" selected>Medium - Bug or improvement</option>
+                            <option value="high">High - Critical bug or urgent issue</option>
+                        </select>
+                    </div>
+                    
+                    <div class="support-form-group">
+                        <label for="devTicketSubject">Subject</label>
+                        <input type="text" id="devTicketSubject" name="subject" required placeholder="Brief description of the issue or request">
+                    </div>
+                    
+                    <div class="support-form-group">
+                        <label for="devTicketMessage">Detailed Description</label>
+                        <textarea id="devTicketMessage" name="message" rows="6" required placeholder="Please provide detailed information about the bug, feature request, or technical issue..."></textarea>
+                        <div class="support-message-actions">
+                            <button type="button" class="dev-attachment-btn" title="Attach screenshot or file">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input type="file" id="devTicketAttachment" name="attachment" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt">
+                            <span class="attachment-name" id="devAttachmentName"></span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="support-send-btn">
+                        <i class="fas fa-bug"></i>
+                        Submit to Dev Team
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- AI Image Generator Modal -->
     <div id="aiImageModal" class="modal ai-modal">
         <div class="modal-content ai-modal-content">
@@ -464,10 +524,6 @@ if (!$isUserLoggedIn) {
                             <button id="downloadImageBtn" class="btn btn-success">
                                 <i class="fas fa-download"></i>
                                 Download Image
-                            </button>
-                            <button id="generateNewBtn" class="btn btn-primary">
-                                <i class="fas fa-redo"></i>
-                                Generate New
                             </button>
                         </div>
                         <div class="ai-image-info">
@@ -599,6 +655,5 @@ if (!$isUserLoggedIn) {
     </div>
 
     <script type="module" src="js/user_page.main.js"></script>
-    <script src="js/slideshow.js"></script>
 </body>
 </html>

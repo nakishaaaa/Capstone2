@@ -86,8 +86,7 @@ function getUsersList($pdo) {
         $role_filter = $_GET['role'] ?? 'all';
         $status_filter = $_GET['status'] ?? 'all';
         
-        // Exclude customer accounts (role='user') from user management
-        $sql = "SELECT id, username, email, role, status, created_at, last_login FROM users WHERE role != 'user'";
+        $sql = "SELECT id, username, email, role, status, created_at, last_login FROM users WHERE role != 'user' AND role != 'super_admin'";
         $params = [];
         
         if (!empty($search)) {
@@ -329,12 +328,12 @@ function getUserStats($pdo) {
     try {
         $stats = [];
         
-        // Total users (excluding customers)
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE role != 'user'");
+        // Total users (excluding customers and super admin)
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE role != 'user' AND role != 'super_admin'");
         $stats['total'] = $stmt->fetch()['count'];
         
-        // Users by role (excluding customers)
-        $stmt = $pdo->query("SELECT role, COUNT(*) as count FROM users WHERE role != 'user' GROUP BY role");
+        // Users by role (excluding customers and super admin)
+        $stmt = $pdo->query("SELECT role, COUNT(*) as count FROM users WHERE role != 'user' AND role != 'super_admin' GROUP BY role");
         $role_counts = $stmt->fetchAll();
         
         $stats['admin'] = 0;
