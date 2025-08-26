@@ -24,8 +24,8 @@ export class RequestsModule {
     // Make functions globally accessible for onclick handlers
     window.refreshRequests = () => this.loadRequests()
     window.filterRequests = () => this.filterRequests()
-    window.approveRequest = (id) => this.updateRequestStatus(id, 'approved')
-    window.rejectRequest = (id) => this.updateRequestStatus(id, 'rejected')
+    window.approveRequest = (id) => this.showApprovalModal(id)
+    window.rejectRequest = (id) => this.showRejectionModal(id)
     window.viewRequest = (id) => this.viewRequestDetails(id)
     window.viewRequestHistory = () => this.viewHistory()
     window.backToRequests = () => this.backToRequests()
@@ -745,6 +745,398 @@ export class RequestsModule {
     }
     
     console.log('Requests module destroyed')
+  }
+
+  showApprovalModal(requestId) {
+    const request = this.requests.find(r => r.id === requestId)
+    if (!request) {
+      this.toast.error('Request not found')
+      return
+    }
+
+    const modalContent = `
+      <div class="approval-modal" style="
+        font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+        background: #ffffff;
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        max-width: 500px;
+        margin: 1rem auto;
+        color: #2d3748;
+      ">
+        <div class="modal-header" style="
+          padding: 1.5rem 1.5rem 0.75rem;
+          border-bottom: 1px solid #e2e8f0;
+        ">
+          <h3 style="margin: 0; color: #1a202c; font-weight: 600; font-size: 1.375rem;">
+            <i class="fa-solid fa-check-circle" style="color: #28a745; margin-right: 0.5rem;"></i>
+            Approve Request #${request.id}
+          </h3>
+        </div>
+
+        <div class="modal-body" style="padding: 1.5rem;">
+          <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
+            <div style="font-size: 0.875rem; color: #4a5568; margin-bottom: 0.5rem;">
+              <strong>Customer:</strong> ${this.escapeHtml(request.name)} | 
+              <strong>Service:</strong> ${this.formatCategory(request.category)} | 
+              <strong>Quantity:</strong> ${request.quantity}
+            </div>
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label for="totalPrice" style="
+              display: block;
+              font-weight: 600;
+              color: #2d3748;
+              margin-bottom: 0.5rem;
+              font-size: 0.875rem;
+            ">
+              Total Price (Required) <span style="color: #e53e3e;">*</span>
+            </label>
+            <div style="position: relative;">
+              <span style="
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #4a5568;
+                font-weight: 500;
+              ">₱</span>
+              <input 
+                type="number" 
+                id="totalPrice" 
+                step="0.01" 
+                min="0.01"
+                placeholder="0.00"
+                style="
+                  width: 100%;
+                  padding: 0.75rem 0.75rem 0.75rem 2rem;
+                  border: 2px solid #e2e8f0;
+                  border-radius: 8px;
+                  font-size: 1rem;
+                  transition: border-color 0.2s;
+                  box-sizing: border-box;
+                "
+                onkeyup="this.style.borderColor = this.value ? '#28a745' : '#e2e8f0'"
+              >
+            </div>
+            <div style="font-size: 0.75rem; color: #718096; margin-top: 0.25rem;">
+              Customer will pay 70% (₱<span id="downpaymentAmount">0.00</span>) upfront, 30% on pickup
+            </div>
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label for="adminResponse" style="
+              display: block;
+              font-weight: 600;
+              color: #2d3748;
+              margin-bottom: 0.5rem;
+              font-size: 0.875rem;
+            ">
+              Response Message (Optional)
+            </label>
+            <textarea 
+              id="adminResponse" 
+              rows="3"
+              placeholder="Add any additional notes for the customer..."
+              style="
+                width: 100%;
+                padding: 0.75rem;
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                font-size: 0.875rem;
+                resize: vertical;
+                font-family: inherit;
+                box-sizing: border-box;
+              "
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="
+          display: flex;
+          gap: 0.75rem;
+          padding: 1rem 1.5rem 1.5rem;
+          justify-content: flex-end;
+        ">
+          <button 
+            class="btn btn-outline" 
+            onclick="window.modalManager.close()"
+            style="
+              padding: 0.75rem 1.5rem;
+              border: 2px solid #e2e8f0;
+              background: white;
+              color: #4a5568;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 0.875rem;
+              font-weight: 500;
+            "
+          >
+            Cancel
+          </button>
+          <button 
+            id="confirmApproveBtn"
+            class="btn btn-success" 
+            onclick="window.requestsModule.confirmApproval(${requestId})"
+            style="
+              padding: 0.75rem 1.5rem;
+              background: #28a745;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 0.875rem;
+              font-weight: 500;
+              opacity: 0.5;
+            "
+            disabled
+          >
+            <i class="fa-solid fa-check"></i> Approve Order
+          </button>
+        </div>
+      </div>
+    `
+
+    this.modal.open('Approve Request', modalContent)
+
+    // Add event listeners after modal is rendered
+    setTimeout(() => {
+      const priceInput = document.getElementById('totalPrice')
+      const confirmBtn = document.getElementById('confirmApproveBtn')
+      const downpaymentSpan = document.getElementById('downpaymentAmount')
+
+      if (priceInput && confirmBtn && downpaymentSpan) {
+        priceInput.addEventListener('input', () => {
+          const price = parseFloat(priceInput.value) || 0
+          const downpayment = price * 0.7
+          downpaymentSpan.textContent = downpayment.toFixed(2)
+          
+          if (price > 0) {
+            confirmBtn.disabled = false
+            confirmBtn.style.opacity = '1'
+          } else {
+            confirmBtn.disabled = true
+            confirmBtn.style.opacity = '0.5'
+          }
+        })
+
+        priceInput.focus()
+      }
+    }, 100)
+  }
+
+  showRejectionModal(requestId) {
+    const request = this.requests.find(r => r.id === requestId)
+    if (!request) {
+      this.toast.error('Request not found')
+      return
+    }
+
+    const modalContent = `
+      <div class="rejection-modal" style="
+        font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+        background: #ffffff;
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        max-width: 500px;
+        margin: 1rem auto;
+        color: #2d3748;
+      ">
+        <div class="modal-header" style="
+          padding: 1.5rem 1.5rem 0.75rem;
+          border-bottom: 1px solid #e2e8f0;
+        ">
+          <h3 style="margin: 0; color: #1a202c; font-weight: 600; font-size: 1.375rem;">
+            <i class="fa-solid fa-times-circle" style="color: #dc3545; margin-right: 0.5rem;"></i>
+            Reject Request #${request.id}
+          </h3>
+        </div>
+
+        <div class="modal-body" style="padding: 1.5rem;">
+          <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
+            <div style="font-size: 0.875rem; color: #4a5568; margin-bottom: 0.5rem;">
+              <strong>Customer:</strong> ${this.escapeHtml(request.name)} | 
+              <strong>Service:</strong> ${this.formatCategory(request.category)} | 
+              <strong>Quantity:</strong> ${request.quantity}
+            </div>
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label for="rejectionReason" style="
+              display: block;
+              font-weight: 600;
+              color: #2d3748;
+              margin-bottom: 0.5rem;
+              font-size: 0.875rem;
+            ">
+              Reason for Rejection (Required) <span style="color: #e53e3e;">*</span>
+            </label>
+            <textarea 
+              id="rejectionReason" 
+              rows="4"
+              placeholder="Please explain why this request cannot be fulfilled..."
+              style="
+                width: 100%;
+                padding: 0.75rem;
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                font-size: 0.875rem;
+                resize: vertical;
+                font-family: inherit;
+                box-sizing: border-box;
+              "
+              onkeyup="document.getElementById('confirmRejectBtn').disabled = !this.value.trim(); document.getElementById('confirmRejectBtn').style.opacity = this.value.trim() ? '1' : '0.5'"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="
+          display: flex;
+          gap: 0.75rem;
+          padding: 1rem 1.5rem 1.5rem;
+          justify-content: flex-end;
+        ">
+          <button 
+            class="btn btn-outline" 
+            onclick="window.modalManager.close()"
+            style="
+              padding: 0.75rem 1.5rem;
+              border: 2px solid #e2e8f0;
+              background: white;
+              color: #4a5568;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 0.875rem;
+              font-weight: 500;
+            "
+          >
+            Cancel
+          </button>
+          <button 
+            id="confirmRejectBtn"
+            class="btn btn-danger" 
+            onclick="window.requestsModule.confirmRejection(${requestId})"
+            style="
+              padding: 0.75rem 1.5rem;
+              background: #dc3545;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 0.875rem;
+              font-weight: 500;
+              opacity: 0.5;
+            "
+            disabled
+          >
+            <i class="fa-solid fa-times"></i> Reject Order
+          </button>
+        </div>
+      </div>
+    `
+
+    this.modal.open('Reject Request', modalContent)
+  }
+
+  async confirmApproval(requestId) {
+    const totalPrice = document.getElementById('totalPrice')?.value
+    const adminResponse = document.getElementById('adminResponse')?.value
+
+    if (!totalPrice || parseFloat(totalPrice) <= 0) {
+      this.toast.error('Please enter a valid total price')
+      return
+    }
+
+    try {
+      // Get CSRF token
+      const csrfResponse = await fetch('api/csrf_token.php', {
+        credentials: 'include'
+      })
+      const csrfData = await csrfResponse.json()
+      
+      if (!csrfData.success) {
+        throw new Error('Failed to get CSRF token')
+      }
+
+      const response = await fetch('api/requests.php', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: requestId,
+          status: 'approved',
+          total_price: parseFloat(totalPrice),
+          admin_response: adminResponse || '',
+          csrf_token: csrfData.token
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        this.toast.success('Request approved successfully with pricing!')
+        this.modal.close()
+        await this.loadRequests()
+      } else {
+        throw new Error(data.message || data.error || 'Failed to approve request')
+      }
+    } catch (error) {
+      console.error('Error approving request:', error)
+      this.toast.error('Failed to approve request: ' + error.message)
+    }
+  }
+
+  async confirmRejection(requestId) {
+    const rejectionReason = document.getElementById('rejectionReason')?.value
+
+    if (!rejectionReason?.trim()) {
+      this.toast.error('Please provide a reason for rejection')
+      return
+    }
+
+    try {
+      // Get CSRF token
+      const csrfResponse = await fetch('api/csrf_token.php', {
+        credentials: 'include'
+      })
+      const csrfData = await csrfResponse.json()
+      
+      if (!csrfData.success) {
+        throw new Error('Failed to get CSRF token')
+      }
+
+      const response = await fetch('api/requests.php', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: requestId,
+          status: 'rejected',
+          admin_response: rejectionReason.trim(),
+          csrf_token: csrfData.token
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        this.toast.success('Request rejected successfully!')
+        this.modal.close()
+        await this.loadRequests()
+      } else {
+        throw new Error(data.message || data.error || 'Failed to reject request')
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error)
+      this.toast.error('Failed to reject request: ' + error.message)
+    }
   }
 }
 

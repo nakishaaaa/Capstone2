@@ -203,13 +203,44 @@ function handleUpdateRequest() {
     }
     
     try {
-        $sql = "UPDATE user_requests SET status = ?, admin_response = ?, updated_at = NOW() WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            $input['status'],
-            $input['admin_response'] ?? '',
-            $input['id']
-        ]);
+        // If approving, require pricing information
+        if ($input['status'] === 'approved') {
+            if (!isset($input['total_price']) || $input['total_price'] <= 0) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Total price is required when approving orders']);
+                return;
+            }
+            
+            // Fixed 70% downpayment
+            $downpayment_percentage = 70;
+            
+            $sql = "UPDATE user_requests SET 
+                        status = ?, 
+                        admin_response = ?, 
+                        total_price = ?,
+                        downpayment_percentage = ?,
+                        payment_status = 'awaiting_payment',
+                        pricing_set_at = NOW(),
+                        updated_at = NOW() 
+                    WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                $input['status'],
+                $input['admin_response'] ?? '',
+                $input['total_price'],
+                $downpayment_percentage,
+                $input['id']
+            ]);
+        } else {
+            // For rejection or other status updates
+            $sql = "UPDATE user_requests SET status = ?, admin_response = ?, updated_at = NOW() WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                $input['status'],
+                $input['admin_response'] ?? '',
+                $input['id']
+            ]);
+        }
         
         if ($stmt->rowCount() > 0) {
             echo json_encode(['success' => true, 'message' => 'Request updated successfully']);

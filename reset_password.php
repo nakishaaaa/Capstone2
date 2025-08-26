@@ -61,9 +61,6 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
         </div>
         
         <div class="login-card active">
-            <div class="form-header">
-                <div class="form-subtitle">Reset Password</div>
-            </div>
             <div class="form-title">Create new password</div>
 
             <?php
@@ -99,12 +96,12 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
                     </div>
                 </div>
                 
-                <div class="login-link" style="margin: 0.25rem 0 0.75rem; text-align: right; color: #bbb; font-size: 13px;">
-                    Remember your password? <a href="index.php" style="color:#4facfe; font-weight:600;">Log In</a>
-                </div>
-                
                 <div class="button-group">
                     <button type="submit" class="btn btn-primary">Reset Password</button>
+                </div>
+
+                <div class="login-link" style="margin: 0.25rem 0 0.75rem; text-align: right; color: #bbb; font-size: 13px;">
+                    Remember your password? <a href="index.php" style="color:#4facfe; font-weight:600;">Log In</a>
                 </div>
             </form>
         </div>

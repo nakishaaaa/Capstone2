@@ -25,6 +25,7 @@ if (!$isUserLoggedIn) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?php require_once 'includes/csrf.php'; echo CSRFToken::getToken(); ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css">
@@ -229,5 +230,196 @@ if (!$isUserLoggedIn) {
         };
     </script>
     <script type="module" src="js/modules/my-orders-module.js"></script>
+    <script>
+        // Wait for module to load before handling redirects
+        window.addEventListener('load', function() {
+            // Check for payment confirmation
+            document.addEventListener('DOMContentLoaded', function() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const paymentStatus = urlParams.get('payment');
+                const requestId = urlParams.get('request_id');
+                const sourceId = urlParams.get('source_id'); // Legacy support
+                const linkId = urlParams.get('link_id'); // Legacy support
+                
+                console.log('Payment status:', paymentStatus);
+                console.log('Request ID:', requestId);
+                console.log('Source ID:', sourceId);
+                console.log('Link ID:', linkId);
+                
+                // PayMongo Links payment confirmation (new method)
+                if (paymentStatus && requestId) {
+                    const paymentData = sessionStorage.getItem('paymongo_payment');
+                    
+                    if (paymentData) {
+                        const payment = JSON.parse(paymentData);
+                        
+                        if (payment.request_id == requestId) {
+                            if (paymentStatus === 'success') {
+                                console.log('Processing PayMongo Link payment confirmation...');
+                                confirmPayMongoLinkPayment(payment.link_id, requestId);
+                            } else if (paymentStatus === 'failed') {
+                                if (window.myOrdersModule) {
+                                    window.myOrdersModule.showToast('Payment was cancelled or failed', 'error');
+                                } else {
+                                    alert('Payment was cancelled or failed');
+                                }
+                            }
+                            
+                            // Clean up
+                            sessionStorage.removeItem('paymongo_payment');
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                        }
+                    } else if (paymentStatus === 'success' && requestId) {
+                        // Fallback: Try to find the link_id from database and confirm payment
+                        console.log('No sessionStorage data, attempting database lookup for payment confirmation...');
+                        confirmPaymentFromDatabase(requestId);
+                    }
+                }
+                // Legacy PayMongo Sources payment confirmation (for backward compatibility)
+                else if (paymentStatus === 'success' && sourceId) {
+                    console.log('Processing legacy PayMongo Source payment confirmation...');
+                    
+                    fetch(`api/paymongo_payment.php?action=confirm_source&source_id=${sourceId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Legacy payment confirmation response:', data);
+                            if (data.success) {
+                                if (window.myOrdersModule) {
+                                    window.myOrdersModule.showToast('Payment completed successfully!', 'success');
+                                    window.myOrdersModule.loadOrders();
+                                    window.myOrdersModule.loadOrderCounts();
+                                } else {
+                                    alert('Payment completed successfully! Please refresh the page.');
+                                    location.reload();
+                                }
+                            } else {
+                                console.error('Payment verification failed:', data.error);
+                                if (window.myOrdersModule) {
+                                    window.myOrdersModule.showToast('Payment verification failed: ' + (data.error || 'Unknown error'), 'error');
+                                } else {
+                                    alert('Payment verification failed. Please contact support.');
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Payment confirmation error:', error);
+                            if (window.myOrdersModule) {
+                                window.myOrdersModule.showToast('Payment verification failed', 'error');
+                            } else {
+                                alert('Payment verification failed. Please contact support.');
+                            }
+                        });
+                    
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (paymentStatus === 'failed') {
+                    if (window.myOrdersModule) {
+                        window.myOrdersModule.showToast('Payment was cancelled or failed', 'error');
+                    } else {
+                        alert('Payment was cancelled or failed');
+                    }
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            });
+        });
+        
+        // PayMongo Link payment confirmation function
+        function confirmPayMongoLinkPayment(linkId, requestId) {
+            const formData = new FormData();
+            formData.append('action', 'confirm_link_payment');
+            formData.append('link_id', linkId);
+            formData.append('request_id', requestId);
+            formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
+
+            fetch('api/paymongo_payment.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('PayMongo Link payment confirmation response:', data);
+                if (data.success) {
+                    if (window.myOrdersModule) {
+                        window.myOrdersModule.showToast('Payment confirmed successfully!', 'success');
+                        window.myOrdersModule.loadOrders();
+                        window.myOrdersModule.loadOrderCounts();
+                    } else {
+                        alert('Payment confirmed successfully! Please refresh the page.');
+                        location.reload();
+                    }
+                } else {
+                    console.error('Payment confirmation failed:', data.message);
+                    if (window.myOrdersModule) {
+                        window.myOrdersModule.showToast(data.message || 'Payment confirmation failed', 'error');
+                    } else {
+                        alert('Payment confirmation failed');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error confirming payment:', error);
+                if (window.myOrdersModule) {
+                    window.myOrdersModule.showToast('Payment confirmation failed', 'error');
+                } else {
+                    alert('Payment confirmation failed');
+                }
+            });
+        }
+
+        // Fallback function to confirm payment using database lookup
+        function confirmPaymentFromDatabase(requestId) {
+            const formData = new FormData();
+            formData.append('action', 'confirm_payment_by_request');
+            formData.append('request_id', requestId);
+            formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
+
+            fetch('api/paymongo_payment.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Database payment confirmation response:', data);
+                if (data.success) {
+                    if (window.myOrdersModule) {
+                        window.myOrdersModule.showToast('Payment confirmed successfully!', 'success');
+                        window.myOrdersModule.loadOrders();
+                        window.myOrdersModule.loadOrderCounts();
+                    } else {
+                        alert('Payment confirmed successfully! Please refresh the page.');
+                        location.reload();
+                    }
+                } else {
+                    console.error('Payment confirmation failed:', data.message);
+                    if (window.myOrdersModule) {
+                        window.myOrdersModule.showToast(data.message || 'Payment confirmation failed', 'error');
+                    } else {
+                        alert('Payment confirmation failed');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error confirming payment:', error);
+                if (window.myOrdersModule) {
+                    window.myOrdersModule.showToast('Payment confirmation failed', 'error');
+                } else {
+                    alert('Payment confirmation failed');
+                }
+            });
+        }
+        
+        // Manual payment status check function (for debugging)
+        function checkPaymentStatus(orderId) {
+            fetch(`api/paymongo_payment.php?action=check_order_payments&request_id=${orderId}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Manual payment check:', data);
+                    alert('Payment check result: ' + JSON.stringify(data, null, 2));
+                })
+                .catch(error => {
+                    console.error('Manual check error:', error);
+                    alert('Check failed: ' + error.message);
+                });
+        }
+    </script>
 </body>
 </html>

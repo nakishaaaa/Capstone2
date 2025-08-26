@@ -8,11 +8,14 @@ $errors = [
 ];
 $activeForm = $_SESSION['active_form'] ?? 'login';
 $registerSuccess = $_SESSION['register_success'] ?? '';
-// Clear only flash keys instead of the entire session to avoid logging out other tabs
+$forgotSuccess = $_SESSION['forgot_success'] ?? '';
+$forgotError = $_SESSION['forgot_error'] ?? '';
 unset($_SESSION['login_error']);
 unset($_SESSION['register_error']);
 unset($_SESSION['active_form']);
 unset($_SESSION['register_success']);
+unset($_SESSION['forgot_success']);
+unset($_SESSION['forgot_error']);
 
 function showError($error) {
   return !empty($error) ? "<p class='error-message'>$error</p>" : '';
@@ -58,7 +61,7 @@ function isActiveForm($formName, $activeForm) {
             <div class="user-avatar">
               <i class="fas fa-user"></i>
             </div>
-            <span class="user-name">Guest</span>
+            <span class="user-name">Login (Guest)</span>
             <i class="fas fa-chevron-down dropdown-arrow"></i>
           </button>
           <div class="user-dropdown-menu" id="userDropdownMenu">
@@ -99,6 +102,16 @@ function isActiveForm($formName, $activeForm) {
     <?= htmlspecialchars($registerSuccess) ?>
   </div>
 <?php endif; ?>
+<?php if (!empty($forgotSuccess)): ?>
+  <div id="forgot-success-message" class="success-message" style="background:#d4edda;color:#155724;padding:10px;margin:10px 0;border:1px solid #c3e6cb;border-radius:4px;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;transition:opacity 0.5s;">
+    <?= htmlspecialchars($forgotSuccess) ?>
+  </div>
+<?php endif; ?>
+<?php if (!empty($forgotError)): ?>
+  <div id="forgot-error-message" class="error-message" style="background:#f8d7da;color:#721c24;padding:10px;margin:10px 0;border:1px solid #f5c6cb;border-radius:4px;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;transition:opacity 0.5s;">
+    <?= htmlspecialchars($forgotError) ?>
+  </div>
+<?php endif; ?>
 <?php if (!empty($errors['register'])): ?>
   <div id="register-error-message" class="error-message" style="background:#f8d7da;color:#721c24;padding:10px;margin:10px 0;border:1px solid #f5c6cb;border-radius:4px;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;transition:opacity 0.5s;">
     <?= htmlspecialchars($errors['register']) ?>
@@ -108,6 +121,15 @@ function isActiveForm($formName, $activeForm) {
   <div id="login-error-message" class="error-message" style="background:#f8d7da;color:#721c24;padding:10px;margin:10px 0;border:1px solid #f5c6cb;border-radius:4px;position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9999;transition:opacity 0.5s;">
     <?= htmlspecialchars($errors['login']) ?>
   </div>
+<?php endif; ?>
+<?php if (isset($_GET['status'], $_GET['message'])): 
+  $status = $_GET['status'];
+  $message = htmlspecialchars($_GET['message']);
+  $bg = $status === 'success' ? '#d4edda' : '#f8d7da';
+  $fg = $status === 'success' ? '#155724' : '#721c24';
+  $bd = $status === 'success' ? '#c3e6cb' : '#f5c6cb';
+?>
+  <div id="status-message" style="background:<?= $bg ?>;color:<?= $fg ?>;padding:10px;margin:10px 0;border:1px solid <?= $bd ?>;border-radius:4px;position:fixed;top:100px;left:50%;transform:translateX(-50%);z-index:9999;transition:opacity 0.5s;"><?= $message ?></div>
 <?php endif; ?>
   
   <!-- Visuals from user_page: hero slideshow and sections -->
@@ -121,8 +143,13 @@ function isActiveForm($formName, $activeForm) {
         <div class="slide"></div>
       </div>
       <div class="hero-overlay">
+        <!-- 053 Logo in center of slideshow -->
+        <div class="hero-logo-container" id="heroLogo">
+          <img src="images/053logo.png" alt="053 Printing Service" class="hero-logo">
+        </div>
+        
         <!-- Login/Register card shown over the slideshow when required -->
-        <div id="loginOverlay" class="login-overlay active">
+        <div id="loginOverlay" class="login-overlay">
           <div class="login-content">
             <div class="login-card <?= isActiveForm('login', $activeForm); ?>" id="login-form">
               <form action="login_register.php" method="post">
@@ -136,11 +163,29 @@ function isActiveForm($formName, $activeForm) {
                   </button>
                 </div>
                 <p style="text-align:right; margin-bottom: 1rem;">
-                  <a href="forgot_password.php" class="forgot-password-link">Forgot Password?</a>
+                  <a href="#" class="forgot-password-link" onclick="showForgotForm(); return false;">Forgot Password?</a>
                 </p>
                 <button type="submit" name="login">Login</button>
                 <p>Don't have an account? <a href="#" onclick="showForm('register-form'); return false;">Register</a></p>
               </form>
+            </div>
+
+            <!-- Forgot Password Card -->
+            <div class="login-card forgot-card" id="forgot-form">
+              <div class="form-title">Forgot Password</div>
+              
+              <p style="text-align:center; color:#888; margin-bottom:2rem; font-size: 14px;">
+                Enter your email and we'll send you a link to reset your password.
+              </p>
+              
+              <form method="post" action="send_password_reset.php" id="forgotPasswordForm">
+                <input type="email" name="email" id="fp-email" placeholder="Enter your email address" required>
+                <button type="submit">Send Reset Link</button>
+              </form>
+              
+              <p style="margin-top: 1rem;">
+                <a href="#" onclick="hideForgotForm(); return false;">Back to Login</a>
+              </p>
             </div>
 
             <div class="login-card <?= isActiveForm('register', $activeForm); ?>" id="register-form">
@@ -149,21 +194,21 @@ function isActiveForm($formName, $activeForm) {
                 <?php showError($errors['register']); ?>
                 <div class="form-row">
                   <div class="form-group half-width">
-                    <label for="first_name">First Name*</label>
+                    <label for="first_name">First Name <span style="color: #4facfe;">*</span></label>
                     <input type="text" name="first_name" id="first_name" placeholder="First Name" required>
                   </div>
                   <div class="form-group half-width">
-                    <label for="last_name">Last Name*</label>
+                    <label for="last_name">Last Name <span style="color: #4facfe;">*</span></label>
                     <input type="text" name="last_name" id="last_name" placeholder="Last Name" required>
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group half-width">
-                    <label for="username">Username*</label>
+                    <label for="username">Username <span style="color: #4facfe;">*</span></label>
                     <input type="text" name="username" id="username" placeholder="Username" required>
                   </div>
                   <div class="form-group half-width">
-                    <label for="contact_number">Contact Number*</label>
+                    <label for="contact_number">Contact Number <span style="color: #4facfe;">*</span></label>
                     <div class="contact-input-container">
                       <span class="country-code">+63</span>
                       <input type="tel" name="contact_number" id="contact_number" placeholder="9123456789" maxlength="10" pattern="[0-9]{10}" required>
@@ -171,11 +216,11 @@ function isActiveForm($formName, $activeForm) {
                   </div>
                 </div>
                 <div class="form-group">
-                  <label for="email">Email*</label>
+                  <label for="email">Email <span style="color: #4facfe;">*</span></label>
                   <input type="email" name="email" id="email" placeholder="Email" required>
                 </div>
                 <div class="form-group">
-                  <label for="register-password">Password*</label>
+                  <label for="register-password">Password <span style="color: #4facfe;">*</span></label>
                   <div style="position:relative;">
                     <input type="password" name="password" id="register-password" placeholder="Password" required>
                     <button type="button" id="toggle-register-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
@@ -203,6 +248,59 @@ function isActiveForm($formName, $activeForm) {
         </a>
       </div>
     </div>
+
+    <!-- Border div above contact section -->
+    <div class="contact-border-divider"></div>
+
+    <section id="contact" class="content-section contact-section">
+      <div class="section-header">
+        <h2>Visit Our Store</h2>
+        <p>Find us at our physical location or get in touch</p>
+      </div>
+      <div class="contact-container">
+        <div class="contact-info">
+          <div class="contact-item">
+            <div class="contact-icon">
+              <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="contact-details">
+              <h3>Address</h3>
+              <p>53 San Ignacio St. Poblacion 1 3023 San Jose del Monte, Philippines</p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon">
+              <i class="fas fa-phone"></i>
+            </div>
+            <div class="contact-details">
+              <h3>Phone</h3>
+              <p><a href="tel:+639123456789">+63 938 817 7779</a></p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon">
+              <i class="fas fa-envelope"></i>
+            </div>
+            <div class="contact-details">
+              <h3>Email</h3>
+              <p><a href="mailto:info@053prints.com">info@053prints.com</a></p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="contact-details">
+              <h3>Business Hours</h3>
+              <p>Always Open</p>
+            </div>
+          </div>
+        </div>
+        <div class="map-container">
+        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d964.3254926782973!2d121.04831238497772!3d14.808300904728272!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397af00461244db%3A0x40f0d4a8919fedb9!2s053%20Prints!5e0!3m2!1sen!2sph!4v1756126404023!5m2!1sen!2sph" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </div>
+    </section>
 
     <section id="services" class="content-section services-section">
       <div class="section-header">
@@ -306,16 +404,16 @@ function isActiveForm($formName, $activeForm) {
       </div>
       <div class="testimonials-grid">
         <div class="testimonial-card">
-          <p class="quote">“Top-notch quality and very fast turnaround!”</p>
-          <div class="author">— Jamie R.</div>
+          <p class="quote" style="color: #ffffff;">“Top-notch quality and very fast turnaround!”</p>
+          <div class="author" style="color: #ffffff;">— Jamie R.</div>
         </div>
         <div class="testimonial-card">
-          <p class="quote">“They handled my custom shirt order perfectly.”</p>
-          <div class="author">— Marco D.</div>
+          <p class="quote" style="color: #ffffff;">“They handled my custom shirt order perfectly.”</p>
+          <div class="author" style="color: #ffffff;">— Marco D.</div>
         </div>
         <div class="testimonial-card">
-          <p class="quote">“Great customer service. Highly recommended.”</p>
-          <div class="author">— Aira P.</div>
+          <p class="quote" style="color: #ffffff;">“Great customer service. Highly recommended.”</p>
+          <div class="author" style="color: #ffffff;">— Aira P.</div>
         </div>
       </div>
     </section>
@@ -344,28 +442,104 @@ function isActiveForm($formName, $activeForm) {
     document.querySelectorAll(".login-card").forEach(form => form.classList.remove("active")); 
     document.getElementById(formId).classList.add("active");
     var overlay = document.getElementById('loginOverlay');
+    var heroLogo = document.getElementById('heroLogo');
     if (overlay) overlay.classList.add('active');
+    if (heroLogo) heroLogo.classList.add('slide-right');
+  }
+
+  function showForgotForm() {
+    var overlay = document.getElementById('loginOverlay');
+    var heroLogo = document.getElementById('heroLogo');
+    var forgotCard = document.getElementById('forgot-form');
+    var loginCard = document.getElementById('login-form');
+    
+    // Show overlay and slide logo
+    if (overlay) overlay.classList.add('active');
+    if (heroLogo) heroLogo.classList.add('slide-right');
+    
+    // Hide all cards
+    document.querySelectorAll(".login-card").forEach(form => form.classList.remove("active"));
+    
+    // Show forgot card in center (replaces login card)
+    if (forgotCard) {
+      forgotCard.classList.add('active');
+    }
+  }
+
+  function hideForgotForm() {
+    var forgotCard = document.getElementById('forgot-form');
+    
+    // Hide forgot card immediately
+    if (forgotCard) {
+      forgotCard.classList.remove('active');
+      showForm('login-form');
+    }
+  }
+
+  function autoHideForgotFormSuccess() {
+    var forgotCard = document.getElementById('forgot-form');
+    
+    // Auto hide after successful submission
+    if (forgotCard && forgotCard.classList.contains('active')) {
+      forgotCard.classList.remove('active');
+      showForm('login-form');
+    }
+  }
+
+  function keepForgotFormOnError() {
+    // Keep forgot card visible on error - do nothing
+    // The error message will show above the card
   }
 
   document.addEventListener('DOMContentLoaded', function() {
+    // Check if this is the first visit
+    const FIRST_VISIT_KEY = 'first_visit_complete';
+    const isFirstVisit = !localStorage.getItem(FIRST_VISIT_KEY);
+    // Per-page flag: has the login card appeared once this load?
+    let hasShownLoginOnce = false;
+    
+    // Show/hide login overlay based on visit status
+    const loginOverlay = document.getElementById('loginOverlay');
+    const heroLogo = document.getElementById('heroLogo');
+    
+    if (loginOverlay) {
+      if (isFirstVisit) {
+        // First visit - show login card and slide logo to right
+        loginOverlay.classList.add('active');
+        if (heroLogo) heroLogo.classList.add('slide-right');
+        localStorage.setItem(FIRST_VISIT_KEY, 'true');
+        // Count this as first appearance for this page load (no shake)
+        hasShownLoginOnce = true;
+      } else {
+        // Subsequent visits - keep hidden and logo centered
+        loginOverlay.classList.remove('active');
+        if (heroLogo) heroLogo.classList.remove('slide-right');
+      }
+    }
+
     // Intercept gated features and prompt login
     function requireLogin(e) {
       if (e) e.preventDefault();
       showForm('login-form');
       const hero = document.querySelector('.hero-section');
       if (hero) hero.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Shake the login card for visual feedback
+      // Shake the login card for visual feedback (skip on first appearance after refresh)
       const card = document.getElementById('login-form');
       if (card) {
-        card.classList.remove('shake');
-        // force reflow to restart animation
-        void card.offsetWidth;
-        card.classList.add('shake');
-        const cleanup = () => {
+        if (!hasShownLoginOnce) {
+          // First time showing after refresh: no shake, then mark as shown
+          hasShownLoginOnce = true;
+        } else {
           card.classList.remove('shake');
-          card.removeEventListener('animationend', cleanup);
-        };
-        card.addEventListener('animationend', cleanup);
+          // force reflow to restart animation
+          void card.offsetWidth;
+          card.classList.add('shake');
+          const cleanup = () => {
+            card.classList.remove('shake');
+            card.removeEventListener('animationend', cleanup);
+          };
+          card.addEventListener('animationend', cleanup);
+        }
       }
     }
 
@@ -410,7 +584,8 @@ function isActiveForm($formName, $activeForm) {
     if (userDropdownBtn && userDropdownMenu) {
       userDropdownBtn.addEventListener('click', function(e){
         e.preventDefault();
-        userDropdownMenu.style.display = userDropdownMenu.style.display === 'block' ? 'none' : 'block';
+        // Show login card when guest button is clicked
+        requireLogin(e);
       });
       document.addEventListener('click', function(e){
         if (!userDropdownBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
@@ -443,8 +618,61 @@ function isActiveForm($formName, $activeForm) {
         loginErr.style.opacity = '0';
         setTimeout(function() {
           loginErr.style.display = 'none';
+        }, 5000);
+      }, 5000);
+    }
+
+    // Handle forgot password form messages and auto-open
+    const params = new URLSearchParams(window.location.search);
+    const forgotSuccessMsg = document.getElementById('forgot-success-message');
+    const forgotErrorMsg = document.getElementById('forgot-error-message');
+    
+    if (params.get('form') === 'forgot') {
+      if (forgotSuccessMsg) {
+        // On success: show forgot form then hide after message
+        showForgotForm();
+        setTimeout(() => {
+          autoHideForgotFormSuccess();
+        }, 3000);
+      } else if (forgotErrorMsg) {
+        // On error: directly show forgot card without any animation/fade
+        if (loginOverlay) loginOverlay.classList.add('active');
+        if (heroLogo) heroLogo.classList.add('slide-right');
+        document.querySelectorAll(".login-card").forEach(form => form.classList.remove("active"));
+        const forgotCard = document.getElementById('forgot-form');
+        if (forgotCard) forgotCard.classList.add('active');
+      } else {
+        // Default case: show forgot form normally
+        showForgotForm();
+      }
+    }
+    
+    // Auto-hide status messages
+    // Auto-hide forgot password messages
+    if (forgotSuccessMsg) {
+      setTimeout(function() {
+        forgotSuccessMsg.style.opacity = '0';
+        setTimeout(function() {
+          forgotSuccessMsg.style.display = 'none';
+        }, 500);
+      }, 3000);
+    }
+    
+    if (forgotErrorMsg) {
+      setTimeout(function() {
+        forgotErrorMsg.style.opacity = '0';
+        setTimeout(function() {
+          forgotErrorMsg.style.display = 'none';
         }, 500);
       }, 5000);
+    }
+
+    // Handle forgot password form submission
+    const forgotForm = document.getElementById('forgotPasswordForm');
+    if (forgotForm) {
+      forgotForm.addEventListener('submit', function() {
+        // Form will redirect to index.php with status, no need for immediate animation
+      });
     }
     
     function setupPasswordToggle(inputId, buttonId, iconId) {
@@ -570,5 +798,11 @@ function isActiveForm($formName, $activeForm) {
   });
   </script>
   <script src="js/slideshow.js"></script>
+  <script>
+    // Google Maps embed loaded - no additional JavaScript needed
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Google Maps embed ready');
+    });
+  </script>
 </body>
 </html>

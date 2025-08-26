@@ -655,7 +655,7 @@ body {
 }
 
 .timeline-step.completed {
-    color: #000000;
+    color: #22c55e;
 }
 
 .timeline-step.rejected {
@@ -672,7 +672,7 @@ body {
 }
 
 .timeline-step.completed:not(:last-child)::after {
-    background: #000000;
+    background: #22c55e;
 }
 
 /* Pagination */
@@ -940,7 +940,7 @@ body {
 }
 
 .timeline-item.completed:not(:last-child)::before {
-    background: #000000;
+    background: #22c55e;
 }
 
 .timeline-item.rejected:not(:last-child)::before {
@@ -963,9 +963,9 @@ body {
 }
 
 .timeline-item.completed .timeline-icon {
-    background: #000000;
+    background: #22c55e;
     color: white;
-    border-color: #000000;
+    border-color: #22c55e;
 }
 
 .timeline-item.rejected .timeline-icon {
@@ -1175,4 +1175,33 @@ body {
     .order-detail-actions {
         padding: 1rem;
     }
+}
+
+/* Payment Status Indicator */
+.payment-status-indicator {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+
+.payment-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.payment-badge.partial {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #bbdefb;
+}
+
+.payment-badge.full {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
 }

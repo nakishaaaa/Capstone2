@@ -88,6 +88,9 @@ function getOrders($pdo, $userId) {
                 notes,
                 status,
                 admin_response,
+                total_price,
+                downpayment_percentage,
+                payment_status,
                 created_at,
                 updated_at
             FROM user_requests 
@@ -107,7 +110,7 @@ function getOrders($pdo, $userId) {
     
     // Format orders for frontend
     $formattedOrders = array_map(function($order) {
-        return [
+        $formatted = [
             'id' => $order['id'],
             'orderNumber' => 'ORD-' . str_pad($order['id'], 6, '0', STR_PAD_LEFT),
             'category' => $order['category'],
@@ -121,12 +124,30 @@ function getOrders($pdo, $userId) {
             'status' => $order['status'],
             'statusDisplay' => ucfirst($order['status']),
             'adminResponse' => $order['admin_response'],
+            'totalPrice' => $order['total_price'],
+            'downpaymentPercentage' => $order['downpayment_percentage'],
+            'paymentStatus' => $order['payment_status'],
             'createdAt' => $order['created_at'],
             'updatedAt' => $order['updated_at'],
             'createdAtFormatted' => date('M j, Y g:i A', strtotime($order['created_at'])),
             'updatedAtFormatted' => date('M j, Y g:i A', strtotime($order['updated_at'])),
             'daysSinceCreated' => floor((time() - strtotime($order['created_at'])) / 86400)
         ];
+        
+        // Add payment information if order is approved with pricing
+        if ($order['status'] === 'approved' && $order['total_price']) {
+            $formatted['hasPayment'] = true;
+            $formatted['needsPayment'] = in_array($order['payment_status'], ['awaiting_payment']);
+            $formatted['isPaid'] = in_array($order['payment_status'], ['partial_paid', 'fully_paid']);
+            $formatted['paymentStatus'] = $order['payment_status'];
+        } else {
+            $formatted['hasPayment'] = false;
+            $formatted['needsPayment'] = false;
+            $formatted['isPaid'] = false;
+            $formatted['paymentStatus'] = null;
+        }
+        
+        return $formatted;
     }, $orders);
     
     echo json_encode([
@@ -163,6 +184,9 @@ function getOrderDetail($pdo, $userId) {
                 notes,
                 status,
                 admin_response,
+                total_price,
+                downpayment_percentage,
+                payment_status,
                 created_at,
                 updated_at
             FROM user_requests 
@@ -197,12 +221,24 @@ function getOrderDetail($pdo, $userId) {
         'status' => $order['status'],
         'statusDisplay' => ucfirst($order['status']),
         'adminResponse' => $order['admin_response'],
+        'totalPrice' => $order['total_price'],
+        'downpaymentPercentage' => $order['downpayment_percentage'],
+        'paymentStatus' => $order['payment_status'],
         'createdAt' => $order['created_at'],
         'updatedAt' => $order['updated_at'],
         'createdAtFormatted' => date('M j, Y g:i A', strtotime($order['created_at'])),
         'updatedAtFormatted' => date('M j, Y g:i A', strtotime($order['updated_at'])),
         'timeline' => generateOrderTimeline($order)
     ];
+    
+    // Add payment information if order is approved with pricing
+    if ($order['status'] === 'approved' && $order['total_price']) {
+        $formattedOrder['hasPayment'] = true;
+        $formattedOrder['needsPayment'] = in_array($order['payment_status'], ['awaiting_payment', 'partial_paid']);
+    } else {
+        $formattedOrder['hasPayment'] = false;
+        $formattedOrder['needsPayment'] = false;
+    }
     
     echo json_encode([
         'success' => true,

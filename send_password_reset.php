@@ -1,5 +1,7 @@
 <?php
 
+session_start();
+
 $email = $_POST["email"];
 $token = bin2hex(random_bytes(16));
 $token_hash = hash("sha256", $token);
@@ -32,17 +34,21 @@ if ($conn->affected_rows) {
     
     try {
         $mail->send();
-        // Redirect with success message
-        header("Location: forgot_password.php?status=success&message=Password reset link has been sent to your email.");
+        // Store success in session and redirect
+        $_SESSION['forgot_success'] = 'Password reset link has been sent to your email.';
+        header("Location: index.php?form=forgot");
         exit();
     } 
     catch (Exception $e) {
-        // Redirect with error message
-        header("Location: forgot_password.php?status=error&message=Failed to send email. Please try again.");
+        // Store error in session and redirect
+        session_start();
+        $_SESSION['forgot_error'] = 'Failed to send email. Please try again.';
+        header("Location: index.php?form=forgot");
         exit();
     }
 } else {
-    // Redirect with invalid email message
-    header("Location: forgot_password.php?status=error&message=Email not found. Please check your email address.");
+    // Store error in session and redirect
+    $_SESSION['forgot_error'] = 'Email not found. Please check your email address.';
+    header("Location: index.php?form=forgot");
     exit();
 }
