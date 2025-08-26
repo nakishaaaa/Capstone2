@@ -1,6 +1,7 @@
 <?php
 session_start(); // Start the session to use session variables
 require_once 'includes/config.php'; // Include the database connection
+require_once 'includes/audit_helper.php'; // Include audit logging functions
 
 // Handle registration form submission
 if (isset($_POST['register'])) {
@@ -42,6 +43,12 @@ if (isset($_POST['register'])) {
             } else {
                 // Insert new user into the database with contact number and default role 'user'
                 if ($conn->query("INSERT INTO users (username, firstname, lastname, email, contact_number, password, role) VALUES ('$username', '$first_name', '$last_name', '$email', '$full_contact_number', '$password', 'user')")) {
+                    // Get the new user ID for audit logging
+                    $new_user_id = $conn->insert_id;
+                    
+                    // Log registration event
+                    logRegistrationEvent($new_user_id, $username);
+                    
                     // Registration successful
                     $_SESSION['register_success'] = 'Registration successful! You can now log in.';
                     $_SESSION['active_form'] = 'login';
@@ -96,6 +103,9 @@ if (isset($_POST['login'])) {
                 // Update last login timestamp
                 $conn->query("UPDATE users SET last_login = NOW() WHERE id = " . $user['id']);
                 
+                // Log successful login event
+                logLoginEvent($user['id'], $user['username'], $role);
+                
                 // Set role-specific session variables and standard session variables
                 $role = trim($user['role']); // Trim any whitespace
                 $_SESSION[$role . '_user_id'] = $user['id'];
@@ -124,9 +134,13 @@ if (isset($_POST['login'])) {
                 exit();
             } else {
                 error_log("Login Debug - Password verification failed for user: " . $username);
+                // Log failed login attempt
+                logFailedLoginEvent($username, 'Invalid password');
             }
         } else {
             error_log("Login Debug - User not found: " . $username);
+            // Log failed login attempt
+            logFailedLoginEvent($username, 'User not found');
         }
     }
 

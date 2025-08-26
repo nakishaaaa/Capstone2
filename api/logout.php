@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../includes/session_helper.php';
+require_once '../includes/audit_helper.php';
 
 header('Content-Type: application/json');
 header("Access-Control-Allow-Origin: http://localhost");
@@ -23,6 +24,14 @@ $role = $input['role'] ?? null;
 
 try {
     if ($role && in_array($role, ['admin', 'user'])) {
+        // Log logout event before clearing session data
+        $user_id = $_SESSION[$role . '_user_id'] ?? null;
+        $username = $_SESSION[$role . '_name'] ?? 'Unknown';
+        
+        if ($user_id) {
+            logLogoutEvent($user_id, $username, $role);
+        }
+        
         // Clear role-specific session variables
         unset($_SESSION[$role . '_user_id']);
         unset($_SESSION[$role . '_name']);
@@ -49,6 +58,15 @@ try {
         
         echo json_encode(['success' => true, 'message' => ucfirst($role) . ' logged out successfully']);
     } else {
+        // Log logout event for full logout
+        $user_id = $_SESSION['user_id'] ?? null;
+        $username = $_SESSION['username'] ?? $_SESSION['name'] ?? 'Unknown';
+        $user_role = $_SESSION['role'] ?? 'user';
+        
+        if ($user_id) {
+            logLogoutEvent($user_id, $username, $user_role);
+        }
+        
         // Clear all session data (full logout)
         session_destroy();
         header("Location: ../index.php");

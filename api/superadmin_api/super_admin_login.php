@@ -1,0 +1,66 @@
+<?php
+session_start();
+require_once '../../includes/config.php';
+require_once '../../includes/audit_helper.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: ../../superadminlog.php');
+    exit();
+}
+
+$username = $_POST['username'] ?? '';
+$password = $_POST['password'] ?? '';
+
+// Validate input
+if (empty($username) || empty($password)) {
+    $_SESSION['super_admin_error'] = 'Please enter both username and access key.';
+    header('Location: ../../superadminlog.php');
+    exit();
+}
+
+try {
+    // Check for super admin user
+    $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ? AND role = 'super_admin'");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows === 1) {
+        $user = $result->fetch_assoc();
+        
+        // Verify password
+        if (password_verify($password, $user['password'])) {
+            // Log successful login using audit helper
+            logLoginEvent($user['id'], $user['username'], 'super_admin');
+            
+            // Set session variables
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['login_time'] = time();
+            
+            // Update last login
+            $updateStmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+            $updateStmt->bind_param("i", $user['id']);
+            $updateStmt->execute();
+            
+            header('Location: ../../super_admin_dashboard.php');
+            exit();
+        }
+    }
+    
+    // Log failed login attempt using audit helper
+    logFailedLoginEvent($username, 'Invalid super admin credentials');
+    
+    $_SESSION['super_admin_error'] = 'Invalid credentials. Access denied.';
+    header('Location: ../../superadminlog.php');
+    exit();
+    
+} catch (Exception $e) {
+    error_log("Super admin login error: " . $e->getMessage());
+    $_SESSION['super_admin_error'] = 'System error occurred. Please try again.';
+    header('Location: ../../superadminlog.php');
+    exit();
+}
+
+?>
