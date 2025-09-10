@@ -28,7 +28,7 @@ unset($_SESSION['super_admin_error']);
 
         body {
             min-height: 100vh;
-            background: #ffffff;
+            background: #0f0f0f;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -47,22 +47,22 @@ unset($_SESSION['super_admin_error']);
                 90deg,
                 transparent,
                 transparent 98px,
-                #f0f0f0 100px
+                #1a1a1a 100px
             ),
             repeating-linear-gradient(
                 0deg,
                 transparent,
                 transparent 98px,
-                #f0f0f0 100px
+                #1a1a1a 100px
             );
             z-index: 1;
         }
 
         .developer-container {
-            background: #ffffff;
+            background: #1a1a1a;
             padding: 3rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e5e5e5;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333333;
             width: 100%;
             max-width: 450px;
             position: relative;
@@ -78,47 +78,47 @@ unset($_SESSION['super_admin_error']);
         .developer-icon {
             width: 80px;
             height: 80px;
-            background: #000000;
+            background: #ffffff;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 1.5rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
         }
 
         .developer-icon i {
             font-size: 2rem;
-            color: white;
+            color: #000000;
         }
 
         .developer-title {
             font-size: 2rem;
             font-weight: 700;
-            color: #000000;
+            color: #ffffff;
             margin-bottom: 0.5rem;
         }
 
         .developer-subtitle {
-            color: #666666;
+            color: #cccccc;
             font-size: 1rem;
             font-weight: 400;
         }
 
         .error-message {
-            background: #f8f8f8;
-            color: #000000;
+            background: #2d1b1b;
+            color: #ff6b6b;
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #4a2626;
         }
 
         .error-message i {
-            color: #666666;
+            color: #ff6b6b;
         }
 
         .form-group {
@@ -129,25 +129,25 @@ unset($_SESSION['super_admin_error']);
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
-            color: #000000;
+            color: #ffffff;
             font-size: 0.95rem;
         }
 
         .form-group input {
             width: 100%;
             padding: 1rem;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #333333;
             border-radius: 8px;
             font-size: 1rem;
             transition: all 0.3s ease;
-            background: #ffffff;
-            color: #000000;
+            background: #2a2a2a;
+            color: #ffffff;
         }
 
         .form-group input:focus {
             outline: none;
-            border-color: #000000;
-            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+            border-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
         }
 
         .password-group {
@@ -157,23 +157,23 @@ unset($_SESSION['super_admin_error']);
         .password-toggle {
             position: absolute;
             right: 1rem;
-            top: 50%;
+            top: 65%;
             transform: translateY(-50%);
             background: none;
             border: none;
-            color: #666666;
+            color: #cccccc;
             cursor: pointer;
             padding: 0.25rem;
             transition: color 0.3s ease;
         }
 
         .password-toggle:hover {
-            color: #000000;
+            color: #ffffff;
         }
 
         .developer-btn {
-            background: #000000;
-            color: white;
+            background: #ffffff;
+            color: #000000;
             border: none;
             padding: 1rem 2rem;
             border-radius: 8px;
@@ -186,9 +186,9 @@ unset($_SESSION['super_admin_error']);
         }
 
         .developer-btn:hover {
-            background: #333333;
+            background: #f0f0f0;
             transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
         }
 
         .developer-btn:active {
@@ -201,24 +201,24 @@ unset($_SESSION['super_admin_error']);
         }
 
         .back-link a {
-            color: #000000;
+            color: #ffffff;
             text-decoration: none;
             font-weight: 500;
             transition: color 0.3s ease;
         }
 
         .back-link a:hover {
-            color: #333333;
+            color: #cccccc;
         }
 
         .security-notice {
-            background: #f8f8f8;
-            border: 1px solid #e5e5e5;
+            background: #2a2a2a;
+            border: 1px solid #333333;
             border-radius: 8px;
             padding: 1rem;
             margin-top: 1.5rem;
             font-size: 0.85rem;
-            color: #666666;
+            color: #cccccc;
             text-align: center;
         }
     </style>
@@ -226,11 +226,7 @@ unset($_SESSION['super_admin_error']);
 <body>
     <div class="developer-container">
         <div class="developer-header">
-            <div class="developer-icon">
-                <i class="fas fa-code"></i>
-            </div>
-            <h1 class="developer-title">Developer Portal</h1>
-            <p class="developer-subtitle">System Administration & Technical Management</p>
+            <h1 class="developer-title">Super Admin Portal</h1>
         </div>
 
         <?php if (!empty($error)): ?>
@@ -242,7 +238,7 @@ unset($_SESSION['super_admin_error']);
 
         <form id="superAdminForm" method="POST" action="api/superadmin_api/super_admin_login.php">
             <div class="form-group">
-                <label for="username">Developer Username</label>
+                <label for="username">Username</label>
                 <input type="text" id="username" name="username" required placeholder="Enter developer username">
             </div>
 

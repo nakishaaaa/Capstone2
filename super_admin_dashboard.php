@@ -41,9 +41,20 @@ $stats = getSystemStats($conn);
 $maintenanceResult = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'maintenance_mode'");
 $maintenanceMode = $maintenanceResult ? $maintenanceResult->fetch_assoc()['setting_value'] === 'true' : false;
 
-// Get recent notifications
-$notificationsResult = $conn->query("SELECT * FROM developer_notifications WHERE is_read = FALSE ORDER BY created_at DESC LIMIT 5");
-$notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_ASSOC) : [];
+// Get unread notification count (customer support only)
+$unreadCount = 0;
+
+// Count unread support tickets
+$supportTicketsResult = $conn->query("SELECT COUNT(*) as count FROM support_tickets WHERE is_read = FALSE AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+if ($supportTicketsResult) {
+    $unreadCount += $supportTicketsResult->fetch_assoc()['count'];
+}
+
+// Count unread support messages
+$supportMessagesResult = $conn->query("SELECT COUNT(*) as count FROM support_messages WHERE is_read = FALSE AND message_type = 'customer_support' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+if ($supportMessagesResult) {
+    $unreadCount += $supportMessagesResult->fetch_assoc()['count'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -109,8 +120,8 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
                         <a href="#" class="nav-link" data-section="notifications">
                             <i class="fas fa-bell"></i>
                             <span>Notifications</span>
-                            <?php if (count($notifications) > 0): ?>
-                                <span class="badge"><?= count($notifications) ?></span>
+                            <?php if ($unreadCount > 0): ?>
+                                <span class="badge"><?= $unreadCount ?></span>
                             <?php endif; ?>
                         </a>
                     </li>
@@ -157,6 +168,15 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
             <!-- Dashboard Section -->
             <section id="dashboard" class="content-section active">
                 <div class="stats-grid">
+                <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-peso-sign"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>₱<?= number_format($stats['sales_today'], 2) ?></h3>
+                            <p>Sales Today</p>
+                        </div>
+                    </div>
                     <div class="stat-card">
                         <div class="stat-icon">
                             <i class="fas fa-users"></i>
@@ -173,15 +193,6 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
                         <div class="stat-content">
                             <h3><?= number_format($stats['total_admins']) ?></h3>
                             <p>Admin Accounts</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-peso-sign"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3>₱<?= number_format($stats['sales_today'], 2) ?></h3>
-                            <p>Sales Today</p>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -227,19 +238,19 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
                     <div class="dashboard-card">
                         <h3>Quick Actions</h3>
                         <div class="quick-actions">
-                            <button class="action-btn" onclick="createBackup()">
+                            <button class="quick-action-btn" onclick="navigateToSection('backup')">
                                 <i class="fas fa-download"></i>
                                 Create Backup
                             </button>
-                            <button class="action-btn" onclick="clearCache()">
+                            <button class="quick-action-btn" onclick="clearCache()">
                                 <i class="fas fa-broom"></i>
                                 Clear Cache
                             </button>
-                            <button class="action-btn" onclick="viewLogs()">
+                            <button class="quick-action-btn" onclick="viewLogs()">
                                 <i class="fas fa-file-alt"></i>
                                 View Logs
                             </button>
-                            <button class="action-btn" onclick="systemCheck()">
+                            <button class="quick-action-btn" onclick="systemCheck()">
                                 <i class="fas fa-check-circle"></i>
                                 System Check
                             </button>
@@ -250,65 +261,63 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
 
             <!-- Audit Trails Section -->
             <section id="audit-trails" class="content-section">
-                <div class="section-header">
-                    <h2>Audit Trails</h2>
-                    <p>Monitor all user activities and system events</p>
-                </div>
-                <div class="audit-controls">
-                    <div class="control-group">
-                        <label for="auditUser">User:</label>
-                        <input type="text" id="auditUser" placeholder="Search by username...">
-                    </div>
-                    <div class="control-group">
-                        <label for="auditDateRange">Date Range:</label>
-                        <select id="auditDateRange">
-                            <option value="today">Today</option>
-                            <option value="yesterday">Yesterday</option>
-                            <option value="week" selected>This Week</option>
-                            <option value="month">This Month</option>
-                            <option value="all">All Time</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label for="auditAction">Action:</label>
-                        <select id="auditAction">
-                            <option value="all">All Actions</option>
-                            <option value="login">Login</option>
-                            <option value="logout">Logout</option>
-                            <option value="login_failed">Failed Login</option>
-                        </select>
-                    </div>
-                    <button class="btn-primary" onclick="loadAuditTrails()">
-                        <i class="fas fa-search"></i>
-                        Filter
-                    </button>
-                </div>
+                <div class="audit-trails-container">
 
-                <div class="audit-table-container">
-                    <table class="audit-table">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>User</th>
-                                <th>Action</th>
-                                <th>Description</th>
-                                <th>IP Address</th>
-                                <th>User Agent</th>
-                            </tr>
-                        </thead>
-                        <tbody id="auditTableBody">
-                            <tr>
-                                <td colspan="6" class="loading-row">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                    Loading audit logs...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                    
+                    <div class="audit-filters">
+                        <div class="audit-filter-group">
+                            <label class="audit-filter-label" for="auditUser">User:</label>
+                            <input type="text" id="auditUser" class="audit-filter-input" placeholder="Search by username...">
+                        </div>
+                        <div class="audit-filter-group">
+                            <label class="audit-filter-label" for="auditDateRange">Date Range:</label>
+                            <select id="auditDateRange" class="audit-filter-select">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="week" selected>This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="all">All Time</option>
+                            </select>
+                        </div>
+                        <div class="audit-filter-group">
+                            <label class="audit-filter-label" for="auditAction">Action:</label>
+                            <select id="auditAction" class="audit-filter-select">
+                                <option value="all">All Actions</option>
+                                <option value="login">Login</option>
+                                <option value="logout">Logout</option>
+                                <option value="user_create">User Create</option>
+                                <option value="user_update">User Update</option>
+                                <option value="maintenance_toggle">Maintenance Toggle</option>
+                                <option value="system_check">System Check</option>
+                            </select>
+                        </div>
+                        <button class="audit-filter-btn" onclick="loadAuditTrails()">
+                            <i class="fas fa-search"></i>
+                            Filter
+                        </button>
+                    </div>
 
-                <div class="audit-pagination" id="auditPagination">
-                    <!-- Pagination will be loaded here -->
+                    <div class="audit-table-container">
+                        <table class="audit-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Description</th>
+                                    <th>User Agent</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditTableBody">
+                                <tr>
+                                    <td colspan="5" class="loading-row">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        Loading audit logs...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -317,26 +326,36 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
         </main>
     </div>
 
-    <script src="js/super_admin_dashboard.js"></script>
+    <script type="module" src="js/super_admin_dashboard.js"></script>
     <script>
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             updateCurrentTime();
             setInterval(updateCurrentTime, 1000);
             
-            // Auto-load audit trails if on that section
-            if (window.location.hash === '#audit-trails') {
-                setTimeout(() => {
-                    loadAuditTrails();
-                }, 100);
-            }
-            
-            loadRecentActivity();
-            
-            // Setup maintenance mode toggle
-            document.getElementById('maintenanceMode').addEventListener('change', function() {
-                toggleMaintenanceMode(this.checked);
-            });
+            // Wait for module to load before calling functions
+            setTimeout(() => {
+                // Auto-load audit trails if on that section
+                if (window.location.hash === '#audit-trails') {
+                    if (window.loadAuditTrails) {
+                        window.loadAuditTrails();
+                    }
+                }
+                
+                if (window.loadRecentActivity) {
+                    window.loadRecentActivity();
+                }
+                
+                // Setup maintenance mode toggle
+                const maintenanceToggle = document.getElementById('maintenanceMode');
+                if (maintenanceToggle) {
+                    maintenanceToggle.addEventListener('change', function() {
+                        if (window.toggleMaintenanceMode) {
+                            window.toggleMaintenanceMode(this.checked);
+                        }
+                    });
+                }
+            }, 500);
         });
 
         function updateCurrentTime() {
@@ -415,10 +434,27 @@ $notifications = $notificationsResult ? $notificationsResult->fetch_all(MYSQLI_A
         }
 
         // Quick action functions
-        function clearCache() {
+        async function clearCache() {
             if (confirm('Clear system cache?')) {
-                showNotification('Cache cleared successfully', 'success');
-                // Implementation will be added
+                try {
+                    showNotification('Clearing cache...', 'info');
+                    
+                    const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'clear_cache' })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showNotification(data.message, 'success');
+                    } else {
+                        showNotification(data.message || 'Failed to clear cache', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error clearing cache:', error);
+                    showNotification('Error clearing cache', 'error');
+                }
             }
         }
 

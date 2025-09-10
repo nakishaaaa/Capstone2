@@ -63,7 +63,6 @@ export class InventoryModule {
         <td>
           <button class="action-btn restock" 
                   onclick="window.inventoryModule.restockProduct(${item.id})" 
-                  style="background: #28a745; color: white;" 
                   title="Restock Product">
             <i class="fas fa-plus"></i>
           </button>

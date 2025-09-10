@@ -131,7 +131,7 @@ class SalesReportModule {
 
     setDateRangeValues(range, startDateInput, endDateInput) {
         const today = new Date();
-        const endDate = new Date(today);
+        let endDate = new Date(today);
         let startDate = new Date(today);
 
         switch (range) {
@@ -161,6 +161,7 @@ class SalesReportModule {
                 break;
             case 'this_year':
                 startDate = new Date(today.getFullYear(), 0, 1);
+                endDate = new Date(today.getFullYear(), 11, 31);
                 break;
         }
 

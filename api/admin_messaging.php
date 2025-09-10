@@ -79,7 +79,7 @@ function handleGetConversations($pdo) {
         $query = "
             SELECT id, user_name, admin_name, message, is_admin, created_at, is_read
             FROM support_messages 
-            WHERE conversation_id = ? AND id > ?
+            WHERE conversation_id = ? AND id > ? AND message_type = 'customer_support'
             ORDER BY created_at ASC
             LIMIT 50
         ";
@@ -100,7 +100,7 @@ function handleGetConversations($pdo) {
             $stmt = $pdo->prepare("
                 UPDATE support_messages 
                 SET is_read = TRUE 
-                WHERE conversation_id = ? AND is_admin = FALSE AND is_read = FALSE
+                WHERE conversation_id = ? AND is_admin = FALSE AND is_read = FALSE AND message_type = 'customer_support'
             ");
             $stmt->execute([$conversationId]);
         }
@@ -115,7 +115,7 @@ function handleGetConversations($pdo) {
         return;
     }
     
-    // Default: Get conversations list
+    // Default: Get conversations list - only customer support messages
     $query = "
         SELECT 
             conversation_id,
@@ -125,9 +125,10 @@ function handleGetConversations($pdo) {
             COUNT(*) as message_count,
             SUM(CASE WHEN is_admin = FALSE AND is_read = FALSE THEN 1 ELSE 0 END) as unread_count,
             (SELECT message FROM support_messages sm2 
-             WHERE sm2.conversation_id = sm.conversation_id 
+             WHERE sm2.conversation_id = sm.conversation_id AND sm2.message_type = 'customer_support'
              ORDER BY created_at DESC LIMIT 1) as last_message
         FROM support_messages sm
+        WHERE sm.message_type = 'customer_support'
         GROUP BY conversation_id, user_name, user_email
         ORDER BY last_message_time DESC
         LIMIT 50
@@ -189,11 +190,11 @@ function handleSendAdminMessage($pdo) {
     // Get admin information
     $adminName = $_SESSION['admin_name'];
     
-    // Insert admin message
+    // Insert admin message with customer_support type
     $stmt = $pdo->prepare("
         INSERT INTO support_messages 
-        (conversation_id, user_id, user_name, user_email, admin_name, message, is_admin, created_at) 
-        VALUES (?, NULL, '', '', ?, ?, TRUE, NOW())
+        (conversation_id, user_id, user_name, user_email, admin_name, message, message_type, is_admin, created_at) 
+        VALUES (?, NULL, '', '', ?, ?, 'customer_support', TRUE, NOW())
     ");
     
     $stmt->execute([

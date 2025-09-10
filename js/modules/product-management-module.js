@@ -81,7 +81,6 @@ export class ProductManagementModule {
             </button>
             <button class="action-btn delete" 
                     onclick="window.productManagementModule.deleteProduct(${item.id}, '${item.name.replace(/'/g, "\\'")}')" 
-                    style="background: #dc3545; color: white;" 
                     title="Delete Product">
               <i class="fas fa-trash"></i>
             </button>

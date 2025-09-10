@@ -23,20 +23,30 @@ $input = json_decode(file_get_contents('php://input'), true);
 $role = $input['role'] ?? null;
 
 try {
-    if ($role && in_array($role, ['admin', 'user'])) {
-        // Log logout event before clearing session data
+    if ($role && in_array($role, ['admin', 'user', 'cashier'])) {
+        // For admin logout, check if it's actually a cashier logging out
+        $actual_role = $role;
         $user_id = $_SESSION[$role . '_user_id'] ?? null;
         $username = $_SESSION[$role . '_name'] ?? 'Unknown';
         
-        if ($user_id) {
-            logLogoutEvent($user_id, $username, $role);
+        // If admin logout but no admin session, check if it's a cashier
+        if ($role === 'admin' && !$user_id && isset($_SESSION['cashier_user_id'])) {
+            $actual_role = 'cashier';
+            $user_id = $_SESSION['cashier_user_id'];
+            $username = $_SESSION['cashier_name'] ?? 'Unknown';
         }
         
-        // Clear role-specific session variables
-        unset($_SESSION[$role . '_user_id']);
-        unset($_SESSION[$role . '_name']);
-        unset($_SESSION[$role . '_email']);
-        unset($_SESSION[$role . '_role']);
+        if ($user_id) {
+            // Use the actual role from the session for logging
+            $session_role = $_SESSION['role'] ?? $actual_role;
+            logLogoutEvent($user_id, $username, $session_role);
+        }
+        
+        // Clear role-specific session variables for the actual role
+        unset($_SESSION[$actual_role . '_user_id']);
+        unset($_SESSION[$actual_role . '_name']);
+        unset($_SESSION[$actual_role . '_email']);
+        unset($_SESSION[$actual_role . '_role']);
         
         // Check if other role is still logged in
         $otherRole = ($role === 'admin') ? 'user' : 'admin';

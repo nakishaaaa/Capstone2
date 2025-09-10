@@ -41,7 +41,7 @@ if (!isset($_SESSION['admin_name']) || !isset($_SESSION['admin_email']) || !isse
 try {
     // Database connection is already established in database.php as $pdo
     
-    // Ensure support_messages table exists
+    // Ensure support_messages table exists with message_type column
     $createTableSQL = "
         CREATE TABLE IF NOT EXISTS support_messages (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,16 +52,31 @@ try {
             admin_name VARCHAR(255) NULL,
             subject VARCHAR(255) NULL,
             message TEXT NOT NULL,
+            message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support',
             is_admin BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_read BOOLEAN DEFAULT FALSE,
             INDEX idx_conversation_id (conversation_id),
             INDEX idx_created_at (created_at),
-            INDEX idx_is_read (is_read)
+            INDEX idx_is_read (is_read),
+            INDEX idx_message_type (message_type)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
     
     $pdo->exec($createTableSQL);
+    
+    // Check if message_type column exists in existing table
+    $stmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'message_type'");
+    if ($stmt->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE support_messages ADD COLUMN message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support' AFTER message");
+        
+        // Update existing messages to have customer_support type
+        $pdo->exec("UPDATE support_messages SET message_type = 'customer_support' WHERE message_type IS NULL");
+        error_log("Updated existing support messages with customer_support type");
+    } else {
+        // Ensure existing NULL values are set to customer_support
+        $pdo->exec("UPDATE support_messages SET message_type = 'customer_support' WHERE message_type IS NULL");
+    }
     
     $method = $_SERVER['REQUEST_METHOD'];
     
@@ -107,7 +122,7 @@ function handleGetSupportMessages($pdo) {
             return getConversationMessages($pdo, $_GET['conversation_id'] ?? '');
         }
         
-        // Get conversations grouped by conversation_id
+        // Get conversations grouped by conversation_id - only customer support messages
         $query = "
             SELECT 
                 sm.conversation_id,
@@ -115,18 +130,19 @@ function handleGetSupportMessages($pdo) {
                 sm.user_email,
                 MAX(sm.created_at) AS last_updated,
                 (SELECT COALESCE(NULLIF(TRIM(s2.subject), ''), 'General') FROM support_messages s2 
-                 WHERE s2.conversation_id = sm.conversation_id AND s2.is_admin = 0
+                 WHERE s2.conversation_id = sm.conversation_id AND s2.is_admin = 0 AND s2.message_type = 'customer_support'
                  ORDER BY s2.created_at ASC LIMIT 1) AS subject,
                 (SELECT s3.message FROM support_messages s3 
-                 WHERE s3.conversation_id = sm.conversation_id 
+                 WHERE s3.conversation_id = sm.conversation_id AND s3.message_type = 'customer_support'
                  ORDER BY s3.created_at DESC LIMIT 1) AS last_message,
                 (SELECT s4.is_admin FROM support_messages s4 
-                 WHERE s4.conversation_id = sm.conversation_id 
+                 WHERE s4.conversation_id = sm.conversation_id AND s4.message_type = 'customer_support'
                  ORDER BY s4.created_at DESC LIMIT 1) AS last_message_is_admin,
                 COUNT(*) AS message_count,
                 SUM(CASE WHEN sm.is_admin = 0 AND sm.is_read = 0 THEN 1 ELSE 0 END) AS unread_user_messages,
                 SUM(CASE WHEN sm.is_admin = 1 THEN 1 ELSE 0 END) AS admin_replies
             FROM support_messages sm
+            WHERE sm.message_type = 'customer_support'
             GROUP BY sm.conversation_id, sm.user_name, sm.user_email
             ORDER BY last_updated DESC
             LIMIT 50
@@ -153,12 +169,12 @@ function handleGetSupportMessages($pdo) {
             ];
         }, $conversations);
         
-        // Stats
-        $totalStmt = $pdo->prepare("SELECT COUNT(DISTINCT conversation_id) as total FROM support_messages");
+        // Stats - only customer support messages
+        $totalStmt = $pdo->prepare("SELECT COUNT(DISTINCT conversation_id) as total FROM support_messages WHERE message_type = 'customer_support'");
         $totalStmt->execute();
         $total = $totalStmt->fetch(PDO::FETCH_ASSOC)['total'];
         
-        $unreadStmt = $pdo->prepare("SELECT COUNT(DISTINCT conversation_id) as unread FROM support_messages WHERE is_admin = 0 AND is_read = 0");
+        $unreadStmt = $pdo->prepare("SELECT COUNT(DISTINCT conversation_id) as unread FROM support_messages WHERE is_admin = 0 AND is_read = 0 AND message_type = 'customer_support'");
         $unreadStmt->execute();
         $unread = $unreadStmt->fetch(PDO::FETCH_ASSOC)['unread'];
         
@@ -185,18 +201,37 @@ function getConversationMessages($pdo, $conversationId) {
         throw new Exception('Conversation ID is required');
     }
     
+    // Debug: Log the conversation ID being requested
+    error_log("getConversationMessages called with conversation_id: " . $conversationId);
+    
+    // First check if conversation exists at all
+    $checkQuery = "SELECT COUNT(*) as count FROM support_messages WHERE conversation_id = ?";
+    $checkStmt = $pdo->prepare($checkQuery);
+    $checkStmt->execute([$conversationId]);
+    $totalCount = $checkStmt->fetch(PDO::FETCH_ASSOC)['count'];
+    error_log("Total messages in conversation: " . $totalCount);
+    
+    // Check with message_type filter
+    $checkTypeQuery = "SELECT COUNT(*) as count FROM support_messages WHERE conversation_id = ? AND message_type = 'customer_support'";
+    $checkTypeStmt = $pdo->prepare($checkTypeQuery);
+    $checkTypeStmt->execute([$conversationId]);
+    $typeCount = $checkTypeStmt->fetch(PDO::FETCH_ASSOC)['count'];
+    error_log("Customer support messages in conversation: " . $typeCount);
+    
     $query = "
         SELECT 
             id, conversation_id, user_name, user_email, admin_name, 
             subject, message, is_admin, created_at, is_read
         FROM support_messages 
-        WHERE conversation_id = ? 
+        WHERE conversation_id = ? AND message_type = 'customer_support'
         ORDER BY created_at ASC
     ";
     
     $stmt = $pdo->prepare($query);
     $stmt->execute([$conversationId]);
     $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    error_log("Retrieved " . count($messages) . " messages for conversation " . $conversationId);
     
     // Format messages
     $formattedMessages = array_map(function($msg) {
@@ -296,16 +331,16 @@ function handleReplyToMessage($pdo, $input) {
         throw new Exception('Original message not found');
     }
     
-    // Insert admin reply as a new message
+    // Insert admin reply as a new message with customer_support type
     // Get the original subject from the conversation
-    $subjectStmt = $pdo->prepare("SELECT subject FROM support_messages WHERE conversation_id = ? AND subject IS NOT NULL AND TRIM(subject) != '' ORDER BY created_at ASC LIMIT 1");
+    $subjectStmt = $pdo->prepare("SELECT subject FROM support_messages WHERE conversation_id = ? AND subject IS NOT NULL AND TRIM(subject) != '' AND message_type = 'customer_support' ORDER BY created_at ASC LIMIT 1");
     $subjectStmt->execute([$originalMessage['conversation_id']]);
     $originalSubject = $subjectStmt->fetchColumn();
     
     $stmt = $pdo->prepare("
         INSERT INTO support_messages 
-        (conversation_id, user_name, user_email, admin_name, subject, message, is_admin, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, TRUE, NOW())
+        (conversation_id, user_name, user_email, admin_name, subject, message, message_type, is_admin, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, 'customer_support', TRUE, NOW())
     ");
     
     $stmt->execute([
@@ -359,15 +394,15 @@ function handleReplyToConversation($pdo, $input) {
     }
     
     // Get the original subject from the conversation
-    $subjectStmt = $pdo->prepare("SELECT subject FROM support_messages WHERE conversation_id = ? AND subject IS NOT NULL AND TRIM(subject) != '' ORDER BY created_at ASC LIMIT 1");
+    $subjectStmt = $pdo->prepare("SELECT subject FROM support_messages WHERE conversation_id = ? AND subject IS NOT NULL AND TRIM(subject) != '' AND message_type = 'customer_support' ORDER BY created_at ASC LIMIT 1");
     $subjectStmt->execute([$conversationId]);
     $originalSubject = $subjectStmt->fetchColumn();
     
-    // Insert admin reply
+    // Insert admin reply with customer_support type
     $stmt = $pdo->prepare("
         INSERT INTO support_messages 
-        (conversation_id, user_name, user_email, admin_name, subject, message, is_admin, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, TRUE, NOW())
+        (conversation_id, user_name, user_email, admin_name, subject, message, message_type, is_admin, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, 'customer_support', TRUE, NOW())
     ");
     
     $stmt->execute([
@@ -421,7 +456,7 @@ function handleMarkConversationAsRead($pdo, $input) {
     $stmt = $pdo->prepare("
         UPDATE support_messages 
         SET is_read = TRUE 
-        WHERE conversation_id = ? AND is_admin = FALSE AND is_read = FALSE
+        WHERE conversation_id = ? AND is_admin = FALSE AND is_read = FALSE AND message_type = 'customer_support'
     ");
     
     $stmt->execute([$conversationId]);

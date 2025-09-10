@@ -41,12 +41,14 @@ try {
                 admin_name VARCHAR(255) NULL,
                 subject VARCHAR(255) NULL,
                 message TEXT NOT NULL,
+                message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support',
                 is_admin BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_read BOOLEAN DEFAULT FALSE,
                 INDEX idx_conversation_id (conversation_id),
                 INDEX idx_created_at (created_at),
-                INDEX idx_is_read (is_read)
+                INDEX idx_is_read (is_read),
+                INDEX idx_message_type (message_type)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ";
         $pdo->exec($createTableSQL);
@@ -55,6 +57,12 @@ try {
         $stmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'subject'");
         if ($stmt->rowCount() == 0) {
             $pdo->exec("ALTER TABLE support_messages ADD COLUMN subject VARCHAR(255) NULL AFTER admin_name");
+        }
+        
+        // Check if message_type column exists
+        $stmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'message_type'");
+        if ($stmt->rowCount() == 0) {
+            $pdo->exec("ALTER TABLE support_messages ADD COLUMN message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support' AFTER message");
         }
     }
     
@@ -104,7 +112,7 @@ function handleGetMessages($pdo) {
     $query = "
         SELECT id, user_name, admin_name, message, is_admin, created_at, is_read
         FROM support_messages 
-        WHERE conversation_id = ? AND id > ?
+        WHERE conversation_id = ? AND id > ? AND message_type = 'customer_support'
         ORDER BY created_at ASC
         LIMIT 50
     ";
@@ -125,7 +133,7 @@ function handleGetMessages($pdo) {
         $stmt = $pdo->prepare("
             UPDATE support_messages 
             SET is_read = TRUE 
-            WHERE conversation_id = ? AND is_admin = TRUE AND is_read = FALSE
+            WHERE conversation_id = ? AND is_admin = TRUE AND is_read = FALSE AND message_type = 'customer_support'
         ");
         $stmt->execute([$conversationId]);
     }
@@ -188,11 +196,11 @@ function handleSendMessage($pdo) {
         }
     }
     
-    // Insert message
+    // Insert message with customer_support type
     $stmt = $pdo->prepare("
         INSERT INTO support_messages 
-        (conversation_id, user_id, user_name, user_email, subject, message, is_admin, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, FALSE, NOW())
+        (conversation_id, user_id, user_name, user_email, subject, message, message_type, is_admin, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, 'customer_support', FALSE, NOW())
     ");
     
     $stmt->execute([

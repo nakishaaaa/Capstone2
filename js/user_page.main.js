@@ -10,6 +10,7 @@ import { AIPhotoEditor } from './modules/ai-photo-editor-module.js';
 import { AIDropdownManager } from './modules/ai-dropdown-module.js';
 import SupportMessaging from './modules/support-module.js';
 import { DevTicketManager } from './modules/dev-ticket-module.js';
+import UserSupportTicketsModule from './modules/user-support-tickets-module.js';
 
 class UserPageApp {
     constructor() {
@@ -21,6 +22,7 @@ class UserPageApp {
         this.aiDropdownManager = null;
         this.supportMessaging = null;
         this.devTicketManager = null;
+        this.userSupportTickets = null;
         this.apiClient = new ApiClient();
         
         this.init();
@@ -56,6 +58,8 @@ class UserPageApp {
         // Support functionality
         this.supportMessaging = new SupportMessaging();
         this.devTicketManager = new DevTicketManager();
+        this.userSupportTickets = new UserSupportTicketsModule();
+        this.userSupportTickets.init();
     }
     
     exposeGlobalInstances() {

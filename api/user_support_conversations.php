@@ -48,22 +48,22 @@ try {
         exit();
     }
 
-    // Fetch conversations for this user
+    // Fetch conversations for this user - only customer support messages
     // We group by conversation_id and return last message, last updated time, subject (last non-null), and message count
     $query = "
         SELECT 
             sm.conversation_id,
             MAX(sm.created_at) AS last_updated,
             (SELECT s2.subject FROM support_messages s2 
-             WHERE s2.conversation_id = sm.conversation_id AND s2.subject IS NOT NULL 
+             WHERE s2.conversation_id = sm.conversation_id AND s2.subject IS NOT NULL AND s2.message_type = 'customer_support'
              ORDER BY s2.created_at DESC LIMIT 1) AS subject,
             (SELECT s3.message FROM support_messages s3 
-             WHERE s3.conversation_id = sm.conversation_id 
+             WHERE s3.conversation_id = sm.conversation_id AND s3.message_type = 'customer_support'
              ORDER BY s3.created_at DESC LIMIT 1) AS last_message,
             COUNT(*) AS message_count,
             SUM(CASE WHEN is_admin = 1 AND is_read = 0 THEN 1 ELSE 0 END) AS unread_admin_messages
         FROM support_messages sm
-        WHERE (sm.user_id = :uid OR sm.user_email = :uemail OR sm.user_name = :uname)
+        WHERE (sm.user_id = :uid OR sm.user_email = :uemail OR sm.user_name = :uname) AND sm.message_type = 'customer_support'
         GROUP BY sm.conversation_id
         ORDER BY last_updated DESC
         LIMIT 50

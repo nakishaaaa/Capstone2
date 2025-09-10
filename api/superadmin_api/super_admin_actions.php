@@ -3,8 +3,9 @@ session_start();
 require_once '../../includes/config.php';
 require_once '../../includes/audit_helper.php';
 
-// Disable error display to prevent HTML in JSON responses
-ini_set('display_errors', 0);
+// Enable error logging and display for debugging
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
 error_reporting(E_ALL);
 
 // Check if user is logged in as super admin
@@ -13,6 +14,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit();
 }
+
+// Debug logging
+error_log("Super admin API called with action: " . ($action ?? 'none'));
 
 header('Content-Type: application/json');
 
@@ -103,8 +107,9 @@ try {
         case 'get_users':
             $search = $_GET['search'] ?? '';
             $role = $_GET['role'] ?? '';
+            $status = $_GET['status'] ?? '';
             
-            $query = "SELECT id, username, email, role, status, last_login, created_at FROM users WHERE 1=1";
+            $query = "SELECT id, username, email, role, status, last_login, created_at FROM users WHERE role != 'super_admin'";
             $params = [];
             $types = '';
             
@@ -116,9 +121,15 @@ try {
                 $types .= 'ss';
             }
             
-            if ($role) {
+            if ($role && $role !== 'all') {
                 $query .= " AND role = ?";
                 $params[] = $role;
+                $types .= 's';
+            }
+            
+            if ($status && $status !== 'all') {
+                $query .= " AND status = ?";
+                $params[] = $status;
                 $types .= 's';
             }
             
@@ -164,7 +175,8 @@ try {
             
             // Build query
             $query = "
-                SELECT al.*, u.username 
+                SELECT al.id, al.user_id, al.action, al.description, al.ip_address, al.user_agent, 
+                       al.created_at as timestamp, u.username, u.email as user_email
                 FROM audit_logs al 
                 LEFT JOIN users u ON al.user_id = u.id 
                 WHERE $dateCondition
@@ -370,34 +382,101 @@ try {
 
         case 'get_notifications':
             $filter = $_GET['filter'] ?? 'all';
+            $notifications = [];
             
-            $query = "SELECT * FROM developer_notifications WHERE 1=1";
-            $params = [];
-            $types = '';
-            
-            if ($filter !== 'all') {
-                $query .= " AND type = ?";
-                $params[] = $filter;
-                $types .= 's';
+            // Get customer support ticket notifications (last 7 days)
+            if ($filter === 'all' || $filter === 'customer_support') {
+                // Add is_read column to support_tickets table if it doesn't exist
+                $conn->query("ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
+                
+                $ticketQuery = "
+                    SELECT 
+                        id,
+                        CONCAT('New support ticket: ', subject) as title,
+                        CONCAT('From: ', username, ' - ', LEFT(message, 100), '...') as message,
+                        'info' as type,
+                        COALESCE(is_read, FALSE) as is_read,
+                        created_at,
+                        'customer_support' as notification_source,
+                        'ticket' as support_type,
+                        id as ticket_id
+                    FROM support_tickets 
+                    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    ORDER BY created_at DESC 
+                    LIMIT 25
+                ";
+                
+                $stmt = $conn->prepare($ticketQuery);
+                $stmt->execute();
+                $ticketNotifications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                $notifications = array_merge($notifications, $ticketNotifications);
             }
             
-            $query .= " ORDER BY created_at DESC LIMIT 50";
-            
-            $stmt = $conn->prepare($query);
-            if ($params) {
-                $stmt->bind_param($types, ...$params);
+            // Get customer support message notifications (last 7 days)
+            if ($filter === 'all' || $filter === 'customer_support') {
+                // Check if support_messages table exists
+                $tableCheck = $conn->query("SHOW TABLES LIKE 'support_messages'");
+                if ($tableCheck->num_rows > 0) {
+                    // Add is_read column to support_messages table if it doesn't exist
+                    $conn->query("ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
+                    
+                    $messageQuery = "
+                        SELECT 
+                            id,
+                            CONCAT('New support message: ', COALESCE(subject, 'No subject')) as title,
+                            CONCAT('From: ', user_name, ' - ', LEFT(message, 100), '...') as message,
+                            'info' as type,
+                            COALESCE(is_read, FALSE) as is_read,
+                            created_at,
+                            'customer_support' as notification_source,
+                            'message' as support_type,
+                            conversation_id
+                        FROM support_messages 
+                        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                        AND message_type = 'customer_support'
+                        AND is_admin = FALSE
+                        ORDER BY created_at DESC 
+                        LIMIT 25
+                    ";
+                    
+                    $stmt = $conn->prepare($messageQuery);
+                    $stmt->execute();
+                    $messageNotifications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                    $notifications = array_merge($notifications, $messageNotifications);
+                }
             }
-            $stmt->execute();
-            $notifications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             
-            echo json_encode(['success' => true, 'notifications' => $notifications]);
+            // Sort all notifications by created_at DESC
+            usort($notifications, function($a, $b) {
+                return strtotime($b['created_at']) - strtotime($a['created_at']);
+            });
+            
+            // Limit to 50 total notifications
+            $notifications = array_slice($notifications, 0, 50);
+            
+            // Debug logging
+            error_log("Total notifications found: " . count($notifications));
+            
+            echo json_encode(['success' => true, 'notifications' => $notifications, 'count' => count($notifications)]);
             break;
 
         case 'mark_notification_read':
             $data = json_decode(file_get_contents('php://input'), true);
             $notificationId = $data['id'];
+            $notificationSource = $data['source'] ?? 'developer';
             
-            $stmt = $conn->prepare("UPDATE developer_notifications SET is_read = TRUE WHERE id = ?");
+            if ($notificationSource === 'customer_support') {
+                // Check if it's a ticket or message and update accordingly
+                $supportType = $data['support_type'] ?? 'ticket';
+                if ($supportType === 'ticket') {
+                    $stmt = $conn->prepare("UPDATE support_tickets SET is_read = TRUE WHERE id = ?");
+                } else {
+                    $stmt = $conn->prepare("UPDATE support_messages SET is_read = TRUE WHERE id = ?");
+                }
+            } else {
+                $stmt = $conn->prepare("UPDATE developer_notifications SET is_read = TRUE WHERE id = ?");
+            }
+            
             $stmt->bind_param("i", $notificationId);
             $stmt->execute();
             
@@ -407,8 +486,20 @@ try {
         case 'delete_notification':
             $data = json_decode(file_get_contents('php://input'), true);
             $notificationId = $data['id'];
+            $notificationSource = $data['source'] ?? 'developer';
             
-            $stmt = $conn->prepare("DELETE FROM developer_notifications WHERE id = ?");
+            if ($notificationSource === 'customer_support') {
+                // Check if it's a ticket or message and delete accordingly
+                $supportType = $data['support_type'] ?? 'ticket';
+                if ($supportType === 'ticket') {
+                    $stmt = $conn->prepare("DELETE FROM support_tickets WHERE id = ?");
+                } else {
+                    $stmt = $conn->prepare("DELETE FROM support_messages WHERE id = ?");
+                }
+            } else {
+                $stmt = $conn->prepare("DELETE FROM developer_notifications WHERE id = ?");
+            }
+            
             $stmt->bind_param("i", $notificationId);
             $stmt->execute();
             
@@ -428,6 +519,20 @@ try {
             $backupType = $data['type'] ?? 'manual';
             $options = $data['options'] ?? ['database' => true, 'files' => true];
             
+            // Create backup_logs table if it doesn't exist
+            $conn->query("CREATE TABLE IF NOT EXISTS backup_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                backup_type VARCHAR(50) NOT NULL DEFAULT 'manual',
+                file_name VARCHAR(255) NOT NULL,
+                file_size BIGINT DEFAULT NULL,
+                status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+                error_message TEXT DEFAULT NULL,
+                created_by INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP NULL DEFAULT NULL,
+                INDEX idx_created_at (created_at)
+            )");
+            
             // Create backup entry
             $fileName = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
             $stmt = $conn->prepare("INSERT INTO backup_logs (backup_type, file_name, status, created_by, created_at) VALUES (?, ?, 'pending', ?, NOW())");
@@ -435,36 +540,167 @@ try {
             $stmt->execute();
             $backupId = $conn->insert_id;
             
-            // Start backup process (this would typically be done in background)
-            $backupPath = '../backups/' . $fileName;
+            // Start backup process
+            $backupPath = '../../api/backups/' . $fileName;
             
             // Create backups directory if it doesn't exist
-            if (!is_dir('../backups/')) {
-                mkdir('../backups/', 0755, true);
+            if (!is_dir('../../api/backups/')) {
+                mkdir('../../api/backups/', 0755, true);
             }
             
-            // Simple database backup
-            $command = "mysqldump --user={$db_username} --password={$db_password} --host={$db_host} {$db_name} > {$backupPath}";
-            $output = [];
-            $returnVar = 0;
-            exec($command, $output, $returnVar);
-            
-            if ($returnVar === 0 && file_exists($backupPath)) {
-                $fileSize = filesize($backupPath);
-                $stmt = $conn->prepare("UPDATE backup_logs SET status = 'completed', file_size = ?, completed_at = NOW() WHERE id = ?");
-                $stmt->bind_param("ii", $fileSize, $backupId);
-                $stmt->execute();
+            // PHP-based database backup (more reliable than mysqldump)
+            try {
+                $backupContent = "-- Database Backup Created: " . date('Y-m-d H:i:s') . "\n";
+                $backupContent .= "-- Database: users_db\n\n";
                 
-                logAuditEvent($_SESSION['user_id'], 'backup_created', "Manual backup created: $fileName");
+                // Get all tables
+                $tables = [];
+                $result = $conn->query("SHOW TABLES");
+                while ($row = $result->fetch_array()) {
+                    $tables[] = $row[0];
+                }
                 
-                echo json_encode(['success' => true, 'message' => 'Backup created successfully', 'file' => $fileName]);
-            } else {
+                // Backup each table
+                foreach ($tables as $table) {
+                    $backupContent .= "\n-- Table structure for table `$table`\n";
+                    $backupContent .= "DROP TABLE IF EXISTS `$table`;\n";
+                    
+                    // Get table structure
+                    $result = $conn->query("SHOW CREATE TABLE `$table`");
+                    $row = $result->fetch_array();
+                    $backupContent .= $row[1] . ";\n\n";
+                    
+                    // Get table data
+                    $backupContent .= "-- Dumping data for table `$table`\n";
+                    $result = $conn->query("SELECT * FROM `$table`");
+                    
+                    if ($result->num_rows > 0) {
+                        while ($row = $result->fetch_assoc()) {
+                            $backupContent .= "INSERT INTO `$table` VALUES (";
+                            $values = [];
+                            foreach ($row as $value) {
+                                if ($value === null) {
+                                    $values[] = 'NULL';
+                                } else {
+                                    $values[] = "'" . $conn->real_escape_string($value) . "'";
+                                }
+                            }
+                            $backupContent .= implode(', ', $values) . ");\n";
+                        }
+                    }
+                    $backupContent .= "\n";
+                }
+                
+                // Write backup to file
+                if (file_put_contents($backupPath, $backupContent)) {
+                    $fileSize = filesize($backupPath);
+                    $stmt = $conn->prepare("UPDATE backup_logs SET status = 'completed', file_size = ?, completed_at = NOW() WHERE id = ?");
+                    $stmt->bind_param("ii", $fileSize, $backupId);
+                    $stmt->execute();
+                    
+                    logAuditEvent($_SESSION['user_id'], 'backup_created', "Manual backup created: $fileName");
+                    
+                    echo json_encode(['success' => true, 'message' => 'Backup created successfully', 'file' => $fileName]);
+                } else {
+                    throw new Exception('Failed to write backup file');
+                }
+                
+            } catch (Exception $e) {
+                $errorMsg = 'Backup failed: ' . $e->getMessage();
                 $stmt = $conn->prepare("UPDATE backup_logs SET status = 'failed', error_message = ? WHERE id = ?");
-                $errorMsg = 'Backup command failed';
                 $stmt->bind_param("si", $errorMsg, $backupId);
                 $stmt->execute();
                 
-                echo json_encode(['success' => false, 'message' => 'Backup failed']);
+                echo json_encode(['success' => false, 'message' => $errorMsg]);
+            }
+            break;
+
+        case 'download_backup':
+            $backupId = $_GET['backup_id'] ?? '';
+            
+            if (empty($backupId)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Backup ID is required']);
+                break;
+            }
+            
+            // Get backup file info
+            $stmt = $conn->prepare("SELECT file_name, file_size, status FROM backup_logs WHERE id = ?");
+            $stmt->bind_param("i", $backupId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $backup = $result->fetch_assoc();
+            
+            if (!$backup) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Backup not found']);
+                break;
+            }
+            
+            if ($backup['status'] !== 'completed') {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Backup is not completed']);
+                break;
+            }
+            
+            $filePath = '../../api/backups/' . $backup['file_name'];
+            
+            if (!file_exists($filePath)) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Backup file not found']);
+                break;
+            }
+            
+            // Set headers for file download
+            header('Content-Type: application/octet-stream');
+            header('Content-Disposition: attachment; filename="' . $backup['file_name'] . '"');
+            header('Content-Length: ' . filesize($filePath));
+            header('Cache-Control: no-cache, must-revalidate');
+            header('Pragma: no-cache');
+            
+            // Output file content
+            readfile($filePath);
+            
+            // Log the download
+            logAuditEvent($_SESSION['user_id'], 'backup_downloaded', "Backup downloaded: " . $backup['file_name']);
+            exit();
+
+        case 'delete_backup':
+            $data = json_decode(file_get_contents('php://input'), true);
+            $backupId = $data['backup_id'] ?? '';
+            
+            if (empty($backupId)) {
+                echo json_encode(['success' => false, 'message' => 'Backup ID is required']);
+                break;
+            }
+            
+            // Get backup file info
+            $stmt = $conn->prepare("SELECT file_name FROM backup_logs WHERE id = ?");
+            $stmt->bind_param("i", $backupId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $backup = $result->fetch_assoc();
+            
+            if (!$backup) {
+                echo json_encode(['success' => false, 'message' => 'Backup not found']);
+                break;
+            }
+            
+            // Delete file if exists
+            $filePath = '../../api/backups/' . $backup['file_name'];
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            
+            // Delete database record
+            $stmt = $conn->prepare("DELETE FROM backup_logs WHERE id = ?");
+            $stmt->bind_param("i", $backupId);
+            
+            if ($stmt->execute()) {
+                logAuditEvent($_SESSION['user_id'], 'backup_deleted', "Backup deleted: " . $backup['file_name']);
+                echo json_encode(['success' => true, 'message' => 'Backup deleted successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete backup']);
             }
             break;
 
@@ -563,11 +799,27 @@ try {
             break;
 
         case 'mark_all_notifications_read':
+            $totalAffected = 0;
+            
+            // Mark all developer notifications as read
             $stmt = $conn->prepare("UPDATE developer_notifications SET is_read = TRUE WHERE is_read = FALSE");
             $stmt->execute();
-            $affectedRows = $stmt->affected_rows;
+            $totalAffected += $stmt->affected_rows;
             
-            echo json_encode(['success' => true, 'message' => "{$affectedRows} notifications marked as read"]);
+            // Mark all support tickets as read (last 7 days)
+            $stmt = $conn->prepare("UPDATE support_tickets SET is_read = TRUE WHERE is_read = FALSE AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+            $stmt->execute();
+            $totalAffected += $stmt->affected_rows;
+            
+            // Mark all support messages as read (last 7 days)
+            $tableCheck = $conn->query("SHOW TABLES LIKE 'support_messages'");
+            if ($tableCheck->num_rows > 0) {
+                $stmt = $conn->prepare("UPDATE support_messages SET is_read = TRUE WHERE is_read = FALSE AND message_type = 'customer' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+                $stmt->execute();
+                $totalAffected += $stmt->affected_rows;
+            }
+            
+            echo json_encode(['success' => true, 'message' => "{$totalAffected} notifications marked as read"]);
             break;
 
         case 'get_analytics_data':
@@ -655,6 +907,7 @@ try {
             break;
 
         case 'reply_to_ticket':
+            $data = json_decode(file_get_contents('php://input'), true);
             $ticket_id = $data['ticket_id'] ?? null;
             $reply_message = $data['reply_message'] ?? '';
             $new_status = $data['status'] ?? null;
@@ -675,29 +928,28 @@ try {
                 break;
             }
             
-            // Insert reply into support_replies table (create if doesn't exist)
-            $conn->query("CREATE TABLE IF NOT EXISTS support_replies (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                ticket_id INT NOT NULL,
-                admin_id INT NOT NULL,
-                reply_message TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (ticket_id) REFERENCES support_tickets(id)
-            )");
+            // Update ticket with admin response
+            $admin_id = $_SESSION['user_id'] ?? 1;
+            $admin_username = $_SESSION['username'] ?? 'Admin';
             
-            // Insert the reply
-            $stmt = $conn->prepare("INSERT INTO support_replies (ticket_id, admin_id, reply_message) VALUES (?, ?, ?)");
-            $admin_id = $_SESSION['user_id'] ?? 1; // Use session user ID or default to 1
-            $stmt->bind_param('iis', $ticket_id, $admin_id, $reply_message);
+            $updateQuery = "UPDATE support_tickets SET admin_response = ?, admin_id = ?, admin_username = ?, updated_at = CURRENT_TIMESTAMP";
+            $params = [$reply_message, $admin_id, $admin_username];
+            $types = 'sis';
+            
+            if ($new_status) {
+                $updateQuery .= ", status = ?";
+                $params[] = $new_status;
+                $types .= 's';
+            }
+            
+            $updateQuery .= " WHERE id = ?";
+            $params[] = $ticket_id;
+            $types .= 'i';
+            
+            $stmt = $conn->prepare($updateQuery);
+            $stmt->bind_param($types, ...$params);
             
             if ($stmt->execute()) {
-                // Update ticket status if provided
-                if ($new_status) {
-                    $updateStmt = $conn->prepare("UPDATE support_tickets SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                    $updateStmt->bind_param('si', $new_status, $ticket_id);
-                    $updateStmt->execute();
-                }
-                
                 // Log the action
                 $description = "Replied to support ticket #$ticket_id";
                 $stmt = $conn->prepare("INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent) VALUES (?, 'ticket_reply', ?, ?, ?)");
@@ -713,15 +965,17 @@ try {
             break;
 
         case 'get_support_tickets':
-            $search = $_GET['search'] ?? '';
-            $status = $_GET['status'] ?? '';
-            $priority = $_GET['priority'] ?? '';
+            // Get filters from both GET and POST (JSON body)
+            $input = json_decode(file_get_contents('php://input'), true);
+            $search = $input['search'] ?? $_GET['search'] ?? '';
+            $status = $input['status'] ?? $_GET['status'] ?? '';
+            $priority = $input['priority'] ?? $_GET['priority'] ?? '';
             
             $query = "SELECT id, user_id, username, subject, message, priority, status, attachment_path, created_at FROM support_tickets WHERE 1=1";
             $params = [];
             $types = '';
             
-            if ($search) {
+            if ($search && trim($search) !== '') {
                 $query .= " AND (username LIKE ? OR subject LIKE ? OR message LIKE ?)";
                 $searchParam = "%$search%";
                 $params[] = $searchParam;
@@ -730,13 +984,13 @@ try {
                 $types .= 'sss';
             }
             
-            if ($status && $status !== 'all') {
+            if ($status && $status !== '' && $status !== 'all') {
                 $query .= " AND status = ?";
                 $params[] = $status;
                 $types .= 's';
             }
             
-            if ($priority && $priority !== 'all') {
+            if ($priority && $priority !== '' && $priority !== 'all') {
                 $query .= " AND priority = ?";
                 $params[] = $priority;
                 $types .= 's';
@@ -763,33 +1017,6 @@ try {
             $result = $conn->query("SELECT COUNT(*) as total FROM support_tickets WHERE status = 'resolved' AND DATE(created_at) = CURDATE()");
             $stats['resolved_today'] = $result->fetch_assoc()['total'];
             
-            echo json_encode(['success' => true, 'tickets' => $tickets, 'stats' => $stats]);
-            break;
-
-        case 'get_dashboard_stats':
-            // Get comprehensive dashboard statistics
-            $stats = [];
-            
-            // User statistics
-            $result = $conn->query("SELECT COUNT(*) as total FROM users");
-            $stats['total_users'] = $result->fetch_assoc()['total'];
-            
-            $result = $conn->query("SELECT COUNT(*) as total FROM users WHERE role IN ('admin', 'super_admin')");
-            $stats['total_admins'] = $result->fetch_assoc()['total'];
-            
-            $result = $conn->query("SELECT COUNT(*) as total FROM users WHERE last_login >= DATE_SUB(NOW(), INTERVAL 24 HOUR)");
-            $stats['active_users_24h'] = $result->fetch_assoc()['total'];
-            
-            // Sales statistics (if sales table exists)
-            $result = $conn->query("SHOW TABLES LIKE 'sales'");
-            if ($result->num_rows > 0) {
-                $result = $conn->query("SELECT COALESCE(SUM(total_amount), 0) as total FROM sales WHERE DATE(created_at) = CURDATE()");
-                $stats['sales_today'] = $result->fetch_assoc()['total'];
-                
-                $result = $conn->query("SELECT COALESCE(SUM(total_amount), 0) as total FROM sales WHERE WEEK(created_at) = WEEK(NOW())");
-                $stats['sales_week'] = $result->fetch_assoc()['total'];
-            }
-            
             // Request statistics (if user_requests table exists)
             $result = $conn->query("SHOW TABLES LIKE 'user_requests'");
             if ($result->num_rows > 0) {
@@ -801,20 +1028,207 @@ try {
             $result = $conn->query("SELECT COUNT(*) as total FROM audit_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)");
             $stats['recent_activities'] = $result->fetch_assoc()['total'];
             
-            $result = $conn->query("SELECT COUNT(*) as total FROM developer_notifications WHERE is_read = FALSE");
-            $stats['unread_notifications'] = $result->fetch_assoc()['total'];
+            // Skip developer notifications since table was deleted
+            $stats['unread_notifications'] = 0;
+            
+            echo json_encode(['success' => true, 'tickets' => $tickets, 'stats' => $stats]);
+            break;
+
+        case 'get_ticket':
+            $ticketId = $_GET['ticket_id'] ?? 0;
+            
+            if (!$ticketId) {
+                echo json_encode(['success' => false, 'message' => 'Ticket ID is required']);
+                break;
+            }
+            
+            $stmt = $conn->prepare("
+                SELECT st.id, st.user_id, st.username, st.subject, st.message, st.priority, st.status, 
+                       st.attachment_path, st.created_at, u.email as customer_email
+                FROM support_tickets st 
+                LEFT JOIN users u ON st.user_id = u.id 
+                WHERE st.id = ?
+            ");
+            $stmt->bind_param("i", $ticketId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $ticket = $result->fetch_assoc();
+            
+            if ($ticket) {
+                // Format the ticket data for display
+                $ticket['customer_name'] = $ticket['username'];
+                echo json_encode(['success' => true, 'ticket' => $ticket]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Ticket not found']);
+            }
+            break;
+
+        case 'test_connection':
+            echo json_encode(['success' => true, 'message' => 'API connection working', 'timestamp' => date('Y-m-d H:i:s')]);
+            break;
+            
+        case 'save_user':
+            error_log("Starting save_user action");
+            
+            // Check database connection first
+            if (!$conn) {
+                error_log("Database connection failed");
+                echo json_encode(['success' => false, 'message' => 'Database connection failed']);
+                break;
+            }
+            
+            try {
+                $rawInput = file_get_contents('php://input');
+                error_log("Raw input: " . $rawInput);
+                
+                if (empty($rawInput)) {
+                    error_log("Empty input received");
+                    echo json_encode(['success' => false, 'message' => 'No data received']);
+                    break;
+                }
+                
+                $data = json_decode($rawInput, true);
+                error_log("Decoded data: " . print_r($data, true));
+                
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    error_log("JSON decode error: " . json_last_error_msg());
+                    echo json_encode(['success' => false, 'message' => 'Invalid JSON: ' . json_last_error_msg()]);
+                    break;
+                }
+                
+                if (!$data) {
+                    error_log("Invalid JSON data received");
+                    echo json_encode(['success' => false, 'message' => 'Invalid JSON data']);
+                    break;
+                }
+                
+                $userId = $data['user_id'] ?? null;
+                $username = $data['username'] ?? '';
+                $firstname = $data['firstname'] ?? '';
+                $lastname = $data['lastname'] ?? '';
+                $email = $data['email'] ?? '';
+                $role = $data['role'] ?? 'user';
+                $status = $data['status'] ?? 'active';
+                $password = $data['password'] ?? '';
+                
+                // If firstname/lastname not provided, split username
+                if (empty($firstname) && empty($lastname) && !empty($username)) {
+                    $nameParts = explode(' ', $username, 2);
+                    $firstname = $nameParts[0];
+                    $lastname = $nameParts[1] ?? '';
+                }
+                
+                error_log("Parsed values - userId: $userId, username: $username, firstname: $firstname, lastname: $lastname, email: $email, role: $role, status: $status");
+                
+                // Validate required fields
+                if (empty($username) || empty($email) || empty($firstname)) {
+                    error_log("Validation failed - missing required fields");
+                    echo json_encode(['success' => false, 'message' => 'Username, firstname, and email are required']);
+                    break;
+                }
+                
+                error_log("Validation passed, proceeding to database operations");
+                
+            } catch (Exception $e) {
+                error_log("Exception in save_user initial processing: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Error processing request: ' . $e->getMessage()]);
+                break;
+            }
+            
+            try {
+                // Check if email already exists (for new users or different user)
+                $checkUserId = $userId ?? 0;
+                $checkStmt = $conn->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+                $checkStmt->bind_param("si", $email, $checkUserId);
+                $checkStmt->execute();
+                if ($checkStmt->get_result()->num_rows > 0) {
+                    echo json_encode(['success' => false, 'message' => 'Email already exists']);
+                    break;
+                }
+                
+                if ($userId) {
+                    // Update existing user
+                    if (!empty($password)) {
+                        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                        $updateUserId = (int)$userId;
+                        $stmt = $conn->prepare("UPDATE users SET username = ?, firstname = ?, lastname = ?, email = ?, role = ?, status = ?, password = ? WHERE id = ?");
+                        $stmt->bind_param("sssssssi", $username, $firstname, $lastname, $email, $role, $status, $hashedPassword, $updateUserId);
+                    } else {
+                        $updateUserId = (int)$userId;
+                        $stmt = $conn->prepare("UPDATE users SET username = ?, firstname = ?, lastname = ?, email = ?, role = ?, status = ? WHERE id = ?");
+                        $stmt->bind_param("ssssssi", $username, $firstname, $lastname, $email, $role, $status, $updateUserId);
+                    }
+                    
+                    if ($stmt->execute()) {
+                        if (function_exists('logAuditEvent')) {
+                            logAuditEvent($_SESSION['user_id'], 'user_update', "Updated user: $username");
+                        }
+                        echo json_encode(['success' => true, 'message' => 'User updated successfully']);
+                    } else {
+                        error_log("Update failed: " . $conn->error);
+                        echo json_encode(['success' => false, 'message' => 'Failed to update user: ' . $conn->error]);
+                    }
+                } else {
+                    // Create new user
+                    if (empty($password)) {
+                        echo json_encode(['success' => false, 'message' => 'Password is required for new users']);
+                        break;
+                    }
+                    
+                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $conn->prepare("INSERT INTO users (username, firstname, lastname, email, password, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                    $stmt->bind_param("sssssss", $username, $firstname, $lastname, $email, $hashedPassword, $role, $status);
+                    
+                    if ($stmt->execute()) {
+                        if (function_exists('logAuditEvent')) {
+                            logAuditEvent($_SESSION['user_id'], 'user_create', "Created new user: $username");
+                        }
+                        echo json_encode(['success' => true, 'message' => 'User created successfully']);
+                    } else {
+                        error_log("Insert failed: " . $conn->error);
+                        echo json_encode(['success' => false, 'message' => 'Failed to create user: ' . $conn->error]);
+                    }
+                }
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+            }
+            break;
+
+        case 'get_dashboard_stats':
+            // Get comprehensive dashboard statistics
+            $stats = [];
+            
+            // User statistics
+            $result = $conn->query("SELECT COUNT(*) as total FROM users");
+            $stats['total_users'] = $result->fetch_assoc()['total'];
+            
+            // Order statistics
+            $result = $conn->query("SELECT COUNT(*) as total FROM sales WHERE DATE(created_at) = CURDATE()");
+            $stats['total_orders'] = $result->fetch_assoc()['total'];
+            
+            // Revenue statistics
+            $result = $conn->query("SELECT COALESCE(SUM(total_amount), 0) as total FROM sales WHERE DATE(created_at) = CURDATE()");
+            $stats['total_revenue'] = number_format($result->fetch_assoc()['total'], 2);
+            
+            // System health (placeholder)
+            $stats['system_health'] = 'Good';
             
             echo json_encode(['success' => true, 'stats' => $stats]);
             break;
-
+            
         default:
-            echo json_encode(['success' => false, 'message' => 'Invalid action']);
+            echo json_encode(['success' => false, 'message' => 'Invalid action: ' . $action]);
             break;
     }
     
 } catch (Exception $e) {
     error_log("Super admin action error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Server error occurred']);
+    error_log("Stack trace: " . $e->getTraceAsString());
+    echo json_encode(['success' => false, 'message' => 'Server error occurred: ' . $e->getMessage()]);
+} catch (Error $e) {
+    error_log("Fatal error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    echo json_encode(['success' => false, 'message' => 'Fatal error: ' . $e->getMessage()]);
 }
 
 ?>

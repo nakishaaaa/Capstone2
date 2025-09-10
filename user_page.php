@@ -34,6 +34,7 @@ if (!$isUserLoggedIn) {
     <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
     <title>053 PRINTS - User Dashboard</title>
     <link rel="stylesheet" href="css/user_page.css">
+    <link rel="stylesheet" href="css/user-support-tickets.css">
 </head>
 <body>
     <div class="container">
@@ -90,6 +91,12 @@ if (!$isUserLoggedIn) {
                             <a href="my_orders.php" class="dropdown-link" id="myOrdersBtn">
                                 <i class="fas fa-shopping-cart"></i>
                                 My Orders
+                            </a>
+                        </div>
+                        <div class="dropdown-links">
+                            <a href="#" class="dropdown-link" onclick="openSupportTicketsModal()">
+                                <i class="fas fa-ticket-alt"></i>
+                                My Tickets
                             </a>
                         </div>
                         <div class="dropdown-divider"></div>
@@ -654,6 +661,7 @@ if (!$isUserLoggedIn) {
         </div>
     </div>
 
+    <script src="js/slideshow.js"></script>
     <script type="module" src="js/user_page.main.js"></script>
 </body>
 </html>

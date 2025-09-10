@@ -150,13 +150,12 @@ export default class SupportMessaging {
         this.lastSubmitTime = now;
         
         const formData = new FormData(this.form);
-        const priority = formData.get('priority')?.trim();
         const subject = formData.get('subject')?.trim();
         const message = formData.get('message')?.trim();
         const attachment = formData.get('attachment');
         
         // Validation
-        if (!priority || !subject || !message) {
+        if (!subject || !message) {
             this.showError('Please fill in all required fields.');
             return;
         }
@@ -176,25 +175,28 @@ export default class SupportMessaging {
                 el.disabled = true;
             });
             
-            // Prepare FormData for submission (to handle file uploads)
-            const submitFormData = new FormData();
-            submitFormData.append('priority', priority);
-            submitFormData.append('subject', subject);
-            submitFormData.append('message', message);
+            // Get CSRF token for the request
+            const csrfToken = await this.getCSRFToken();
             
-            if (attachment && attachment.size > 0) {
-                submitFormData.append('attachment', attachment);
-            }
+            // Prepare JSON payload for customer support API
+            const payload = {
+                subject: subject,
+                message: message,
+                csrf_token: csrfToken
+            };
             
-            const response = await fetch('/Capstone2/api/submit_support_ticket.php', {
+            const response = await fetch('/Capstone2/api/customer_support.php', {
                 method: 'POST',
-                body: submitFormData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
             });
             
             const result = await response.json();
             
             if (result.success) {
-                this.showSuccess(`Support ticket #${result.ticket_id} submitted successfully! Our development team will respond soon.`);
+                this.showSuccess(`Support ticket #${result.ticket_id} submitted successfully! Our customer support team will respond soon.`);
                 this.form.reset(); // Clear form immediately after success
                 
                 // Clear attachment display

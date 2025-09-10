@@ -1,0 +1,254 @@
+/* User Support Tickets Styles */
+
+.support-tickets-modal {
+    max-width: 800px;
+    width: 90%;
+    max-height: 80vh;
+}
+
+.ticket-card {
+    background: #fff;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ticket-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.ticket-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.ticket-id {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+}
+
+.ticket-subject {
+    font-weight: 500;
+    color: #212529;
+    margin-bottom: 12px;
+    font-size: 16px;
+}
+
+.ticket-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.ticket-replies {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.open {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.status-badge.pending {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.status-badge.resolved {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.status-badge.closed {
+    background: #f5f5f5;
+    color: #616161;
+}
+
+.priority-badge {
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.priority-badge.high {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.priority-badge.medium {
+    background: #fff3e0;
+    color: #ef6c00;
+}
+
+.priority-badge.low {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.no-tickets {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.no-tickets i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.no-tickets h4 {
+    margin-bottom: 8px;
+    color: #495057;
+}
+
+.loading-spinner {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.loading-spinner i {
+    font-size: 24px;
+    margin-right: 8px;
+}
+
+/* Ticket Details Modal */
+.ticket-details-modal {
+    max-width: 700px;
+    width: 90%;
+    max-height: 80vh;
+}
+
+.ticket-details {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.ticket-info {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-row label {
+    font-weight: 600;
+    min-width: 120px;
+    color: #495057;
+}
+
+.ticket-message-section h4,
+.replies-section h4 {
+    margin-bottom: 12px;
+    color: #495057;
+    font-size: 16px;
+}
+
+.original-message {
+    background: #fff;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    padding: 16px;
+    line-height: 1.5;
+}
+
+.admin-response-section {
+    border-top: 1px solid #e1e5e9;
+    padding-top: 24px;
+}
+
+.admin-response-section h4 {
+    margin-bottom: 12px;
+    color: #495057;
+    font-size: 16px;
+}
+
+.admin-response {
+    background: #f8f9fa;
+    border-left: 4px solid #007bff;
+    padding: 16px;
+    border-radius: 0 8px 8px 0;
+}
+
+.response-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.response-header strong {
+    color: #007bff;
+}
+
+.response-date {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.response-message {
+    line-height: 1.5;
+    color: #495057;
+}
+
+.no-response {
+    text-align: center;
+    padding: 24px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .support-tickets-modal,
+    .ticket-details-modal {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .ticket-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .info-row {
+        flex-direction: column;
+    }
+    
+    .info-row label {
+        min-width: auto;
+        margin-bottom: 4px;
+    }
+}

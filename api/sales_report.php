@@ -100,8 +100,8 @@ function generateSalesReport($pdo, $startDate, $endDate, $category, $paymentMeth
     $summaryQuery = "
         SELECT 
             COUNT(DISTINCT s.id) as total_transactions,
-            COALESCE(SUM(s.total_amount), 0) as total_sales,
-            COALESCE(AVG(s.total_amount), 0) as avg_transaction
+            COALESCE(SUM(DISTINCT s.total_amount), 0) as total_sales,
+            COALESCE(AVG(DISTINCT s.total_amount), 0) as avg_transaction
         FROM sales s
         LEFT JOIN sales_items si ON s.id = si.sale_id
         LEFT JOIN inventory i ON si.product_id = i.id
@@ -213,19 +213,19 @@ function getSalesTrendData($pdo, $startDate, $endDate, $category, $paymentMethod
     
     $whereClause = implode(' AND ', $whereConditions);
     
-    $query = "
+    $dailySalesQuery = "
         SELECT 
             DATE(s.created_at) as sale_date,
-            COALESCE(SUM(s.total_amount), 0) as daily_sales
+            COALESCE(SUM(DISTINCT s.total_amount), 0) as daily_sales
         FROM sales s
         LEFT JOIN sales_items si ON s.id = si.sale_id
         LEFT JOIN inventory i ON si.product_id = i.id
         WHERE $whereClause
         GROUP BY DATE(s.created_at)
-        ORDER BY sale_date
+        ORDER BY sale_date ASC
     ";
     
-    $stmt = $pdo->prepare($query);
+    $stmt = $pdo->prepare($dailySalesQuery);
     $stmt->execute($params);
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -251,19 +251,18 @@ function getCategoryBreakdown($pdo, $startDate, $endDate, $paymentMethod) {
     
     $whereClause = implode(' AND ', $whereConditions);
     
-    $query = "
+    $categoryQuery = "
         SELECT 
             COALESCE(i.category, 'Uncategorized') as category,
-            COALESCE(SUM(s.total_amount), 0) as category_sales
+            COALESCE(SUM(DISTINCT s.total_amount), 0) as category_sales
         FROM sales s
         LEFT JOIN sales_items si ON s.id = si.sale_id
         LEFT JOIN inventory i ON si.product_id = i.id
         WHERE $whereClause
         GROUP BY i.category
-        ORDER BY category_sales DESC
     ";
     
-    $stmt = $pdo->prepare($query);
+    $stmt = $pdo->prepare($categoryQuery);
     $stmt->execute($params);
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -289,19 +288,18 @@ function getPaymentMethodBreakdown($pdo, $startDate, $endDate, $category) {
     
     $whereClause = implode(' AND ', $whereConditions);
     
-    $query = "
+    $paymentQuery = "
         SELECT 
             s.payment_method,
-            COALESCE(SUM(s.total_amount), 0) as payment_sales
+            COALESCE(SUM(DISTINCT s.total_amount), 0) as payment_sales
         FROM sales s
         LEFT JOIN sales_items si ON s.id = si.sale_id
         LEFT JOIN inventory i ON si.product_id = i.id
         WHERE $whereClause
         GROUP BY s.payment_method
-        ORDER BY payment_sales DESC
     ";
     
-    $stmt = $pdo->prepare($query);
+    $stmt = $pdo->prepare($paymentQuery);
     $stmt->execute($params);
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -332,19 +330,19 @@ function getHourlySalesDistribution($pdo, $startDate, $endDate, $category, $paym
     
     $whereClause = implode(' AND ', $whereConditions);
     
-    $query = "
+    $hourlyQuery = "
         SELECT 
             HOUR(s.created_at) as sale_hour,
-            COALESCE(SUM(s.total_amount), 0) as hourly_sales
+            COALESCE(SUM(DISTINCT s.total_amount), 0) as hourly_sales
         FROM sales s
         LEFT JOIN sales_items si ON s.id = si.sale_id
         LEFT JOIN inventory i ON si.product_id = i.id
         WHERE $whereClause
         GROUP BY HOUR(s.created_at)
-        ORDER BY sale_hour
+        ORDER BY sale_hour ASC
     ";
     
-    $stmt = $pdo->prepare($query);
+    $stmt = $pdo->prepare($hourlyQuery);
     $stmt->execute($params);
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
