@@ -102,6 +102,7 @@ if ($supportMessagesResult) {
                         <a href="#customer-support" class="nav-link" data-section="customer-support">
                             <i class="fas fa-headset"></i>
                             <span>Customer Support</span>
+                            <span class="badge support-badge" id="supportBadge" style="display: none;"></span>
                         </a>
                     </li>
                     <li class="nav-item">

@@ -13,6 +13,9 @@ export default class UserSupportTicketsModule {
         window.closeSupportTicketsModal = () => this.closeModal();
         window.viewTicketDetails = (ticketId) => this.viewTicketDetails(ticketId);
         window.closeTicketDetailsModal = () => this.closeTicketDetailsModal();
+        
+        // Make instance available globally for back button
+        window.userSupportTickets = this;
     }
 
     init() {
@@ -24,17 +27,17 @@ export default class UserSupportTicketsModule {
         const modalHTML = `
             <!-- Support Tickets Modal -->
             <div id="supportTicketsModal" class="modal" style="display: none;">
-                <div class="modal-content support-tickets-modal">
+                <div class="modal-content support-tickets-modal" style="max-height: 80vh; display: flex; flex-direction: column;">
                     <div class="modal-header">
                         <h3>My Support Tickets</h3>
                         <span class="close" onclick="closeSupportTicketsModal()">&times;</span>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="padding: 20px; flex: 1; overflow: hidden;">
                         <div id="ticketsLoading" class="loading-spinner">
                             <i class="fas fa-spinner fa-spin"></i> Loading tickets...
                         </div>
-                        <div id="ticketsContent" style="display: none;">
-                            <div id="ticketsList"></div>
+                        <div id="ticketsContent" style="display: none; height: 100%;">
+                            <div id="ticketsList" style="height: 100%; overflow-y: auto; padding-right: 10px;"></div>
                         </div>
                         <div id="noTickets" style="display: none;" class="no-tickets">
                             <i class="fas fa-ticket-alt"></i>
@@ -48,9 +51,14 @@ export default class UserSupportTicketsModule {
             <!-- Ticket Details Modal -->
             <div id="ticketDetailsModal" class="modal" style="display: none;">
                 <div class="modal-content ticket-details-modal">
-                    <div class="modal-header">
-                        <h3>Ticket Details</h3>
-                        <span class="close" onclick="closeTicketDetailsModal()">&times;</span>
+                    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button onclick="window.userSupportTickets.goBackToTicketsList()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666; padding: 5px;">
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                            <h3 style="margin: 0; color: #333;">Ticket Details</h3>
+                        </div>
+                        <span class="close" onclick="closeTicketDetailsModal()" style="cursor: pointer; font-size: 24px; color: #666; padding: 5px;">&times;</span>
                     </div>
                     <div class="modal-body">
                         <div id="ticketDetailsContent"></div>
@@ -100,6 +108,12 @@ export default class UserSupportTicketsModule {
     closeTicketDetailsModal() {
         const modal = document.getElementById('ticketDetailsModal');
         modal.style.display = 'none';
+    }
+
+    goBackToTicketsList() {
+        // Close details modal and reopen tickets list modal
+        this.closeTicketDetailsModal();
+        this.openModal();
     }
 
     async loadTickets() {
@@ -239,11 +253,30 @@ export default class UserSupportTicketsModule {
                 <div class="ticket-message-section">
                     <h4>Your Message</h4>
                     <div class="original-message">${ticket.message}</div>
+                    ${ticket.attachment_path ? `
+                        <div class="attachment-section" style="text-align: left; margin-top: 10px;">
+                            <a href="${this.getAttachmentUrl(ticket.attachment_path)}" target="_blank" style="color: #007bff; text-decoration: underline;">
+                                ${ticket.original_filename || ticket.attachment_path.split('/').pop()}
+                            </a>
+                        </div>
+                    ` : ''}
                 </div>
                 
                 ${adminResponseHTML}
             </div>
         `;
+    }
+
+    getAttachmentUrl(attachmentPath) {
+        // Convert server path to web-accessible URL
+        if (attachmentPath.startsWith('../uploads/')) {
+            return attachmentPath.replace('../uploads/', 'uploads/');
+        } else if (attachmentPath.startsWith('uploads/')) {
+            return attachmentPath;
+        } else if (attachmentPath.includes('uploads/')) {
+            return attachmentPath.substring(attachmentPath.indexOf('uploads/'));
+        }
+        return attachmentPath;
     }
 
     showError(message) {

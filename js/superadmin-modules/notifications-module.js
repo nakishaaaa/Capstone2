@@ -25,12 +25,14 @@ export class NotificationsModule {
         setTimeout(() => {
             this.loadNotificationsList();
             this.updateNotificationBadge();
+            this.updateSupportBadge();
         }, 100);
     }
 
     async init() {
         await this.loadNotificationsList();
         await this.updateNotificationBadge();
+        await this.updateSupportBadge();
     }
 
     async loadNotificationsList() {
@@ -248,6 +250,37 @@ export class NotificationsModule {
             }
         } catch (error) {
             console.error('Error updating notification badge:', error);
+        }
+    }
+
+    async updateSupportBadge() {
+        try {
+            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'get_support_tickets',
+                    status: 'open'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.stats) {
+                const openCount = data.stats.open_tickets || 0;
+                const badge = document.getElementById('supportBadge');
+                
+                if (badge) {
+                    if (openCount > 0) {
+                        badge.textContent = openCount;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error updating support badge:', error);
         }
     }
 }

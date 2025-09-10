@@ -35,7 +35,7 @@ try {
             // Get all tickets for this user
             $stmt = $conn->prepare("
                 SELECT st.id, st.subject, st.message, st.priority, st.status, 
-                       st.attachment_path, st.created_at, st.updated_at,
+                       st.attachment_path, st.original_filename, st.created_at, st.updated_at,
                        CASE WHEN st.admin_response IS NOT NULL THEN 1 ELSE 0 END as reply_count
                 FROM support_tickets st
                 WHERE st.user_id = ? OR st.username = ?
@@ -63,7 +63,7 @@ try {
             // Get ticket details with admin response
             $stmt = $conn->prepare("
                 SELECT st.id, st.subject, st.message, st.priority, st.status, 
-                       st.attachment_path, st.created_at, st.updated_at,
+                       st.attachment_path, st.original_filename, st.created_at, st.updated_at,
                        st.admin_response, st.admin_username
                 FROM support_tickets st
                 WHERE st.id = ? AND (st.user_id = ? OR st.username = ?)

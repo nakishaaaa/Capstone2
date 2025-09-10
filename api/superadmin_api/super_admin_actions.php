@@ -971,7 +971,7 @@ try {
             $status = $input['status'] ?? $_GET['status'] ?? '';
             $priority = $input['priority'] ?? $_GET['priority'] ?? '';
             
-            $query = "SELECT id, user_id, username, subject, message, priority, status, attachment_path, created_at FROM support_tickets WHERE 1=1";
+            $query = "SELECT id, user_id, username, subject, message, priority, status, attachment_path, original_filename, created_at FROM support_tickets WHERE 1=1";
             $params = [];
             $types = '';
             
@@ -1044,7 +1044,7 @@ try {
             
             $stmt = $conn->prepare("
                 SELECT st.id, st.user_id, st.username, st.subject, st.message, st.priority, st.status, 
-                       st.attachment_path, st.created_at, u.email as customer_email
+                       st.attachment_path, st.original_filename, st.created_at, u.email as customer_email
                 FROM support_tickets st 
                 LEFT JOIN users u ON st.user_id = u.id 
                 WHERE st.id = ?

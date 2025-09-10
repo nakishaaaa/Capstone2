@@ -103,6 +103,10 @@ export class SupportModule {
                                     <label>Message:</label>
                                     <div id="viewTicketMessage" class="ticket-message"></div>
                                 </div>
+                                <div class="detail-row full-width" id="attachmentRow" style="display: none;">
+                                    <label>Attachment:</label>
+                                    <div id="viewTicketAttachment" class="ticket-attachment"></div>
+                                </div>
                             </div>
                         </div>
                         <div class="modal-actions">
@@ -223,6 +227,9 @@ export class SupportModule {
 
                 // Update stats
                 this.updateSupportStats(data.stats);
+                
+                // Update support badge in sidebar
+                this.updateSupportBadge(data.stats);
             } else {
                 tbody.innerHTML = '<tr><td colspan="7" class="no-data">No support tickets found</td></tr>';
             }
@@ -237,6 +244,22 @@ export class SupportModule {
             document.getElementById('openTickets').textContent = stats.open_tickets || 0;
             document.getElementById('pendingTickets').textContent = stats.pending_tickets || 0;
             document.getElementById('resolvedTickets').textContent = stats.resolved_today || 0;
+        }
+    }
+
+    updateSupportBadge(stats) {
+        if (stats) {
+            const openCount = stats.open_tickets || 0;
+            const badge = document.getElementById('supportBadge');
+            
+            if (badge) {
+                if (openCount > 0) {
+                    badge.textContent = openCount;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
         }
     }
 
@@ -255,6 +278,52 @@ export class SupportModule {
                 document.getElementById('viewTicketSubject').textContent = ticket.subject;
                 document.getElementById('viewTicketMessage').textContent = ticket.message;
                 document.getElementById('viewTicketDate').textContent = new Date(ticket.created_at).toLocaleString();
+                
+                // Handle attachment if present
+                const attachmentRow = document.getElementById('attachmentRow');
+                const attachmentDiv = document.getElementById('viewTicketAttachment');
+                
+                if (ticket.attachment_path && ticket.attachment_path.trim() !== '') {
+                    // Use original filename if available, otherwise fall back to generated filename
+                    const displayFileName = ticket.original_filename || ticket.attachment_path.split('/').pop();
+                    const fileExtension = displayFileName.split('.').pop().toLowerCase();
+                    
+                    // Convert server path to web-accessible URL
+                    let webPath = ticket.attachment_path;
+                    if (webPath.startsWith('../uploads/')) {
+                        webPath = webPath.replace('../uploads/', 'uploads/');
+                    } else if (webPath.startsWith('uploads/')) {
+                        // Already correct format
+                    } else if (webPath.includes('uploads/')) {
+                        // Extract from any path containing uploads
+                        webPath = webPath.substring(webPath.indexOf('uploads/'));
+                    }
+                    
+                    // Check if it's an image
+                    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+                    
+                    if (imageExtensions.includes(fileExtension)) {
+                        // For images, show as downloadable link with preview attempt
+                        attachmentDiv.innerHTML = `
+                            <div class="attachment-file">
+                                <i class="fas fa-image"></i>
+                                <a href="${webPath}" target="_blank" class="attachment-link">${displayFileName}</a>
+                                <span class="attachment-type">(Image)</span>
+                            </div>
+                        `;
+                    } else {
+                        attachmentDiv.innerHTML = `
+                            <div class="attachment-file">
+                                <i class="fas fa-file-alt"></i>
+                                <a href="${webPath}" target="_blank" class="attachment-link">${displayFileName}</a>
+                                <span class="attachment-type">(File)</span>
+                            </div>
+                        `;
+                    }
+                    attachmentRow.style.display = 'block';
+                } else {
+                    attachmentRow.style.display = 'none';
+                }
                 
                 // Set priority and status with proper classes
                 const priorityElement = document.getElementById('viewTicketPriority');
@@ -309,6 +378,12 @@ export class SupportModule {
         modal.style.display = 'none';
         modal.style.visibility = 'hidden';
         modal.style.opacity = '0';
+        
+        // Clear attachment display
+        const attachmentRow = document.getElementById('attachmentRow');
+        if (attachmentRow) {
+            attachmentRow.style.display = 'none';
+        }
     }
 
     replyToTicketFromView() {

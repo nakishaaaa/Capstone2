@@ -41,6 +41,7 @@ try {
     
     // Handle file attachment if present
     $attachment_path = null;
+    $original_filename = null;
     if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = '../uploads/support_attachments/';
         
@@ -49,7 +50,8 @@ try {
             mkdir($upload_dir, 0755, true);
         }
         
-        $file_extension = strtolower(pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION));
+        $original_filename = $_FILES['attachment']['name'];
+        $file_extension = strtolower(pathinfo($original_filename, PATHINFO_EXTENSION));
         $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'txt'];
         
         if (in_array($file_extension, $allowed_extensions)) {
@@ -58,6 +60,7 @@ try {
             
             if (!move_uploaded_file($_FILES['attachment']['tmp_name'], $attachment_path)) {
                 $attachment_path = null;
+                $original_filename = null;
             }
         }
     }
@@ -66,18 +69,21 @@ try {
     $ip_address = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
     $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
     
+    // Add original_filename column if it doesn't exist
+    $conn->query("ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS original_filename VARCHAR(255) DEFAULT NULL");
+    
     // Insert support ticket into database
     $stmt = $conn->prepare("
         INSERT INTO support_tickets (
             user_id, username, subject, message, priority, status, 
-            attachment_path, ip_address, user_agent, created_at
-        ) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, NOW())
+            attachment_path, original_filename, ip_address, user_agent, created_at
+        ) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, NOW())
     ");
     
     $stmt->bind_param(
-        "isssssss", 
+        "issssssss", 
         $user_id, $username, $subject, $message, $priority, 
-        $attachment_path, $ip_address, $user_agent
+        $attachment_path, $original_filename, $ip_address, $user_agent
     );
     
     if ($stmt->execute()) {
