@@ -55,8 +55,15 @@ function isActiveForm($formName, $activeForm) {
         </div>
       </div>
       <div class="brand">
-        <span>053</span>
+        <span></span>
       </div>
+      <nav class="navbar-nav">
+        <a href="#contact" class="nav-link">Contact</a>
+        <a href="#services" class="nav-link">Services</a>
+        <a href="#gallery" class="nav-link">Gallery</a>
+        <a href="#how" class="nav-link">How It Works</a>
+        <a href="#testimonials" class="nav-link">Testimonials</a>
+      </nav>
       <div class="user-info">
         <div class="user-dropdown">
           <button class="user-dropdown-btn" id="userDropdownBtn">
@@ -402,7 +409,7 @@ function isActiveForm($formName, $activeForm) {
     <section id="testimonials" class="content-section testimonials-section">
       <div class="section-header">
         <h2>What Customers Say</h2>
-        <p>Real feedback from our satisfied clients</p>
+        <p> </p>
       </div>
       <div class="testimonials-grid">
         <div class="testimonial-card">
@@ -854,9 +861,24 @@ function isActiveForm($formName, $activeForm) {
   </script>
   <script src="js/slideshow.js"></script>
   <script>
-    // Google Maps embed loaded - no additional JavaScript needed
     document.addEventListener('DOMContentLoaded', function() {
       console.log('Google Maps embed ready');
+      
+      // Smooth scrolling for navigation links
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          const targetId = this.getAttribute('href').substring(1);
+          const targetElement = document.getElementById(targetId);
+          
+          if (targetElement) {
+            targetElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        });
+      });
     });
   </script>
 </body>

@@ -226,6 +226,72 @@ export class RequestsModule {
             </div>
           ` : ''}
           
+          ${request.category === 't-shirt-print' && request.design_option === 'customize' ? `
+            <div class="info-item" style="grid-column: span 2;">
+              <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.5rem;">T-shirt Customization Details</div>
+              <div style="background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 12px; padding: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                  ${request.front_image_path ? `
+                    <div>
+                      <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem; font-weight: 600;">Front Design</div>
+                      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; display:flex; align-items:center; justify-content:center; min-height: 100px; cursor: pointer;" onclick="window.open('${this.escapeHtml(request.front_image_path)}', '_blank')">
+                        <img src="${this.escapeHtml(request.front_image_path)}" alt="Front Design" style="max-width:100%; max-height:150px; border-radius:6px; object-fit:contain;">
+                      </div>
+                      <div style="margin-top: 0.4rem;">
+                        <a href="${this.escapeHtml(request.front_image_path)}" download target="_blank" rel="noopener" 
+                           style="display:inline-flex; align-items:center; gap:0.4rem; padding: 0.4rem 0.75rem; border-radius: 6px; background: #f1f5f9; color: #1f2937; border: 1px solid #cbd5e1; text-decoration: none; font-size: 0.8rem;">
+                          <i class="fa-solid fa-download"></i>
+                          Download Front
+                        </a>
+                      </div>
+                    </div>
+                  ` : ''}
+                  
+                  ${request.back_image_path ? `
+                    <div>
+                      <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem; font-weight: 600;">Back Design</div>
+                      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; display:flex; align-items:center; justify-content:center; min-height: 100px; cursor: pointer;" onclick="window.open('${this.escapeHtml(request.back_image_path)}', '_blank')">
+                        <img src="${this.escapeHtml(request.back_image_path)}" alt="Back Design" style="max-width:100%; max-height:150px; border-radius:6px; object-fit:contain;">
+                      </div>
+                      <div style="margin-top: 0.4rem;">
+                        <a href="${this.escapeHtml(request.back_image_path)}" download target="_blank" rel="noopener" 
+                           style="display:inline-flex; align-items:center; gap:0.4rem; padding: 0.4rem 0.75rem; border-radius: 6px; background: #f1f5f9; color: #1f2937; border: 1px solid #cbd5e1; text-decoration: none; font-size: 0.8rem;">
+                          <i class="fa-solid fa-download"></i>
+                          Download Back
+                        </a>
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+                
+                ${request.tag_image_path ? `
+                  <div style="margin-top: 1rem;">
+                    <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem; font-weight: 600;">Tag Design ${request.tag_location ? `(${this.escapeHtml(request.tag_location)})` : ''}</div>
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; display:flex; align-items:center; justify-content:center; min-height: 80px; flex: 0 0 120px; cursor: pointer;" onclick="window.open('${this.escapeHtml(request.tag_image_path)}', '_blank')">
+                        <img src="${this.escapeHtml(request.tag_image_path)}" alt="Tag Design" style="max-width:100%; max-height:100px; border-radius:6px; object-fit:contain;">
+                      </div>
+                      <div style="flex: 1;">
+                        <div style="margin-bottom: 0.5rem;">
+                          <a href="${this.escapeHtml(request.tag_image_path)}" download target="_blank" rel="noopener" 
+                             style="display:inline-flex; align-items:center; gap:0.4rem; padding: 0.4rem 0.75rem; border-radius: 6px; background: #f1f5f9; color: #1f2937; border: 1px solid #cbd5e1; text-decoration: none; font-size: 0.8rem;">
+                            <i class="fa-solid fa-download"></i>
+                            Download Tag
+                          </a>
+                        </div>
+                        ${request.tag_location ? `
+                          <div style="font-size: 0.75rem; color: #4a5568;">
+                            <strong>Location:</strong> ${this.escapeHtml(request.tag_location)}
+                          </div>
+                        ` : ''}
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          ` : ''}
+          
           <div class="info-item">
             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Quantity</div>
             <div style="font-weight: 500; color: #2d3748;">${request.quantity || 'N/A'}</div>

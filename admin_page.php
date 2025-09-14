@@ -52,45 +52,55 @@ if (!$isStaffLoggedIn) {
             <div class="sidebar-header">
                 <h2><i class="fas fa-store"></i> IMS/POS</h2>
             </div>
-            <ul class="nav-menu">
-                <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
-                </a></li>
-                <li><a href="#inventory" class="nav-link" data-section="inventory">
-                    <i class="fas fa-boxes"></i> Inventory Management
-                </a></li>
-                <li><a href="#pos" class="nav-link" data-section="pos">
-                    <i class="fas fa-cash-register"></i> Point of Sale
-                </a></li>
-                <?php if ($role === 'admin'): ?>
-                <li><a href="#sales-management" class="nav-link" data-section="sales-management">
-                    <i class="fas fa-cogs"></i> Product Management
-                </a></li>
-                <li><a href="#sales-report" class="nav-link" data-section="sales-report">
-                    <i class="fas fa-chart-line"></i> Sales Report
-                </a></li>
-                <?php endif; ?>
-                <li><a href="#notifications" class="nav-link" data-section="notifications">
-                    <i class="fas fa-bell"></i> Notifications
-                    <span class="nav-badge" id="notificationsBadge" aria-label="Unread notifications" title="Unread notifications" style="display:none">0</span>
-                </a></li>
-                <?php if ($role === 'admin'): ?>
-                <li><a href="#requests" class="nav-link" data-section="requests">
-                    <i class="fas fa-inbox"></i> Requests
-                    <span class="nav-badge" id="requestsBadge" aria-label="Pending requests" title="Pending requests" style="display:none">0</span>
-                </a></li>
-                <li><a href="#customersupport" class="nav-link" data-section="customersupport">
-                    <i class="fas fa-headset"></i> Customer Support
-                    <span class="nav-badge" id="supportBadge" aria-label="Unread support messages" title="Unread support messages" style="display:none">0</span>
-                </a></li>
-                <li><a href="#user-management" class="nav-link" data-section="user-management">
-                    <i class="fas fa-user"></i> User Management
-                </a></li>
-                <?php endif; ?>
-                <li><a href="#" class="nav-link logout" onclick="handleLogout('admin')">
-                    <i class="fas fa-right-from-bracket"></i> Logout
-                </a></li>
-            </ul>
+            <nav class="sidebar-nav">
+                <ul class="nav-menu">
+                    <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a></li>
+                    <li><a href="#inventory" class="nav-link" data-section="inventory">
+                        <i class="fas fa-boxes"></i> Inventory Management
+                    </a></li>
+                    <li><a href="#pos" class="nav-link" data-section="pos">
+                        <i class="fas fa-cash-register"></i> Point of Sale
+                    </a></li>
+                    <?php if ($role === 'admin'): ?>
+                    <li><a href="#sales-management" class="nav-link" data-section="sales-management">
+                        <i class="fas fa-cogs"></i> Product Management
+                    </a></li>
+                    <li><a href="#sales-report" class="nav-link" data-section="sales-report">
+                        <i class="fas fa-chart-line"></i> Sales Report
+                    </a></li>
+                    <?php endif; ?>
+                    <li><a href="#notifications" class="nav-link" data-section="notifications">
+                        <i class="fas fa-bell"></i> Notifications
+                        <span class="nav-badge" id="notificationsBadge" aria-label="Unread notifications" title="Unread notifications" style="display:none">0</span>
+                    </a></li>
+                    <?php if ($role === 'admin'): ?>
+                    <li><a href="#requests" class="nav-link" data-section="requests">
+                        <i class="fas fa-inbox"></i> Requests
+                        <span class="nav-badge" id="requestsBadge" aria-label="Pending requests" title="Pending requests" style="display:none">0</span>
+                    </a></li>
+                    <li><a href="#customersupport" class="nav-link" data-section="customersupport">
+                        <i class="fas fa-headset"></i> Customer Support
+                        <span class="nav-badge" id="supportBadge" aria-label="Unread support messages" title="Unread support messages" style="display:none">0</span>
+                    </a></li>
+                    <li><a href="#user-management" class="nav-link" data-section="user-management">
+                        <i class="fas fa-user"></i> User Management
+                    </a></li>
+                    <?php endif; ?>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas <?php echo $role === 'admin' ? 'fa-user-shield' : 'fa-cash-register'; ?>"></i>
+                    <span><?php echo htmlspecialchars($adminName ?: $adminEmail); ?></span>
+                </div>
+                <a href="#" class="logout-btn" onclick="handleLogout('admin')">
+                    <i class="fas fa-right-from-bracket"></i>
+                    Logout
+                </a>
+            </div>
         </nav>
 
         <!-- Main Content -->

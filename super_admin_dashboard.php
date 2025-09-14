@@ -21,9 +21,6 @@ function getSystemStats($conn) {
     $result = $conn->query("SELECT COUNT(*) as count FROM users WHERE role IN ('admin', 'super_admin')");
     $stats['total_admins'] = $result->fetch_assoc()['count'];
     
-    // Total sales today
-    $result = $conn->query("SELECT COALESCE(SUM(total_amount), 0) as total FROM sales WHERE DATE(created_at) = CURDATE()");
-    $stats['sales_today'] = $result->fetch_assoc()['total'];
     
     // Pending requests
     $result = $conn->query("SELECT COUNT(*) as count FROM user_requests WHERE status = 'pending'");
@@ -126,17 +123,11 @@ if ($supportMessagesResult) {
                             <?php endif; ?>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="#backup" class="nav-link" data-section="backup">
-                            <i class="fas fa-database"></i>
-                            <span>Data Backup</span>
-                        </a>
-                    </li>
                 </ul>
             </nav>
             
             <div class="sidebar-footer">
-                <div class="user-info">
+                <div class="sidebar-user-info">
                     <i class="fas fa-user-shield"></i>
                     <span><?= htmlspecialchars($_SESSION['username']) ?></span>
                 </div>
@@ -169,15 +160,6 @@ if ($supportMessagesResult) {
             <!-- Dashboard Section -->
             <section id="dashboard" class="content-section active">
                 <div class="stats-grid">
-                <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-peso-sign"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3>₱<?= number_format($stats['sales_today'], 2) ?></h3>
-                            <p>Sales Today</p>
-                        </div>
-                    </div>
                     <div class="stat-card">
                         <div class="stat-icon">
                             <i class="fas fa-users"></i>

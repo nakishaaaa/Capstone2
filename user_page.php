@@ -58,8 +58,15 @@ if (!$isUserLoggedIn) {
                 </div>
             </div>
             <div class="brand">
-                <span>053</span>
+                <span></span>
             </div>
+            <nav class="navbar-nav">
+                <a href="#contact" class="nav-link">Contact</a>
+                <a href="#services" class="nav-link">Services</a>
+                <a href="#gallery" class="nav-link">Gallery</a>
+                <a href="#how" class="nav-link">How It Works</a>
+                <a href="#testimonials" class="nav-link">Testimonials</a>
+            </nav>
             <div class="user-info">
                 <div class="user-dropdown">
                     <button class="user-dropdown-btn" id="userDropdownBtn">
@@ -173,9 +180,86 @@ if (!$isUserLoggedIn) {
                                     <input type="number" id="quantity" name="quantity" 
                                            placeholder="Enter quantity" min="1" required>
                                 </div>
+                                
+                                <!-- Design Option Field for T-shirt Print -->
+                                <div class="form-group" id="designOptionGroup" style="display: none;">
+                                    <label for="designOption">Design Option</label>
+                                    <select id="designOption" name="design_option">
+                                        <option value="" disabled selected>Choose Design Option</option>
+                                        <option value="customize">I want to customize (separate front/back designs)</option>
+                                        <option value="ready">I have a ready design</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div class="form-row">
+                            <!-- T-shirt Print Specific Fields -->
+                            <div id="tshirtFields" class="tshirt-customization-fields" style="display: none;">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="frontImage">Front Design</label>
+                                        <div class="file-upload">
+                                            <input type="file" id="frontImage" name="front_image" accept="image/*,.pdf">
+                                            <label for="frontImage" class="file-upload-label">
+                                                <i class="fas fa-download"></i>
+                                                <span>Choose Front Design</span>
+                                            </label>
+                                            <span class="file-name">No file chosen</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="backImage">Back Design</label>
+                                        <div class="file-upload">
+                                            <input type="file" id="backImage" name="back_image" accept="image/*,.pdf">
+                                            <label for="backImage" class="file-upload-label">
+                                                <i class="fas fa-download"></i>
+                                                <span>Choose Back Design</span>
+                                            </label>
+                                            <span class="file-name">No file chosen</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="tagImage">Tag (if applicable)</label>
+                                        <div class="file-upload">
+                                            <input type="file" id="tagImage" name="tag_image" accept="image/*,.pdf">
+                                            <label for="tagImage" class="file-upload-label">
+                                                <i class="fas fa-download"></i>
+                                                <span>Choose Tag Design</span>
+                                            </label>
+                                            <span class="file-name">No file chosen</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="tagLocation">Tag Location</label>
+                                        <select id="tagLocation" name="tag_location">
+                                            <option value="" disabled selected>Select Tag Location</option>
+                                            <option value="full-front">Full Front</option>
+                                            <option value="medium-front">Medium Front</option>
+                                            <option value="center-chest">Center Chest</option>
+                                            <option value="across-chest">Across Chest</option>
+                                            <option value="right-chest">Right Chest</option>
+                                            <option value="left-chest">Left Chest</option>
+                                            <option value="right-sleeve">Right Sleeve</option>
+                                            <option value="left-sleeve">Left Sleeve</option>
+                                            <option value="right-vertical">Right Vertical</option>
+                                            <option value="left-vertical">Left Vertical</option>
+                                            <option value="front-bottom-right">Front Bottom Right</option>
+                                            <option value="front-bottom-left">Front Bottom Left</option>
+                                            <option value="full-back">Full Back</option>
+                                            <option value="medium-back">Medium Back</option>
+                                            <option value="locker-patch-area">Locker Patch Area</option>
+                                            <option value="across-shoulders">Across Shoulders</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Regular Image Upload (for non-tshirt categories) -->
+                            <div id="regularImageField" class="form-row">
                                 <div class="form-group">
                                     <label for="image">Image</label>
                                     <div class="file-upload">
@@ -242,36 +326,185 @@ if (!$isUserLoggedIn) {
                 </div>
             </div> 
             
+            <!-- Border div above contact section -->
+            <div class="contact-border-divider"></div>
+
+            <section id="contact" class="content-section contact-section">
+                <div class="section-header">
+                    <h2>Visit Our Store</h2>
+                    <p>Find us at our physical location or get in touch</p>
+                </div>
+                <div class="contact-container">
+                    <div class="contact-info">
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div class="contact-details">
+                                <h3>Address</h3>
+                                <p>53 San Ignacio St. Poblacion 1 3023 San Jose del Monte, Philippines</p>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <div class="contact-details">
+                                <h3>Phone</h3>
+                                <p><a href="tel:+639388177779">+63 938 817 7779</a></p>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="contact-details">
+                                <h3>Email</h3>
+                                <p><a href="mailto:info@053prints.com">info@053prints.com</a></p>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="contact-details">
+                                <h3>Business Hours</h3>
+                                <p>Always Open</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="map-container">
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d964.3254926782973!2d121.04831238497772!3d14.808300904728272!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397af00461244db%3A0x40f0d4a8919fedb9!2s053%20Prints!5e0!3m2!1sen!2sph!4v1756126404023!5m2!1sen!2sph" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    </div>
+                </div>
+            </section>
+
+            <section id="services" class="content-section services-section">
+                <div class="section-header">
+                    <h2>Our Services</h2>
+                    <p>High-quality prints and office services tailored to your needs</p>
+                </div>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-shirt"></i></div>
+                        <h3>T-Shirt Print</h3>
+                        <p>Custom designs with vibrant colors and durable materials.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-tags"></i></div>
+                        <h3>Tag & Sticker</h3>
+                        <p>Labels and stickers for branding, packaging, and events.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-id-card"></i></div>
+                        <h3>Cards</h3>
+                        <p>ID, business, and custom cards with premium finishes.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-print"></i></div>
+                        <h3>Document & Photo</h3>
+                        <p>Clear document prints and photo prints in all standard sizes.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-copy"></i></div>
+                        <h3>Photo Copy</h3>
+                        <p>Fast and accurate photocopy with high-resolution output.</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon"><i class="fas fa-layer-group"></i></div>
+                        <h3>Lamination</h3>
+                        <p>Protect your prints with high-quality lamination.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="gallery" class="content-section gallery-section">
+                <div class="section-header">
+                    <h2>From the Archive</h2>
+                    <p>Some of our works</p>
+                </div>
+                <div class="gallery-grid">
+                    <figure class="gallery-item">
+                        <img src="images/gallery/photo1.jpg">
+                    </figure>
+                    <figure class="gallery-item">
+                        <img src="images/gallery/photo2.jpg">
+                    </figure>
+                    <figure class="gallery-item">
+                        <img src="images/gallery/photo3.jpg">
+                    </figure>
+                    <figure class="gallery-item">
+                        <img src="images/gallery/photo4.jpg">
+                    </figure>
+                    <figure class="gallery-item">
+                        <img src="images/gallery/photo5.jpg">
+                    </figure>
+                    <figure class="gallery-item">
+                        <img src="images/gallery/photo6.jpg">
+                    </figure>
+                </div>
+            </section>
+
             <section id="how" class="content-section how-section">
                 <div class="section-header">
                     <h2>How It Works</h2>
                     <p>Simple steps from request to delivery</p>
                 </div>
-
                 <div class="how-grid">
-                <div class="step-card">
-                    <span class="step-number">1</span>
-                    <h3>Submit Request</h3>
-                    <p>Click "Request an Order" and provide the details and files.</p>
-                </div>
-                <div class="step-card">
-                    <span class="step-number">2</span>
-                    <h3>We Review</h3>
-                    <p>Our team confirms specs, timeline, and pricing.</p>
-                </div>
-                <div class="step-card">
-                    <span class="step-number">3</span>
-                    <h3>Production</h3>
-                    <p>We print and prepare your order with care and quality.</p>
-                </div>
-                <div class="step-card">
-                    <span class="step-number">4</span>
-                    <h3>Pick Up / Delivery</h3>
-                    <p>Receive your finished order on schedule.</p>
-                </div>
+                    <div class="step-card">
+                        <span class="step-number">1</span>
+                        <h3>Submit Request</h3>
+                        <p>Click "Request an Order" and provide the details and files.</p>
+                    </div>
+                    <div class="step-card">
+                        <span class="step-number">2</span>
+                        <h3>We Review</h3>
+                        <p>Our team confirms specs, timeline, and pricing.</p>
+                    </div>
+                    <div class="step-card">
+                        <span class="step-number">3</span>
+                        <h3>Production</h3>
+                        <p>We print and prepare your order with care and quality.</p>
+                    </div>
+                    <div class="step-card">
+                        <span class="step-number">4</span>
+                        <h3>Pick Up / Delivery</h3>
+                        <p>Receive your finished order on schedule.</p>
+                    </div>
                 </div>
             </section>
 
+            <section id="testimonials" class="content-section testimonials-section">
+                <div class="section-header">
+                    <h2>What Customers Say</h2>
+                    <p> </p>
+                </div>
+                <div class="testimonials-grid">
+                    <div class="testimonial-card">
+                        <p class="quote" style="color: #ffffff;">"Top-notch quality and very fast turnaround!"</p>
+                        <div class="author" style="color: #ffffff;">— Jamie R.</div>
+                    </div>
+                    <div class="testimonial-card">
+                        <p class="quote" style="color: #ffffff;">"They handled my custom shirt order perfectly."</p>
+                        <div class="author" style="color: #ffffff;">— Marco D.</div>
+                    </div>
+                    <div class="testimonial-card">
+                        <p class="quote" style="color: #ffffff;">"Great customer service. Highly recommended."</p>
+                        <div class="author" style="color: #ffffff;">— Aira P.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Lightbox overlay for gallery -->
+            <div id="lightbox" class="lightbox-overlay" aria-hidden="true" role="dialog">
+                <button class="lightbox-close" aria-label="Close">&times;</button>
+                <button class="lightbox-nav prev" aria-label="Previous">&#10094;</button>
+                <div class="lightbox-content">
+                    <img id="lightboxImage" alt="" />
+                    <div class="lightbox-caption" id="lightboxCaption"></div>
+                </div>
+                <button class="lightbox-nav next" aria-label="Next">&#10095;</button>
+            </div>
 
             <div class="chat-button" onclick="openSupportModal()">
                 <span>Support</span>
@@ -663,5 +896,115 @@ if (!$isUserLoggedIn) {
 
     <script src="js/slideshow.js"></script>
     <script type="module" src="js/user_page.main.js"></script>
+    <script>
+    // Gallery Lightbox functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const images = Array.from(document.querySelectorAll('.gallery-grid img'));
+        if (!images.length) return;
+
+        // Add cursor hint
+        images.forEach(img => img.style.cursor = 'zoom-in');
+
+        const overlay = document.getElementById('lightbox');
+        const lbImg = document.getElementById('lightboxImage');
+        const lbCaption = document.getElementById('lightboxCaption');
+        const btnClose = overlay ? overlay.querySelector('.lightbox-close') : null;
+        const btnPrev = overlay ? overlay.querySelector('.lightbox-nav.prev') : null;
+        const btnNext = overlay ? overlay.querySelector('.lightbox-nav.next') : null;
+        let current = 0;
+
+        function openAt(index) {
+            current = index;
+            const src = images[current].getAttribute('src');
+            const alt = images[current].getAttribute('alt') || '';
+            if (lbImg) {
+                lbImg.src = src;
+                lbImg.alt = alt;
+            }
+            if (lbCaption) lbCaption.textContent = alt;
+            if (overlay) {
+                overlay.classList.add('open');
+                overlay.setAttribute('aria-hidden', 'false');
+            }
+            document.body.style.overflow = 'hidden';
+        }
+
+        function close() {
+            if (overlay) {
+                overlay.classList.remove('open');
+                overlay.setAttribute('aria-hidden', 'true');
+            }
+            document.body.style.overflow = '';
+        }
+
+        function show(delta) {
+            const len = images.length;
+            const next = (current + delta + len) % len;
+            openAt(next);
+        }
+
+        images.forEach((img, idx) => {
+            img.addEventListener('click', () => openAt(idx));
+        });
+
+        if (btnClose) btnClose.addEventListener('click', close);
+        if (btnPrev) btnPrev.addEventListener('click', () => show(-1));
+        if (btnNext) btnNext.addEventListener('click', () => show(1));
+
+        if (overlay) {
+            overlay.addEventListener('click', function(e) {
+                // Close only when clicking outside the content
+                const content = overlay.querySelector('.lightbox-content');
+                if (e.target === overlay || (content && !content.contains(e.target) && !e.target.classList.contains('lightbox-nav'))) {
+                    close();
+                }
+            });
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (!overlay || !overlay.classList.contains('open')) return;
+            if (e.key === 'Escape') close();
+            else if (e.key === 'ArrowRight') show(1);
+            else if (e.key === 'ArrowLeft') show(-1);
+        });
+        
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Prevent page scrolling when modal is open and cursor is over modal
+        const requestFormContainer = document.getElementById('requestFormContainer');
+        if (requestFormContainer) {
+            requestFormContainer.addEventListener('wheel', function(e) {
+                const container = this;
+                const scrollTop = container.scrollTop;
+                const scrollHeight = container.scrollHeight;
+                const height = container.clientHeight;
+                const delta = e.deltaY;
+                
+                // If scrolling up and already at top, prevent page scroll
+                if (delta < 0 && scrollTop === 0) {
+                    e.preventDefault();
+                }
+                // If scrolling down and already at bottom, prevent page scroll
+                else if (delta > 0 && scrollTop + height >= scrollHeight) {
+                    e.preventDefault();
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>

@@ -125,31 +125,103 @@ function handleCreateRequest() {
     }
     
     try {
-        // Handle file upload if present (field name: 'image')
+        // Handle file uploads
         $image_path = null;
+        $front_image_path = null;
+        $back_image_path = null;
+        $tag_image_path = null;
+        
+        $upload_dir = '../uploads/requests/';
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
+        // Handle regular image upload (for non-tshirt categories)
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = '../uploads/requests/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
-            }
-            
             $file_extension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
             $file_name = uniqid('req_', true) . '.' . $file_extension;
             $destination = $upload_dir . $file_name;
             
             if (!move_uploaded_file($_FILES['image']['tmp_name'], $destination)) {
-                throw new Exception('Failed to upload file');
+                throw new Exception('Failed to upload image file');
             }
             
-            // Store relative path for serving
             $image_path = 'uploads/requests/' . $file_name;
         }
         
-        // Insert request (align with schema used in clear_requests.php)
+        // Handle T-shirt specific uploads
+        if ($_POST['category'] === 't-shirt-print') {
+            // Front image
+            if (isset($_FILES['front_image']) && $_FILES['front_image']['error'] === UPLOAD_ERR_OK) {
+                $file_extension = pathinfo($_FILES['front_image']['name'], PATHINFO_EXTENSION);
+                $file_name = uniqid('req_front_', true) . '.' . $file_extension;
+                $destination = $upload_dir . $file_name;
+                
+                if (!move_uploaded_file($_FILES['front_image']['tmp_name'], $destination)) {
+                    throw new Exception('Failed to upload front image');
+                }
+                
+                $front_image_path = 'uploads/requests/' . $file_name;
+            }
+            
+            // Back image
+            if (isset($_FILES['back_image']) && $_FILES['back_image']['error'] === UPLOAD_ERR_OK) {
+                $file_extension = pathinfo($_FILES['back_image']['name'], PATHINFO_EXTENSION);
+                $file_name = uniqid('req_back_', true) . '.' . $file_extension;
+                $destination = $upload_dir . $file_name;
+                
+                if (!move_uploaded_file($_FILES['back_image']['tmp_name'], $destination)) {
+                    throw new Exception('Failed to upload back image');
+                }
+                
+                $back_image_path = 'uploads/requests/' . $file_name;
+            }
+            
+            // Tag image
+            if (isset($_FILES['tag_image']) && $_FILES['tag_image']['error'] === UPLOAD_ERR_OK) {
+                $file_extension = pathinfo($_FILES['tag_image']['name'], PATHINFO_EXTENSION);
+                $file_name = uniqid('req_tag_', true) . '.' . $file_extension;
+                $destination = $upload_dir . $file_name;
+                
+                if (!move_uploaded_file($_FILES['tag_image']['tmp_name'], $destination)) {
+                    throw new Exception('Failed to upload tag image');
+                }
+                
+                $tag_image_path = 'uploads/requests/' . $file_name;
+            }
+        }
+        
+        // Check if we need to add new columns for T-shirt customization
+        try {
+            // Check if columns exist and add them if they don't
+            $columns = $pdo->query("SHOW COLUMNS FROM user_requests")->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!in_array('front_image_path', $columns)) {
+                $pdo->exec("ALTER TABLE user_requests ADD COLUMN front_image_path VARCHAR(255) DEFAULT NULL");
+            }
+            if (!in_array('back_image_path', $columns)) {
+                $pdo->exec("ALTER TABLE user_requests ADD COLUMN back_image_path VARCHAR(255) DEFAULT NULL");
+            }
+            if (!in_array('tag_image_path', $columns)) {
+                $pdo->exec("ALTER TABLE user_requests ADD COLUMN tag_image_path VARCHAR(255) DEFAULT NULL");
+            }
+            if (!in_array('tag_location', $columns)) {
+                $pdo->exec("ALTER TABLE user_requests ADD COLUMN tag_location VARCHAR(100) DEFAULT NULL");
+            }
+            if (!in_array('design_option', $columns)) {
+                $pdo->exec("ALTER TABLE user_requests ADD COLUMN design_option VARCHAR(50) DEFAULT NULL");
+            }
+        } catch (Exception $e) {
+            // Columns might already exist, continue
+        }
+        
+        // Insert request with T-shirt specific fields
         $sql = "INSERT INTO user_requests (
-                    user_id, category, size, quantity, name, contact_number, notes, image_path, status, created_at, updated_at
+                    user_id, category, size, quantity, name, contact_number, notes, 
+                    image_path, front_image_path, back_image_path, tag_image_path, tag_location, design_option,
+                    status, created_at, updated_at
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW()
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW()
                 )";
         
         $stmt = $pdo->prepare($sql);
@@ -161,7 +233,12 @@ function handleCreateRequest() {
             $_POST['name'],
             $_POST['contact_number'],
             $_POST['notes'] ?? '',
-            $image_path
+            $image_path,
+            $front_image_path,
+            $back_image_path,
+            $tag_image_path,
+            $_POST['tag_location'] ?? null,
+            $_POST['design_option'] ?? null
         ]);
         
         echo json_encode(['success' => true, 'message' => 'Request submitted successfully']);

@@ -36,27 +36,6 @@ unset($_SESSION['super_admin_error']);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: repeating-linear-gradient(
-                90deg,
-                transparent,
-                transparent 98px,
-                #1a1a1a 100px
-            ),
-            repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 98px,
-                #1a1a1a 100px
-            );
-            z-index: 1;
-        }
 
         .developer-container {
             background: #1a1a1a;
@@ -252,7 +231,7 @@ unset($_SESSION['super_admin_error']);
 
             <button type="submit" class="developer-btn">
                 <i class="fas fa-sign-in-alt"></i>
-                Access Developer Panel
+                Login
             </button>
         </form>
 

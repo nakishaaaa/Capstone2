@@ -74,15 +74,15 @@ body {
     font-size: 14px;
 }
 
-.nav-link:hover {
-    background: #1a1a1a;
-    color: #ffffff;
+.nav-link:hover,
+.nav-link.active {
+    background: rgba(255, 255, 255, 0.1);
+    border-right: 3px solid white;
 }
 
 .nav-item.active .nav-link {
-    background: #ffffff;
-    color: #000000;
-    font-weight: 500;
+    background: rgba(255, 255, 255, 0.1);
+    border-right: 3px solid white;
 }
 
 .nav-link i {
@@ -677,10 +677,48 @@ body {
     border-color: #1a1a1a;
 }
 
-/* Top Products List */
-.top-products-list {
+/* Database Tables List */
+.database-tables-list {
     max-height: 300px;
     overflow-y: auto;
+}
+
+.table-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.table-item:last-child {
+    border-bottom: none;
+}
+
+.table-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.table-name {
+    font-weight: 500;
+    color: #1a1a1a;
+    font-size: 14px;
+}
+
+.table-size {
+    color: #666666;
+    font-size: 12px;
+}
+
+.table-stats {
+    text-align: right;
+}
+
+.table-rows {
+    color: #666666;
+    font-size: 12px;
 }
 
 .top-product-item {
@@ -841,32 +879,43 @@ body {
     font-size: 14px;
 }
 
-.user-info {
+.sidebar-footer {
+    padding: 20px;
+    border-top: 1px solid #333333;
+}
+
+.sidebar-user-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     margin-bottom: 12px;
-    color: #cccccc;
+    color: #ffffff;
     font-size: 13px;
+    padding: 12px 20px;
+    border-radius: 6px;
+    background: #2a2a2a;
+    transition: all 0.2s ease;
 }
 
 .logout-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
-    background: #ffffff;
-    color: #000000;
+    padding: 12px 20px;
+    color: #ff6b6b;
     text-decoration: none;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 13px;
     font-weight: 500;
     transition: all 0.2s ease;
-    border: 1px solid #e5e5e5;
+    background: #2a2a2a;
+    border: 1px solid #444444;
 }
 
 .logout-btn:hover {
-    background: #f5f5f5;
+    background: #ff6b6b;
+    color: #ffffff;
+    border-color: #ff6b6b;
 }
 
 /* Main Content */
@@ -1213,10 +1262,26 @@ input:checked + .slider:before {
 
 /* Settings Cards */
 .settings-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 24px;
 }
+
+.settings-row-top {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.settings-row-bottom {
+    display: flex;
+    width: 100%;
+}
+
+.settings-card.full-width {
+    width: 100%;
+}
+
 
 .settings-card {
     background: #ffffff;
@@ -1240,6 +1305,149 @@ input:checked + .slider:before {
 
 .card-content {
     padding: 24px;
+}
+
+/* Backup Section Styling */
+.backup-section {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.backup-controls {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 48px;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.control-group .btn {
+    width: fit-content;
+}
+
+.control-group h6 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #000;
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.restore-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.warning-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    color: #856404;
+    font-size: 12px;
+}
+
+.warning-notice i {
+    color: #f39c12;
+    font-size: 14px;
+}
+
+/* Backup History Section */
+.backup-history-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.backup-history-section h6 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #000;
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.backup-table-container {
+    overflow-x: auto;
+}
+
+.backup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.backup-table th {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #000;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.backup-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.backup-table tr:hover {
+    background: #f8f9fa;
+}
+
+.backup-download-btn,
+.backup-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    margin-right: 4px;
+}
+
+.backup-download-btn {
+    background: #269610;
+    color: white;
+}
+
+.backup-download-btn:hover {
+    background: #0b7927;
+}
+
+.backup-delete-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.backup-delete-btn:hover {
+    background: #c82333;
+}
+
+.loading-cell,
+.no-data,
+.error-cell {
+    text-align: center;
+    padding: 24px;
+    color: #666;
+    font-style: italic;
 }
 
 .setting-item {
@@ -3344,24 +3552,38 @@ input:checked + .slider:before {
 }
 
 .action-btn.edit-btn {
-    color: #3b82f6;
-    border-color: #3b82f6;
+    background: #ffc107;
+    color: white;
+    border-color: #ffc107;
+}
+
+.action-btn.view-btn {
+    background: #17a2b8;
+    color: white;
+    border-color: #17a2b8;
 }
 
 .action-btn.delete-btn {
-    color: #dc2626;
-    border-color: #dc2626;
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
 }
 
 .action-btn.edit-btn:hover {
-    background: #3b82f6;
-    border-color: #3b82f6;
+    background: #e0a800;
+    border-color: #e0a800;
+    color: #ffffff;
+}
+
+.action-btn.view-btn:hover {
+    background: #138496;
+    border-color: #138496;
     color: #ffffff;
 }
 
 .action-btn.delete-btn:hover {
-    background: #dc2626;
-    border-color: #dc2626;
+    background: #c82333;
+    border-color: #c82333;
     color: #ffffff;
 }
 

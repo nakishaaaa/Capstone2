@@ -39,6 +39,7 @@ export class UserManagementModule {
                     <table class="users-table">
                         <thead>
                             <tr>
+                                <th>ID</th>
                                 <th>User</th>
                                 <th>Email</th>
                                 <th>Role</th>
@@ -49,7 +50,7 @@ export class UserManagementModule {
                         </thead>
                         <tbody id="usersTableBody">
                             <tr>
-                                <td colspan="6" class="loading">Loading users...</td>
+                                <td colspan="7" class="loading">Loading users...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -320,6 +321,7 @@ export class UserManagementModule {
             if (data.success && data.users) {
                 tbody.innerHTML = data.users.map(user => `
                     <tr>
+                        <td>${user.id}</td>
                         <td>
                             <div class="user-info">
                                 <div class="user-details">
@@ -330,7 +332,7 @@ export class UserManagementModule {
                         <td>${user.email}</td>
                         <td><span class="role-badge ${user.role}">${user.role.toUpperCase()}</span></td>
                         <td><span class="status-badge ${user.status}">${user.status.toUpperCase()}</span></td>
-                        <td>${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
+                        <td>${user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
                         <td>
                             <div class="action-buttons">
                                 <button onclick="editUser(${user.id})" class="action-btn edit-btn" title="Edit">
@@ -344,11 +346,11 @@ export class UserManagementModule {
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="no-data">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="no-data">No users found</td></tr>';
             }
         } catch (error) {
             console.error('Error loading users:', error);
-            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="6" class="error-row">Error loading users</td></tr>';
+            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="error-row">Error loading users</td></tr>';
         }
     }
 }

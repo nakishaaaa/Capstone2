@@ -43,6 +43,7 @@ body::before {
 .ai-tools {
     display: flex;
     align-items: center;
+    flex: 0 0 auto;
 }
 
 .ai-dropdown {
@@ -139,14 +140,10 @@ body::before {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 2.0rem; 
-    font-weight: 400; 
-    font-family: 'UnifrakturMaguntia', '', serif;
-    line-height: 1;
-    color: transparent; 
-    -webkit-text-stroke: 1px #ffffff;
-    letter-spacing: 0.02em;
-    position: absolute;
+    font-size: 1.5rem;
+    font-weight: bold;
+    font-family: 'UnifrakturMaguntia', cursive;
+    color: white;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
@@ -159,6 +156,30 @@ body::before {
     color: #ffffff;
 }
 
+.navbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex: 1;
+    justify-content: center;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0.5rem 0;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.nav-link:hover {
+    color: #4facfe;
+    text-decoration: none;
+}
+
+
 .services {
     font-size: 1.2rem;
     font-weight: 600;
@@ -170,7 +191,7 @@ body::before {
     align-items: center;
     gap: 1rem;
     color: white;
-    position: relative;
+    flex: 0 0 auto;
 }
 
 .user-dropdown {

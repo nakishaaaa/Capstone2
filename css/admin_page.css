@@ -16,11 +16,13 @@
   
   .sidebar {
     width: 250px;
-    background-color: rgb(39, 38, 38);
+    background-color: #1a1a1a;
     color: white;
     position: fixed;
     height: 100vh;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
   
   .sidebar-header {
@@ -33,9 +35,14 @@
     margin-bottom: 0.5rem;
   }
   
+  .sidebar-nav {
+    flex: 1;
+    padding: 20px 0;
+  }
+  
   .nav-menu {
     list-style: none;
-    padding: 1rem 0;
+    padding: 0;
   }
   
   .nav-menu li {
@@ -51,6 +58,25 @@
     transition: all 0.3s ease;
   }
   
+  .nav-link.logout {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: #ff6b6b;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    background: #2a2a2a;
+    border-radius: 6px;
+    margin: 2px 12px;
+    border: 1px solid #444444;
+  }
+  
+  .nav-link.logout:hover {
+    background: #ff6b6b;
+    color: #ffffff;
+    border-color: #ff6b6b;
+  }
+  
   .nav-link:hover,
   .nav-link.active {
     background: rgba(255, 255, 255, 0.1);
@@ -60,6 +86,45 @@
   .nav-link i {
     margin-right: 0.75rem;
     width: 20px;
+  }
+  
+  .sidebar-footer {
+    padding: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .sidebar-footer .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    color: #ffffff;
+    font-size: 13px;
+    padding: 12px 20px;
+    background: #2a2a2a;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+  
+  .logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    color: #ff6b6b;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    background: #2a2a2a;
+    border: 1px solid #444444;
+  }
+  
+  .logout-btn:hover {
+    background: #ff6b6b;
+    color: #ffffff;
+    border-color: #ff6b6b;
   }
   
   .main-content {
@@ -103,21 +168,7 @@
   }
  
   .logged-in-user {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #333;
-    background: #fff;
-    padding: 0.35rem 0.6rem;
-    border: 1px solid #e9ecef;
-    border-radius: 999px;
-    font-size: 0.9rem;
-    line-height: 1;
-  }
- 
-  .logged-in-user i {
-    color: #667eea;
-    font-size: 0.95rem;
+    display: none;
   }
  
   @media (max-width: 768px) {

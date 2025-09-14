@@ -37,6 +37,14 @@ export class FormManager {
         this.requestFormContainer = document.getElementById('requestFormContainer');
         this.requestButtonContainer = document.querySelector('.request-button-container');
         this.heroOverlay = document.querySelector('.hero-overlay');
+        
+        // T-shirt specific elements
+        this.tshirtFields = document.getElementById('tshirtFields');
+        this.regularImageField = document.getElementById('regularImageField');
+        this.frontImageInput = document.getElementById('frontImage');
+        this.backImageInput = document.getElementById('backImage');
+        this.tagImageInput = document.getElementById('tagImage');
+        this.tagLocationSelect = document.getElementById('tagLocation');
     }
     
     setupEventListeners() {
@@ -45,14 +53,21 @@ export class FormManager {
             this.categorySelect.addEventListener('change', () => this.handleCategoryChange());
         }
         
+        // Design option change event (for T-shirt customization choice)
+        const designOptionSelect = document.getElementById('designOption');
+        if (designOptionSelect) {
+            designOptionSelect.addEventListener('change', () => this.handleDesignOptionChange());
+        }
+        
+        
         // Form submission
         if (this.requestForm) {
             this.requestForm.addEventListener('submit', (e) => this.handleFormSubmit(e));
         }
         
-        // File upload display
+        // File upload display for regular image
         const fileInput = document.getElementById('image');
-        const fileName = document.querySelector('.file-name');
+        const fileName = document.querySelector('#regularImageField .file-name');
         if (fileInput && fileName) {
             fileInput.addEventListener('change', function() {
                 if (this.files.length > 0) {
@@ -62,6 +77,9 @@ export class FormManager {
                 }
             });
         }
+        
+        // File upload display for T-shirt specific fields
+        this.setupTshirtFileUploads();
         
         // Form toggle events
         if (this.showFormBtn) {
@@ -79,9 +97,20 @@ export class FormManager {
         if (selectedCategory && categoryOptions[selectedCategory]) {
             this.populateSizeOptions(selectedCategory);
             this.enableSizeSelect();
+            this.toggleTshirtFields(selectedCategory);
         } else {
             this.clearSizeOptions();
             this.disableSizeSelect();
+            this.toggleTshirtFields('');
+        }
+    }
+    
+    handleDesignOptionChange() {
+        const designOption = document.getElementById('designOption').value;
+        const selectedCategory = this.categorySelect.value;
+        
+        if (selectedCategory === 't-shirt-print') {
+            this.toggleTshirtFields(selectedCategory, designOption);
         }
     }
     
@@ -309,9 +338,106 @@ export class FormManager {
         this.requestForm.reset();
         this.clearSizeOptions();
         this.disableSizeSelect();
-        const fileName = document.querySelector('.file-name');
-        if (fileName) {
+        this.toggleTshirtFields('');
+        
+        // Reset all file name displays
+        const fileNames = document.querySelectorAll('.file-name');
+        fileNames.forEach(fileName => {
             fileName.textContent = 'No file chosen';
+        });
+    }
+    
+    setupTshirtFileUploads() {
+        // Front image upload
+        if (this.frontImageInput) {
+            const frontFileName = this.frontImageInput.closest('.file-upload').querySelector('.file-name');
+            this.frontImageInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    frontFileName.textContent = this.files[0].name;
+                } else {
+                    frontFileName.textContent = 'No file chosen';
+                }
+            });
+        }
+        
+        // Back image upload
+        if (this.backImageInput) {
+            const backFileName = this.backImageInput.closest('.file-upload').querySelector('.file-name');
+            this.backImageInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    backFileName.textContent = this.files[0].name;
+                } else {
+                    backFileName.textContent = 'No file chosen';
+                }
+            });
+        }
+        
+        // Tag image upload
+        if (this.tagImageInput) {
+            const tagFileName = this.tagImageInput.closest('.file-upload').querySelector('.file-name');
+            this.tagImageInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    tagFileName.textContent = this.files[0].name;
+                } else {
+                    tagFileName.textContent = 'No file chosen';
+                }
+            });
+        }
+    }
+    
+    toggleTshirtFields(category, designOption = null) {
+        const tshirtFields = document.getElementById('tshirtFields');
+        const regularImageGroup = document.querySelector('.form-group:has(#image)');
+        const designOptionGroup = document.getElementById('designOptionGroup');
+        
+        if (category === 't-shirt-print') {
+            // Show design option dropdown for T-shirt category
+            if (designOptionGroup) {
+                designOptionGroup.style.display = 'block';
+            }
+            
+            // Get design option if not provided
+            if (!designOption) {
+                const designOptionSelect = document.getElementById('designOption');
+                designOption = designOptionSelect ? designOptionSelect.value : '';
+            }
+            
+            if (designOption === 'customize') {
+                // Show customization fields for customize option
+                if (tshirtFields) {
+                    tshirtFields.style.display = 'block';
+                }
+                if (regularImageGroup) {
+                    regularImageGroup.style.display = 'none';
+                }
+            } else if (designOption === 'ready') {
+                // Show regular image upload for ready design
+                if (tshirtFields) {
+                    tshirtFields.style.display = 'none';
+                }
+                if (regularImageGroup) {
+                    regularImageGroup.style.display = 'block';
+                }
+            } else {
+                // No design option selected yet, hide both upload sections
+                if (tshirtFields) {
+                    tshirtFields.style.display = 'none';
+                }
+                if (regularImageGroup) {
+                    regularImageGroup.style.display = 'none';
+                }
+            }
+        } else {
+            // For non-tshirt categories, hide design option and customization fields, show regular image
+            if (designOptionGroup) {
+                designOptionGroup.style.display = 'none';
+            }
+            if (tshirtFields) {
+                tshirtFields.style.display = 'none';
+            }
+            if (regularImageGroup) {
+                regularImageGroup.style.display = 'block';
+            }
         }
     }
 }
