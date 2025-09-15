@@ -136,8 +136,25 @@ function handleCreateRequest() {
             mkdir($upload_dir, 0755, true);
         }
         
-        // Handle regular image upload (for non-tshirt categories)
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        // Handle multiple image uploads (for non-tshirt categories)
+        $image_paths = [];
+        if (isset($_FILES['image']) && is_array($_FILES['image']['name'])) {
+            // Multiple files uploaded
+            for ($i = 0; $i < count($_FILES['image']['name']); $i++) {
+                if ($_FILES['image']['error'][$i] === UPLOAD_ERR_OK) {
+                    $file_extension = pathinfo($_FILES['image']['name'][$i], PATHINFO_EXTENSION);
+                    $file_name = uniqid('req_' . $i . '_', true) . '.' . $file_extension;
+                    $destination = $upload_dir . $file_name;
+                    
+                    if (!move_uploaded_file($_FILES['image']['tmp_name'][$i], $destination)) {
+                        throw new Exception('Failed to upload image file: ' . $_FILES['image']['name'][$i]);
+                    }
+                    
+                    $image_paths[] = 'uploads/requests/' . $file_name;
+                }
+            }
+        } elseif (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            // Single file uploaded (backward compatibility)
             $file_extension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
             $file_name = uniqid('req_', true) . '.' . $file_extension;
             $destination = $upload_dir . $file_name;
@@ -146,8 +163,11 @@ function handleCreateRequest() {
                 throw new Exception('Failed to upload image file');
             }
             
-            $image_path = 'uploads/requests/' . $file_name;
+            $image_paths[] = 'uploads/requests/' . $file_name;
         }
+        
+        // Convert array to JSON string for database storage
+        $image_path = !empty($image_paths) ? json_encode($image_paths) : null;
         
         // Handle T-shirt specific uploads
         if ($_POST['category'] === 't-shirt-print') {
@@ -211,6 +231,9 @@ function handleCreateRequest() {
             if (!in_array('design_option', $columns)) {
                 $pdo->exec("ALTER TABLE user_requests ADD COLUMN design_option VARCHAR(50) DEFAULT NULL");
             }
+            if (!in_array('custom_size', $columns)) {
+                $pdo->exec("ALTER TABLE user_requests ADD COLUMN custom_size VARCHAR(100) DEFAULT NULL AFTER size");
+            }
         } catch (Exception $e) {
             // Columns might already exist, continue
         }
@@ -218,10 +241,10 @@ function handleCreateRequest() {
         // Insert request with T-shirt specific fields
         $sql = "INSERT INTO user_requests (
                     user_id, category, size, quantity, name, contact_number, notes, 
-                    image_path, front_image_path, back_image_path, tag_image_path, tag_location, design_option,
+                    image_path, front_image_path, back_image_path, tag_image_path, tag_location, design_option, custom_size,
                     status, created_at, updated_at
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW()
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW()
                 )";
         
         $stmt = $pdo->prepare($sql);
@@ -238,7 +261,8 @@ function handleCreateRequest() {
             $back_image_path,
             $tag_image_path,
             $_POST['tag_location'] ?? null,
-            $_POST['design_option'] ?? null
+            $_POST['design_option'] ?? null,
+            $_POST['custom_size'] ?? null
         ]);
         
         echo json_encode(['success' => true, 'message' => 'Request submitted successfully']);

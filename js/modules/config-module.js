@@ -36,6 +36,14 @@ export const categoryOptions = {
             { value: 'calling', text: 'Calling Card' },
             { value: 'business', text: 'Business Card' },
             { value: 'invitation', text: 'Invitation Card' }
+        ],
+        sizes: [
+            { value: '2x3.5', text: '2" x 3.5" (Standard Business Card)' },
+            { value: '3.5x2', text: '3.5" x 2" (Standard Business Card)' },
+            { value: '4x6', text: '4" x 6" (Postcard Size)' },
+            { value: '5x7', text: '5" x 7" (Greeting Card)' },
+            { value: '4.25x5.5', text: '4.25" x 5.5" (A2 Card)' },
+            { value: 'custom', text: 'Custom Size' }
         ]
     },
     'document-print': {

@@ -175,6 +175,14 @@ if (!$isUserLoggedIn) {
                                     </select>
                                 </div>
                                 
+                                <!-- Custom Size Input Field -->
+                                <div class="form-group" id="customSizeGroup" style="display: none;">
+                                    <label for="customSize">Custom Size</label>
+                                    <input type="text" id="customSize" name="custom_size" 
+                                           placeholder="Enter custom size (e.g., 3.5 x 2 inches)" 
+                                           maxlength="50">
+                                </div>
+                                
                                 <div class="form-group">
                                     <label for="quantity">Quantity</label>
                                     <input type="number" id="quantity" name="quantity" 
@@ -261,14 +269,16 @@ if (!$isUserLoggedIn) {
                             <!-- Regular Image Upload (for non-tshirt categories) -->
                             <div id="regularImageField" class="form-row">
                                 <div class="form-group">
-                                    <label for="image">Image</label>
+                                    <label for="image">Images/Files</label>
                                     <div class="file-upload">
-                                        <input type="file" id="image" name="image" accept="image/*,.pdf">
+                                        <input type="file" id="image" name="image[]" accept="image/*,.pdf" multiple>
                                         <label for="image" class="file-upload-label">
                                             <i class="fas fa-download"></i>
-                                            <span>Choose File</span>
+                                            <span>Choose Files</span>
                                         </label>
-                                        <span class="file-name">No file chosen</span>
+                                        <div class="file-list">
+                                            <span class="file-name">No files chosen</span>
+                                        </div>
                                     </div>
                                 </div>
                                 

@@ -53,6 +53,11 @@ export class FormManager {
             this.categorySelect.addEventListener('change', () => this.handleCategoryChange());
         }
         
+        // Size change event (for custom size handling)
+        if (this.sizeSelect) {
+            this.sizeSelect.addEventListener('change', () => this.handleSizeChange());
+        }
+        
         // Design option change event (for T-shirt customization choice)
         const designOptionSelect = document.getElementById('designOption');
         if (designOptionSelect) {
@@ -65,16 +70,16 @@ export class FormManager {
             this.requestForm.addEventListener('submit', (e) => this.handleFormSubmit(e));
         }
         
-        // File upload display for regular image
+        // File upload display for regular image (multiple files)
         const fileInput = document.getElementById('image');
-        const fileName = document.querySelector('#regularImageField .file-name');
-        if (fileInput && fileName) {
-            fileInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    fileName.textContent = this.files[0].name;
-                } else {
-                    fileName.textContent = 'No file chosen';
-                }
+        const fileList = document.querySelector('#regularImageField .file-list');
+        if (fileInput && fileList) {
+            // Initialize accumulated files array
+            this.accumulatedFiles = [];
+            
+            fileInput.addEventListener('change', (event) => {
+                console.log('File input changed:', event.target.files);
+                this.handleFileSelection(event.target.files, fileList, fileInput);
             });
         }
         
@@ -105,6 +110,29 @@ export class FormManager {
         }
     }
     
+    handleSizeChange() {
+        const selectedSize = this.sizeSelect.value;
+        const customSizeGroup = document.getElementById('customSizeGroup');
+        const customSizeInput = document.getElementById('customSize');
+        
+        if (selectedSize === 'custom') {
+            if (customSizeGroup) {
+                customSizeGroup.style.display = 'block';
+                if (customSizeInput) {
+                    customSizeInput.required = true;
+                }
+            }
+        } else {
+            if (customSizeGroup) {
+                customSizeGroup.style.display = 'none';
+                if (customSizeInput) {
+                    customSizeInput.required = false;
+                    customSizeInput.value = '';
+                }
+            }
+        }
+    }
+    
     handleDesignOptionChange() {
         const designOption = document.getElementById('designOption').value;
         const selectedCategory = this.categorySelect.value;
@@ -129,6 +157,23 @@ export class FormManager {
             optionElement.textContent = option.text;
             this.sizeSelect.appendChild(optionElement);
         });
+
+        // If this category has sizes (like card-print), add them after the main options
+        if (options.sizes) {
+            // Add a separator
+            const separator = document.createElement('option');
+            separator.disabled = true;
+            separator.textContent = '--- Card Sizes ---';
+            this.sizeSelect.appendChild(separator);
+            
+            // Add size options
+            options.sizes.forEach(size => {
+                const sizeElement = document.createElement('option');
+                sizeElement.value = size.value;
+                sizeElement.textContent = size.text;
+                this.sizeSelect.appendChild(sizeElement);
+            });
+        }
     }
     
     clearSizeOptions() {
@@ -266,6 +311,7 @@ export class FormManager {
         const size = this.sizeSelect.value;
         const quantity = document.getElementById('quantity').value;
         const contactNumber = document.getElementById('contact_number').value;
+        const customSizeInput = document.getElementById('customSize');
         
         if (!category) {
             window.showModal('error', 'Please select a service category.');
@@ -275,6 +321,14 @@ export class FormManager {
         if (!size) {
             window.showModal('error', 'Please select a size/type option.');
             return false;
+        }
+        
+        // Validate custom size input if custom is selected
+        if (size === 'custom' && customSizeInput) {
+            if (!customSizeInput.value.trim()) {
+                window.showModal('error', 'Please enter the custom size.');
+                return false;
+            }
         }
         
         if (!quantity || quantity < 1) {
@@ -340,11 +394,31 @@ export class FormManager {
         this.disableSizeSelect();
         this.toggleTshirtFields('');
         
+        // Hide custom size input
+        const customSizeGroup = document.getElementById('customSizeGroup');
+        const customSizeInput = document.getElementById('customSize');
+        if (customSizeGroup) {
+            customSizeGroup.style.display = 'none';
+        }
+        if (customSizeInput) {
+            customSizeInput.required = false;
+            customSizeInput.value = '';
+        }
+        
         // Reset all file name displays
         const fileNames = document.querySelectorAll('.file-name');
         fileNames.forEach(fileName => {
-            fileName.textContent = 'No file chosen';
+            fileName.textContent = 'No files chosen';
         });
+        
+        // Reset file lists
+        const fileLists = document.querySelectorAll('.file-list');
+        fileLists.forEach(fileList => {
+            fileList.innerHTML = '<span class="file-name">No files chosen</span>';
+        });
+        
+        // Reset accumulated files
+        this.accumulatedFiles = [];
     }
     
     setupTshirtFileUploads() {
@@ -440,11 +514,121 @@ export class FormManager {
             }
         }
     }
+    
+    displayMultipleFiles(files, container) {
+        console.log('displayMultipleFiles called with:', files, container);
+        
+        if (!files || files.length === 0) {
+            container.innerHTML = '<span class="file-name">No files chosen</span>';
+            return;
+        }
+        
+        if (files.length === 1) {
+            container.innerHTML = `<span class="file-name">${files[0].name}</span>`;
+            return;
+        }
+        
+        // Create file list for multiple files
+        let fileListHTML = '<div class="multiple-files-container">';
+        fileListHTML += `<div class="file-count">${files.length} files selected</div>`;
+        fileListHTML += '<div class="file-items">';
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const fileSize = this.formatFileSize(file.size);
+            const fileIcon = this.getFileIcon(file.type);
+            
+            fileListHTML += `
+                <div class="file-item">
+                    <div class="file-info">
+                        <i class="${fileIcon}"></i>
+                        <span class="file-name-text">${file.name}</span>
+                        <span class="file-size">${fileSize}</span>
+                    </div>
+                    <button type="button" class="remove-file-btn" onclick="window.removeFile(${i})" title="Remove file">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        }
+        
+        fileListHTML += '</div></div>';
+        container.innerHTML = fileListHTML;
+    }
+    
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    getFileIcon(fileType) {
+        if (fileType.startsWith('image/')) {
+            return 'fas fa-image';
+        } else if (fileType === 'application/pdf') {
+            return 'fas fa-file-pdf';
+        } else {
+            return 'fas fa-file';
+        }
+    }
+    
+    handleFileSelection(newFiles, container, fileInput) {
+        // Add new files to accumulated files array
+        for (let i = 0; i < newFiles.length; i++) {
+            const file = newFiles[i];
+            // Check if file already exists (by name and size)
+            const exists = this.accumulatedFiles.some(existingFile => 
+                existingFile.name === file.name && existingFile.size === file.size
+            );
+            
+            if (!exists) {
+                this.accumulatedFiles.push(file);
+            }
+        }
+        
+        // Update the file input with all accumulated files
+        this.updateFileInput(fileInput);
+        
+        // Display all accumulated files
+        this.displayMultipleFiles(this.accumulatedFiles, container);
+    }
+    
+    updateFileInput(fileInput) {
+        const dt = new DataTransfer();
+        this.accumulatedFiles.forEach(file => {
+            dt.items.add(file);
+        });
+        fileInput.files = dt.files;
+    }
+    
+    removeFile(index) {
+        const fileInput = document.getElementById('image');
+        const fileList = document.querySelector('#regularImageField .file-list');
+        
+        if (fileInput && fileList && this.accumulatedFiles) {
+            // Remove file from accumulated files array
+            this.accumulatedFiles.splice(index, 1);
+            
+            // Update file input
+            this.updateFileInput(fileInput);
+            
+            // Update display
+            this.displayMultipleFiles(this.accumulatedFiles, fileList);
+        }
+    }
 }
 
-// Make clearForm available globally for backward compatibility
+// Make functions available globally for onclick handlers
 window.clearForm = function() {
     if (window.formManager) {
         window.formManager.clearForm();
+    }
+};
+
+window.removeFile = function(index) {
+    if (window.formManager) {
+        window.formManager.removeFile(index);
     }
 };

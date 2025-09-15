@@ -207,24 +207,13 @@ export class RequestsModule {
           </div>
           <div class="info-item">
             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Type/Size</div>
-            <div style="font-weight: 500; color: #2d3748;">${this.escapeHtml(request.size)}</div>
+            <div style="font-weight: 500; color: #2d3748;">
+              ${this.escapeHtml(request.size)}
+              ${request.size === 'custom' && request.custom_size ? `<br><span style="font-size: 0.9em; color: #4a5568; font-style: italic;">${this.escapeHtml(request.custom_size)}</span>` : ''}
+            </div>
           </div>
           
-          ${request.image_path ? `
-            <div class="info-item">
-              <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Attached Image</div>
-              <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; display:flex; align-items:center; justify-content:center; min-height: 120px;">
-                <img src="${this.escapeHtml(request.image_path)}" alt="Request Image" style="max-width:100%; max-height:200px; border-radius:6px; object-fit:contain;">
-              </div>
-              <div style="margin-top: 0.4rem; display: flex; justify-content: flex-start;">
-                <a href="${this.escapeHtml(request.image_path)}" download target="_blank" rel="noopener" 
-                   style="display:inline-flex; align-items:center; gap:0.4rem; padding: 0.4rem 0.75rem; border-radius: 6px; background: #f1f5f9; color: #1f2937; border: 1px solid #cbd5e1; text-decoration: none;">
-                  <i class="fa-solid fa-download"></i>
-                  Download image
-                </a>
-              </div>
-            </div>
-          ` : ''}
+          ${request.image_path ? this.renderAttachedImages(request.image_path) : ''}
           
           ${request.category === 't-shirt-print' && request.design_option === 'customize' ? `
             <div class="info-item" style="grid-column: span 2;">
@@ -747,7 +736,7 @@ export class RequestsModule {
         <td>${this.formatDate(request.created_at)}</td>
         <td>${this.escapeHtml(request.name || 'N/A')}</td>
         <td>${this.formatCategory(request.category)}</td>
-        <td>${this.escapeHtml(request.size || 'N/A')}</td>
+        <td>${this.escapeHtml(request.size || 'N/A')}${request.size === 'custom' && request.custom_size ? `<br><small style="color: #4a5568; font-style: italic;">${this.escapeHtml(request.custom_size)}</small>` : ''}</td>
         <td>${request.quantity || 'N/A'}</td>
         <td>${this.escapeHtml(request.contact_number || 'N/A')}</td>
         <td><span class="status-badge ${request.status}">${request.status}</span></td>
@@ -778,8 +767,8 @@ export class RequestsModule {
         <td>${this.formatDate(request.created_at)}</td>
         <td>${this.escapeHtml(request.name || 'N/A')}</td>
         <td>${this.formatCategory(request.category)}</td>
-        <td class="request-details" title="${this.escapeHtml(request.size + (request.notes ? ' - ' + request.notes : ''))}">
-          ${this.escapeHtml(request.size)}
+        <td class="request-details" title="${this.escapeHtml(request.size + (request.custom_size ? ' (' + request.custom_size + ')' : '') + (request.notes ? ' - ' + request.notes : ''))}">
+          ${this.escapeHtml(request.size)}${request.size === 'custom' && request.custom_size ? `<br><small style="color: #4a5568; font-style: italic;">${this.escapeHtml(request.custom_size)}</small>` : ''}
         </td>
         <td>${request.quantity}</td>
         <td>${this.escapeHtml(request.contact_number || 'N/A')}</td>
@@ -1204,24 +1193,57 @@ export class RequestsModule {
       this.toast.error('Failed to reject request: ' + error.message)
     }
   }
-}
 
-export default RequestsModule
-
-// Helper to update the sidebar requests badge
-RequestsModule.prototype.updateRequestsBadge = function(count) {
-  try {
-    const badge = document.getElementById('requestsBadge')
-    if (!badge) return
-    const value = Number(count) || 0
-    if (value > 0) {
-      badge.textContent = value > 99 ? '99+' : String(value)
-      badge.style.display = 'inline-block'
-    } else {
-      badge.textContent = '0'
-      badge.style.display = 'none'
+  renderAttachedImages(imagePath) {
+    let imagePaths = [];
+    
+    // Try to parse as JSON array first
+    try {
+      const parsed = JSON.parse(imagePath);
+      if (Array.isArray(parsed)) {
+        imagePaths = parsed;
+      } else {
+        imagePaths = [imagePath];
+      }
+    } catch (e) {
+      // If not JSON, treat as single path
+      imagePaths = [imagePath];
     }
-  } catch (e) {
-    console.warn('Failed to update requests badge', e)
+    
+    if (imagePaths.length === 0) return '';
+    
+    const label = imagePaths.length === 1 ? 'Attached Image' : `Attached Images (${imagePaths.length})`;
+    
+    let html = `
+        <div class="info-item" style="grid-column: span 2;">
+            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.5rem;">${label}</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+    `;
+    
+    imagePaths.forEach((path, index) => {
+      html += `
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:8px;">
+              <div style="display:flex; align-items:center; justify-content:center; min-height: 120px; margin-bottom: 0.5rem;">
+                  <img src="${this.escapeHtml(path)}" alt="Request Image ${index + 1}" 
+                       style="max-width:100%; max-height:150px; border-radius:6px; object-fit:contain; cursor: pointer;"
+                       onclick="window.open('${this.escapeHtml(path)}', '_blank')">
+              </div>
+              <div style="display: flex; justify-content: center;">
+                  <a href="${this.escapeHtml(path)}" download target="_blank" rel="noopener" 
+                     style="display:inline-flex; align-items:center; gap:0.4rem; padding: 0.4rem 0.75rem; border-radius: 6px; background: #f1f5f9; color: #1f2937; border: 1px solid #cbd5e1; text-decoration: none; font-size: 0.8rem;">
+                      <i class="fa-solid fa-download"></i>
+                      Download ${imagePaths.length > 1 ? `#${index + 1}` : 'image'}
+                  </a>
+              </div>
+          </div>
+      `;
+    });
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    return html;
   }
 }
