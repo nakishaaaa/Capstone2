@@ -88,6 +88,18 @@ export class RequestsModule {
     this.updateRequestsBadge(stats.pending || 0)
   }
 
+  updateRequestsBadge(pendingCount) {
+    const badge = document.getElementById('requestsBadge')
+    if (badge) {
+      if (pendingCount > 0) {
+        badge.textContent = pendingCount
+        badge.style.display = 'inline'
+      } else {
+        badge.style.display = 'none'
+      }
+    }
+  }
+
 
 
   filterRequests() {

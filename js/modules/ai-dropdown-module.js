@@ -6,7 +6,8 @@
 export class AIDropdownManager {
     constructor() {
         this.aiTrigger = null;
-        this.aiDropdownMenu = null;
+        this.aiToolsContainer = null;
+        this.aiOptions = null;
         this.aiGeneratorOption = null;
         this.aiEditorOption = null;
         
@@ -20,7 +21,8 @@ export class AIDropdownManager {
     
     initializeElements() {
         this.aiTrigger = document.getElementById('aiTrigger');
-        this.aiDropdownMenu = document.getElementById('aiDropdownMenu');
+        this.aiToolsContainer = document.getElementById('aiToolsContainer');
+        this.aiOptions = document.getElementById('aiOptions');
         this.aiGeneratorOption = document.getElementById('aiGeneratorOption');
         this.aiEditorOption = document.getElementById('aiEditorOption');
     }
@@ -29,7 +31,7 @@ export class AIDropdownManager {
         if (this.aiTrigger) {
             this.aiTrigger.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.toggleDropdown();
+                this.toggleOptions();
             });
         }
         
@@ -39,7 +41,7 @@ export class AIDropdownManager {
                 if (window.aiImageGenerator) {
                     window.aiImageGenerator.showModal();
                 }
-                this.closeDropdown();
+                this.closeOptions();
             });
         }
         
@@ -49,52 +51,52 @@ export class AIDropdownManager {
                 if (window.aiPhotoEditor) {
                     window.aiPhotoEditor.showModal();
                 }
-                this.closeDropdown();
+                this.closeOptions();
             });
         }
         
-        // Close dropdown when clicking outside
+        // Close options when clicking outside
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.ai-dropdown')) {
-                this.closeDropdown();
+            if (!e.target.closest('.ai-tools-container')) {
+                this.closeOptions();
             }
         });
         
-        // Close dropdown on escape key
+        // Close options on escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                this.closeDropdown();
+                this.closeOptions();
             }
         });
     }
     
-    toggleDropdown() {
-        if (this.aiDropdownMenu && this.aiTrigger) {
-            const isOpen = this.aiDropdownMenu.classList.contains('show');
+    toggleOptions() {
+        if (this.aiToolsContainer && this.aiOptions) {
+            const isExpanded = this.aiToolsContainer.classList.contains('expanded');
             
-            if (isOpen) {
-                this.closeDropdown();
+            if (isExpanded) {
+                this.closeOptions();
             } else {
-                this.openDropdown();
+                this.openOptions();
             }
         }
     }
     
-    openDropdown() {
-        if (this.aiTrigger) this.aiTrigger.classList.add('active');
-        if (this.aiDropdownMenu) this.aiDropdownMenu.classList.add('show');
+    openOptions() {
+        if (this.aiToolsContainer) this.aiToolsContainer.classList.add('expanded');
+        if (this.aiOptions) this.aiOptions.classList.add('show');
     }
     
-    closeDropdown() {
-        if (this.aiTrigger) this.aiTrigger.classList.remove('active');
-        if (this.aiDropdownMenu) this.aiDropdownMenu.classList.remove('show');
+    closeOptions() {
+        if (this.aiToolsContainer) this.aiToolsContainer.classList.remove('expanded');
+        if (this.aiOptions) this.aiOptions.classList.remove('show');
     }
 }
 
 // Global function for backward compatibility
 window.closeAIDropdown = function() {
     if (window.aiDropdownManager) {
-        window.aiDropdownManager.closeDropdown();
+        window.aiDropdownManager.closeOptions();
     }
 };
 

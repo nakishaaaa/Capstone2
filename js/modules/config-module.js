@@ -49,20 +49,20 @@ export const categoryOptions = {
     'document-print': {
         label: 'Document Size',
         options: [
-            { value: 'short', text: 'Short' },
-            { value: 'long', text: 'Long' },
-            { value: 'a4', text: 'A4' }
+            { value: 'short', text: 'Short (8.5" x 11")' },
+            { value: 'long', text: 'Long (8.5" x 14")' },
+            { value: 'a4', text: 'A4 (8.27" x 11.69")' }
         ]
     },
     'photo-print': {
         label: 'Photo Size',
         options: [
-            { value: 'a4', text: 'A4' },
-            { value: '8r', text: '8R' },
-            { value: '6r', text: '6R' },
-            { value: '5r', text: '5R' },
-            { value: '3r', text: '3R' },
-            { value: 'wallet', text: 'Wallet Size' }
+            { value: 'a4', text: 'A4 (8.27" x 11.69")' },
+            { value: '8r', text: '8R (8" x 10")' },
+            { value: '6r', text: '6R (6" x 8")' },
+            { value: '5r', text: '5R (5" x 7")' },
+            { value: '3r', text: '3R (3" x 5")' },
+            { value: 'wallet', text: 'Wallet Size (2" x 3.5")' }
         ]
     },
     'photo-copy': {

@@ -46,13 +46,10 @@ function isActiveForm($formName, $activeForm) {
 <body>
   <div class="container">
     <header class="header">
-      <div class="ai-tools">
-        <div class="ai-dropdown">
-          <div class="ai-trigger" id="aiTrigger" title="AI Tools">
-            <i class="fas fa-atom"></i>
-            <span>AI</span>
-          </div>
-        </div>
+      <div class="home-icon">
+        <button class="home-btn" id="homeBtn" title="Back to Top">
+          <i class="fas fa-home"></i>
+        </button>
       </div>
       <div class="brand">
         <span></span>
@@ -864,6 +861,17 @@ function isActiveForm($formName, $activeForm) {
     document.addEventListener('DOMContentLoaded', function() {
       console.log('Google Maps embed ready');
       
+      // Home button scroll to top functionality
+      const homeBtn = document.getElementById('homeBtn');
+      if (homeBtn) {
+        homeBtn.addEventListener('click', function() {
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        });
+      }
+
       // Smooth scrolling for navigation links
       document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', function(e) {

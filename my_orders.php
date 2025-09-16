@@ -44,9 +44,7 @@ if (!$isUserLoggedIn) {
                     <span>Back</span>
                 </button>
             </div>
-            <div class="brand">
-                <span>053</span>
-            </div>
+
             <div class="user-info">
                 <div class="user-dropdown">
                     <button class="user-dropdown-btn" id="userDropdownBtn">

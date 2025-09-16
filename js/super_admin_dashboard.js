@@ -461,6 +461,13 @@ function setupGlobalHandlers() {
             dashboard.auditModule.loadRecentActivityData();
         }
     };
+
+    // Add missing navigateToSection function
+    window.navigateToSection = function(sectionName) {
+        if (dashboard) {
+            dashboard.switchSection(sectionName);
+        }
+    };
 }
 
 // Chart interaction handlers

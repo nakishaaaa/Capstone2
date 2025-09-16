@@ -221,7 +221,7 @@ if ($supportMessagesResult) {
                     <div class="dashboard-card">
                         <h3>Quick Actions</h3>
                         <div class="quick-actions">
-                            <button class="quick-action-btn" onclick="navigateToSection('backup')">
+                            <button class="quick-action-btn" onclick="navigateToSection('system-settings')">
                                 <i class="fas fa-download"></i>
                                 Create Backup
                             </button>
@@ -232,10 +232,6 @@ if ($supportMessagesResult) {
                             <button class="quick-action-btn" onclick="viewLogs()">
                                 <i class="fas fa-file-alt"></i>
                                 View Logs
-                            </button>
-                            <button class="quick-action-btn" onclick="systemCheck()">
-                                <i class="fas fa-check-circle"></i>
-                                System Check
                             </button>
                         </div>
                     </div>
@@ -446,21 +442,17 @@ if ($supportMessagesResult) {
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
             });
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
             });
             
             document.getElementById('audit-trails').classList.add('active');
-            document.querySelector('[data-section="audit-trails"]').classList.add('active');
+            document.querySelector('[data-section="audit-trails"]').closest('.nav-item').classList.add('active');
             
             // Load audit trails data
             loadAuditTrails();
         }
 
-        function systemCheck() {
-            showNotification('Running system check...', 'info');
-            // Implementation will be added
-        }
     </script>
 </body>
 </html>

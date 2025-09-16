@@ -39,23 +39,10 @@ if (!$isUserLoggedIn) {
 <body>
     <div class="container">
         <header class="header">
-            <div class="ai-tools">
-                <div class="ai-dropdown">
-                    <div class="ai-trigger" id="aiTrigger" title="AI Tools">
-                        <i class="fas fa-atom"></i>
-                        <span>AI</span>
-                    </div>
-                    <div class="ai-dropdown-menu" id="aiDropdownMenu">
-                        <div class="ai-option" id="aiGeneratorOption">
-                            <i class="fas fa-magic"></i>
-                            <span>Generate Image</span>
-                        </div>
-                        <div class="ai-option" id="aiEditorOption">
-                            <i class="fas fa-wand-magic-sparkles"></i>
-                            <span>Enhance Image</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="home-icon">
+                <button class="home-btn" id="homeBtn" title="Back to Top">
+                    <i class="fas fa-home"></i>
+                </button>
             </div>
             <div class="brand">
                 <span></span>
@@ -139,6 +126,30 @@ if (!$isUserLoggedIn) {
                         <button id="showRequestFormBtn" class="btn-show-form">
                             <span class="button_top">Request an Order</span>
                         </button>
+                    </div>
+                    
+                    <!-- AI Tools Button -->
+                    <div class="ai-tools-container" id="aiToolsContainer">
+                        <div class="ai-trigger" id="aiTrigger" title="AI Tools">
+                            <div class="ai-trigger-content">
+                                <i class="fas fa-atom"></i>
+                                <span>AI Design Tools</span>
+                            </div>
+                        </div>
+                        <div class="ai-options" id="aiOptions">
+                            <div class="ai-option" id="aiGeneratorOption">
+                                <div class="ai-option-content">
+                                    <i class="fas fa-magic"></i>
+                                    <span>Generate Image</span>
+                                </div>
+                            </div>
+                            <div class="ai-option" id="aiEditorOption">
+                                <div class="ai-option-content">
+                                    <i class="fas fa-wand-magic-sparkles"></i>
+                                    <span>Enhance Image</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Request Form Container -->
@@ -978,6 +989,17 @@ if (!$isUserLoggedIn) {
             else if (e.key === 'ArrowLeft') show(-1);
         });
         
+        // Home button scroll to top functionality
+        const homeBtn = document.getElementById('homeBtn');
+        if (homeBtn) {
+            homeBtn.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+        }
+
         // Smooth scrolling for navigation links
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', function(e) {

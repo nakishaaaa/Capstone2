@@ -196,7 +196,7 @@ class MyOrdersModule {
                 <div class="order-details">
                     <div class="order-image">
                         ${order.image_url ? 
-                            `<img src="${order.image_url}" alt="Order image" onerror="this.src='images/placeholder.png'">` :
+                            `<img src="${order.image_url}" alt="Order image" onerror="this.src='images/placeholder.svg'">` :
                             `<div class="image-placeholder"><i class="fas fa-image"></i></div>`
                         }
                     </div>

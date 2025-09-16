@@ -31,6 +31,48 @@ body {
     z-index: 2000;
 }
 
+.navbar-nav {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.home-icon {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.home-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.home-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.home-btn i {
+    font-size: 16px;
+}
+
 .ai-tools {
     display: flex;
     align-items: center;
@@ -509,6 +551,139 @@ body {
     left: 50%;
     top: 20rem;
     transform: translateX(-50%);
+}
+
+/* AI Tools Container - positioned below Request Order button */
+.ai-tools-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    z-index: 20;
+    position: absolute;
+    left: 50%;
+    top: 24rem;
+    transform: translateX(-50%);
+    margin-top: 1rem;
+}
+
+.ai-tools-container .ai-trigger {
+    --button_radius: 0.75em;
+    --button_color: #e8e8e8;
+    --button_outline_color: #000000;
+    border: none;
+    border-radius: var(--button_radius);
+    background: var(--button_outline_color);
+    color: #000;
+    padding: 0;
+    cursor: pointer;
+    outline-offset: 4px;
+    transition: filter 250ms;
+    position: relative;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.ai-tools-container .ai-trigger-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    border: 2px solid var(--button_outline_color);
+    border-radius: var(--button_radius);
+    padding: 0.6em 1.2em;
+    background: var(--button_color);
+    color: var(--button_outline_color);
+    transform: translateY(-0.2em);
+    transition: transform 0.1s ease;
+    box-shadow: 0 0.2em 0 var(--button_outline_color);
+}
+
+.ai-tools-container .ai-trigger:hover .ai-trigger-content {
+    transform: translateY(-0.33em);
+}
+
+.ai-tools-container .ai-trigger:active .ai-trigger-content {
+    transform: translateY(0);
+}
+
+.ai-tools-container .ai-trigger i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+/* AI Options - replace the main button when expanded */
+.ai-tools-container .ai-options {
+    display: none;
+    flex-direction: row;
+    gap: 3px;
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+.ai-tools-container .ai-options.show {
+    display: flex;
+}
+
+.ai-tools-container .ai-option {
+    --button_radius: 0.75em;
+    --button_color: #e8e8e8;
+    --button_outline_color: #000000;
+    font-size: 12px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    border-radius: var(--button_radius);
+    background: transparent;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: inline-block;
+}
+
+.ai-tools-container .ai-option-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    border: 2px solid var(--button_outline_color);
+    border-radius: var(--button_radius);
+    padding: 0.6em 1em;
+    background: var(--button_color);
+    color: var(--button_outline_color);
+    transform: translateY(-0.2em);
+    transition: transform 0.1s ease;
+    box-shadow: 0 0.2em 0 var(--button_outline_color);
+}
+
+.ai-tools-container .ai-option:hover .ai-option-content {
+    transform: translateY(-0.33em);
+}
+
+.ai-tools-container .ai-option:active .ai-option-content {
+    transform: translateY(0);
+}
+
+.ai-tools-container .ai-option i {
+    font-size: 16px;
+}
+
+/* Hide main trigger when options are shown */
+.ai-tools-container.expanded .ai-trigger {
+    display: none;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Centered logo over slideshow */

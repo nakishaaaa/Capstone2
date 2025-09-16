@@ -110,6 +110,19 @@ function getOrders($pdo, $userId) {
     
     // Format orders for frontend
     $formattedOrders = array_map(function($order) {
+        // Handle image_path - it might be JSON array or single path
+        $image_url = null;
+        if ($order['image_path']) {
+            $decoded_paths = json_decode($order['image_path'], true);
+            if (is_array($decoded_paths) && !empty($decoded_paths)) {
+                // Use first image from array
+                $image_url = $decoded_paths[0];
+            } else {
+                // Single image path
+                $image_url = $order['image_path'];
+            }
+        }
+        
         $formatted = [
             'id' => $order['id'],
             'orderNumber' => 'ORD-' . str_pad($order['id'], 6, '0', STR_PAD_LEFT),
@@ -117,7 +130,7 @@ function getOrders($pdo, $userId) {
             'categoryDisplay' => formatCategoryName($order['category']),
             'size' => $order['size'],
             'quantity' => $order['quantity'],
-            'image_url' => $order['image_path'],
+            'image_url' => $image_url,
             'customerName' => $order['name'],
             'contactNumber' => $order['contact_number'],
             'notes' => $order['notes'],
@@ -206,6 +219,19 @@ function getOrderDetail($pdo, $userId) {
         return;
     }
     
+    // Handle image_path - it might be JSON array or single path
+    $image_url = null;
+    if ($order['image_path']) {
+        $decoded_paths = json_decode($order['image_path'], true);
+        if (is_array($decoded_paths) && !empty($decoded_paths)) {
+            // Use first image from array
+            $image_url = $decoded_paths[0];
+        } else {
+            // Single image path
+            $image_url = $order['image_path'];
+        }
+    }
+    
     // Format order for frontend
     $formattedOrder = [
         'id' => $order['id'],
@@ -214,7 +240,7 @@ function getOrderDetail($pdo, $userId) {
         'categoryDisplay' => formatCategoryName($order['category']),
         'size' => $order['size'],
         'quantity' => $order['quantity'],
-        'image_url' => $order['image_path'],
+        'image_url' => $image_url,
         'customerName' => $order['name'],
         'contactNumber' => $order['contact_number'],
         'notes' => $order['notes'],

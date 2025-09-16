@@ -40,100 +40,37 @@ body::before {
     z-index: 2000;
 }
 
-.ai-tools {
+.home-icon {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
 }
 
-.ai-dropdown {
-    position: relative;
-}
-
-.ai-trigger {
+.home-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 8px 12px;
+    width: 40px;
+    height: 40px;
     background: rgba(255, 255, 255, 0.1);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
+    border-radius: 50%;
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
 }
 
-.ai-trigger:hover {
+.home-btn:hover {
     background: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.4);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
 }
 
-.ai-trigger.active {
-    background: rgba(255, 255, 255, 0.3);
-    color: white;
-    border-color: rgba(255, 255, 255, 0.5);
-}
-
-.ai-trigger i {
-    font-size: 18px;
-}
-
-.ai-dropdown-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 8px;
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 160px;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition: all 0.2s ease;
-    z-index: 1000;
-}
-
-.ai-dropdown-menu.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.ai-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    color: #333333;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.ai-option:last-child {
-    border-bottom: none;
-}
-
-.ai-option:hover {
-    background: #f8f8f8;
-    color: #000000;
-}
-
-.ai-option i {
-    font-size: 14px;
-    width: 16px;
-    text-align: center;
-}
-
-.ai-option span {
-    font-size: 14px;
-    font-weight: 500;
+.home-btn i {
+    font-size: 16px;
 }
 
 .brand {
@@ -157,11 +94,12 @@ body::before {
 }
 
 .navbar-nav {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    align-items: center;
     gap: 2rem;
-    flex: 1;
-    justify-content: center;
+    align-items: center;
 }
 
 .nav-link {
