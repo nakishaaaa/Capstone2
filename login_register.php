@@ -28,21 +28,32 @@ if (isset($_POST['register'])) {
     // Check if all fields are filled
     if ($first_name && $last_name && $username && $email && $password && $contact_number) {
         // Check if the email is already registered
-        $checkEmail = $conn->query("SELECT email FROM users WHERE email = '$email'");
+        $checkEmailStmt = $conn->prepare("SELECT email FROM users WHERE email = ?");
+        $checkEmailStmt->bind_param("s", $email);
+        $checkEmailStmt->execute();
+        $checkEmail = $checkEmailStmt->get_result();
+        
         if ($checkEmail && $checkEmail->num_rows > 0) {
             // Email already exists
             $_SESSION['register_error'] = 'Email is already registered!';
             $_SESSION['active_form'] = 'register';
         } else {
             // Check if the username is already taken
-            $checkUsername = $conn->query("SELECT username FROM users WHERE username = '$username'");
+            $checkUsernameStmt = $conn->prepare("SELECT username FROM users WHERE username = ?");
+            $checkUsernameStmt->bind_param("s", $username);
+            $checkUsernameStmt->execute();
+            $checkUsername = $checkUsernameStmt->get_result();
+            
             if ($checkUsername && $checkUsername->num_rows > 0) {
                 // Username already exists
                 $_SESSION['register_error'] = 'Username is already taken!';
                 $_SESSION['active_form'] = 'register';
             } else {
                 // Insert new user into the database with contact number and default role 'user'
-                if ($conn->query("INSERT INTO users (username, firstname, lastname, email, contact_number, password, role) VALUES ('$username', '$first_name', '$last_name', '$email', '$full_contact_number', '$password', 'user')")) {
+                $insertStmt = $conn->prepare("INSERT INTO users (username, firstname, lastname, email, contact_number, password, role) VALUES (?, ?, ?, ?, ?, ?, 'user')");
+                $insertStmt->bind_param("ssssss", $username, $first_name, $last_name, $email, $full_contact_number, $password);
+                
+                if ($insertStmt->execute()) {
                     // Get the new user ID for audit logging
                     $new_user_id = $conn->insert_id;
                     
@@ -79,7 +90,11 @@ if (isset($_POST['login'])) {
     // Check if both fields are filled
     if ($username && $password) {
         // Look up the user by username
-        $result = $conn->query("SELECT * FROM users WHERE username = '$username'");
+        $loginStmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
+        $loginStmt->bind_param("s", $username);
+        $loginStmt->execute();
+        $result = $loginStmt->get_result();
+        
         if ($result && $result->num_rows > 0) {
             $user = $result->fetch_assoc();
             // Verify the password
@@ -101,7 +116,9 @@ if (isset($_POST['login'])) {
                 }
 
                 // Update last login timestamp
-                $conn->query("UPDATE users SET last_login = NOW() WHERE id = " . $user['id']);
+                $updateLoginStmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+                $updateLoginStmt->bind_param("i", $user['id']);
+                $updateLoginStmt->execute();
                 
                 // Log successful login event
                 logLoginEvent($user['id'], $user['username'], $role);

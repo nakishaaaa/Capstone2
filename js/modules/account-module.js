@@ -146,7 +146,13 @@ export class AccountManager {
                 if (accountNameEl) accountNameEl.textContent = capitalizedFullName;
                 if (accountEmailEl) accountEmailEl.textContent = user.email || 'N/A';
                 if (accountUsernameEl) accountUsernameEl.textContent = user.username || 'N/A';
-                if (accountContactEl) accountContactEl.textContent = user.contact_number || 'N/A';
+                if (accountContactEl) {
+                    let contactNumber = user.contact_number || 'N/A';
+                    if (contactNumber.startsWith('+63') && contactNumber.length > 3) {
+                        contactNumber = '+63 ' + contactNumber.substring(3);
+                    }
+                    accountContactEl.textContent = contactNumber;
+                }
                 if (accountCreatedEl) accountCreatedEl.textContent = user.created_at || 'N/A';
             } else {
                 window.showModal('error', data.error || 'Failed to load user information');
@@ -233,6 +239,3 @@ window.resetPasswordForm = function() {
         window.accountManager.resetPasswordForm();
     }
 };
-
-// Remove the DOMContentLoaded listener since the module is now imported
-// The main app will handle initialization

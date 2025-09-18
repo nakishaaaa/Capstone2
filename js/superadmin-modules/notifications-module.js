@@ -228,7 +228,9 @@ export class NotificationsModule {
             
             if (data.success && data.notifications) {
                 const unreadCount = data.notifications.filter(n => !n.is_read).length;
-                const badge = document.querySelector('.badge');
+                // Target specifically the notifications badge, not the support badge
+                const notificationLink = document.querySelector('[data-section="notifications"]');
+                const badge = notificationLink ? notificationLink.querySelector('.badge:not(.support-badge)') : null;
                 
                 if (badge) {
                     if (unreadCount > 0) {
@@ -237,15 +239,12 @@ export class NotificationsModule {
                     } else {
                         badge.style.display = 'none';
                     }
-                } else if (unreadCount > 0) {
+                } else if (unreadCount > 0 && notificationLink) {
                     // Create badge if it doesn't exist
-                    const notificationLink = document.querySelector('[data-section="notifications"]');
-                    if (notificationLink) {
-                        const newBadge = document.createElement('span');
-                        newBadge.className = 'badge';
-                        newBadge.textContent = unreadCount;
-                        notificationLink.appendChild(newBadge);
-                    }
+                    const newBadge = document.createElement('span');
+                    newBadge.className = 'badge';
+                    newBadge.textContent = unreadCount;
+                    notificationLink.appendChild(newBadge);
                 }
             }
         } catch (error) {

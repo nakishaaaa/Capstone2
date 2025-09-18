@@ -778,19 +778,21 @@ body {
 }
 
 .request-form-container {
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(15px);
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(20px);
     padding: 2rem;
     border-radius: 20px;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 
+                0 0 0 1px rgba(255, 255, 255, 0.1);
     max-width: 800px;
     width: 100%;
     max-height: 80vh;
     overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     position: relative; /* create stacking context */
     z-index: 30; /* ensure above hero logo */
     overscroll-behavior: contain;
+    color: #ffffff;
 }
 
 /* Custom scrollbar for webkit browsers */
@@ -799,17 +801,17 @@ body {
 }
 
 .request-form-container::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
 }
 
 .request-form-container::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 4px;
 }
 
 .request-form-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .form-header {
@@ -823,6 +825,7 @@ body {
 .form-title {
     text-align: center;
     font-size: 2rem;
+    color: #ffffff;
 }
 
 .btn-close-form {
@@ -874,7 +877,7 @@ body {
 
 .form-group label {
     font-weight: 600;
-    color: #333;
+    color: #ffffff;
     font-size: 0.9rem;
 }
 
@@ -882,11 +885,19 @@ body {
 .form-group select,
 .form-group textarea {
     padding: 0.75rem;
-    border: 2px solid #e1e8ed;
+    border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
     font-size: 1rem;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    background: white;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    backdrop-filter: blur(10px);
+}
+
+.form-group select option {
+    background: #2a2a2a;
+    color: #ffffff;
+    padding: 0.5rem;
 }
 
 .form-group input:focus,
@@ -894,12 +905,12 @@ body {
 .form-group textarea:focus {
     outline: none;
     border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
 }
 
 .form-group input:disabled {
-    background: #f8f9fa;
-    color: #666;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .file-upload {
@@ -917,9 +928,9 @@ body {
 }
 
 .file-upload-label {
-    background: #ffffff;
-    color: #374151;
-    border: 2px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.2);
     padding: 0.875rem 1.25rem;
     border-radius: 12px;
     cursor: pointer;
@@ -930,17 +941,18 @@ body {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-size: 0.95rem;
     font-weight: 500;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     width: fit-content;
     position: relative;
     overflow: hidden;
+    backdrop-filter: blur(10px);
 }
 
 .file-upload-label:hover {
-    background: #f9fafb;
+    background: rgba(255, 255, 255, 0.2);
     border-color: #6366f1;
     color: #6366f1;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     transform: translateY(-1px);
 }
 
@@ -953,15 +965,15 @@ body {
 .tshirt-customization-fields {
     margin-top: 1rem;
     padding: 1.5rem;
-    background: #f8f9fa;
-    border: 2px dashed #dee2e6;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px dashed rgba(255, 255, 255, 0.2);
     border-radius: 12px;
     transition: all 0.3s ease;
 }
 
 .tshirt-customization-fields:hover {
     border-color: #667eea;
-    background: #f5f7ff;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .tshirt-customization-fields .form-row {
@@ -973,7 +985,7 @@ body {
 }
 
 .tshirt-customization-fields .form-group label {
-    color: #495057;
+    color: #ffffff;
     font-weight: 600;
     font-size: 0.9rem;
     display: flex;
@@ -984,32 +996,33 @@ body {
 
 
 .tshirt-customization-fields .file-upload {
-    background: white;
-    border: 1px solid #e9ecef;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     padding: 0.5rem;
 }
 
 .tshirt-customization-fields .file-upload-label {
-    background: #ffffff;
-    color: #374151;
-    border: 2px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.2);
     padding: 0.875rem 1.25rem;
     border-radius: 12px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 500;
     font-size: 0.95rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     position: relative;
     overflow: hidden;
+    backdrop-filter: blur(10px);
 }
 
 .tshirt-customization-fields .file-upload-label:hover {
-    background: #f9fafb;
+    background: rgba(255, 255, 255, 0.2);
     border-color: #6366f1;
     color: #6366f1;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .tshirt-customization-fields .file-upload-label:active {
@@ -1018,18 +1031,26 @@ body {
 }
 
 .tshirt-customization-fields select {
-    background: white;
-    border: 2px solid #e9ecef;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
     transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.tshirt-customization-fields select option {
+    background: #2a2a2a;
+    color: #ffffff;
+    padding: 0.5rem;
 }
 
 .tshirt-customization-fields select:focus {
     border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
 }
 
 .file-name {
-    color: #666;
+    color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
     word-break: break-all;
     max-width: 100%;
@@ -1041,19 +1062,19 @@ body {
 }
 
 .multiple-files-container {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     padding: 0.75rem;
 }
 
 .file-count {
     font-size: 0.85rem;
-    color: #6c757d;
+    color: rgba(255, 255, 255, 0.7);
     font-weight: 500;
     margin-bottom: 0.5rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .file-items {
@@ -1066,8 +1087,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: white;
-    border: 1px solid #e9ecef;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 6px;
     padding: 0.5rem 0.75rem;
     transition: all 0.2s ease;
@@ -1075,7 +1096,7 @@ body {
 
 .file-item:hover {
     border-color: #6366f1;
-    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
 }
 
 .file-info {
@@ -1094,7 +1115,7 @@ body {
 
 .file-name-text {
     font-size: 0.85rem;
-    color: #374151;
+    color: #ffffff;
     font-weight: 500;
     flex: 1;
     min-width: 0;
@@ -1105,7 +1126,7 @@ body {
 
 .file-size {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: rgba(255, 255, 255, 0.6);
     flex-shrink: 0;
     margin-left: 0.5rem;
 }
@@ -1125,8 +1146,8 @@ body {
 }
 
 .remove-file-btn:hover {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: rgba(220, 38, 38, 0.2);
+    color: #ef4444;
 }
 
 .remove-file-btn i {
@@ -1137,17 +1158,18 @@ body {
 .contact-input-group {
     display: flex;
     align-items: center;
-    border: 1px solid #ddd;
+    border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
     overflow: hidden;
-    background: white;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
 }
 
 .country-prefix {
-    background: #f8f9fa;
+    background: rgba(255, 255, 255, 0.05);
     padding: 0.75rem 1rem;
-    border-right: 1px solid #ddd;
-    color: #495057;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
     font-weight: 500;
     white-space: nowrap;
 }
@@ -1158,11 +1180,13 @@ body {
     flex: 1;
     padding: 0.75rem 1rem;
     font-size: 1rem;
+    background: transparent;
+    color: #ffffff;
 }
 
 .contact-input-group:focus-within {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
 }
 
 /* Form Actions */
@@ -1296,22 +1320,28 @@ body {
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
 }
 
 .modal-content {
-    background-color: white;
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     margin: 8% auto;
     padding: 2rem;
-    border-radius: 10px;
+    border-radius: 16px;
     width: 90%;
     max-width: 500px;
     position: relative;
     text-align: center;
+    color: #ffffff;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 
+                0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .close {
-    color: #aaa;
+    color: #ffffff;
     float: right;
     font-size: 28px;
     font-weight: bold;
@@ -1319,10 +1349,23 @@ body {
     right: 1rem;
     top: 1rem;
     cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
 }
 
 .close:hover {
-color: #000;
+    color: #ffffff;
+    background: rgba(255, 71, 87, 0.8);
+    border-color: rgba(255, 71, 87, 1);
+    transform: scale(1.05);
 }
 
 /* Alert Styles */
@@ -1540,6 +1583,8 @@ border: 2px solid #e9ecef;
 border-radius: 6px;
 font-size: 1rem;
 transition: border-color 0.2s ease;
+color: #333333;
+background: #ffffff;
 }
 
 .password-input-group input:focus {
