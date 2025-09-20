@@ -4,4 +4,4 @@
 ![alt text](https://ayame.s-ul.eu/9PrIi54z)
 
 
-<img width="554" height="554" alt="image" src="https://github.com/user-attachments/assets/13ab40fa-f8ba-4391-96b9-e1f8b0b3016c" />
+<img width="554" height="554" alt="image" src="https://i.pinimg.com/736x/b6/b7/8b/b6b78bb5b4075dca1ae5c432d432fde7.jpg" />

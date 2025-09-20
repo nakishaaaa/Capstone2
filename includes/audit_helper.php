@@ -94,8 +94,11 @@ function logLogoutEvent($user_id, $username, $role) {
  */
 function logFailedLoginEvent($username, $reason = 'Invalid credentials') {
     $description = "Failed login attempt for username '{$username}': {$reason}";
+    
+    // Log to audit_logs table only (no more login_attempts table)
     return logAuditEvent(null, 'login_failed', $description);
 }
+
 
 /**
  * Log user registration event

@@ -64,12 +64,9 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
             <div class="form-title">Create new password</div>
 
             <?php
-            if (isset($_GET['status']) && isset($_GET['message'])) {
-                $status = $_GET['status'];
-                $message = $_GET['message'];
-                $statusClass = ($status === 'success') ? 'status-success' : 'status-error';
-                echo "<div class='status-message $statusClass'>$message</div>";
-            }
+            // Store status and message for JavaScript to handle
+            $status = $_GET['status'] ?? null;
+            $message = $_GET['message'] ?? null;
             ?>
 
             <form method="post" action="process_reset_password.php">
@@ -122,6 +119,105 @@ if (strtotime($user["reset_token_expires_at"]) <= time()) {
                 iconImg.alt = 'Show password';
             }
         }
+
+        // Toast notification system
+        function showToast(message, type = 'error') {
+            // Remove existing toasts
+            const existingToasts = document.querySelectorAll('.toast-notification');
+            existingToasts.forEach(toast => toast.remove());
+
+            // Create toast container if it doesn't exist
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 10000;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                `;
+                document.body.appendChild(container);
+            }
+
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            const bgColor = type === 'success' ? '#d4edda' : '#f8d7da';
+            const textColor = type === 'success' ? '#155724' : '#721c24';
+            const borderColor = type === 'success' ? '#c3e6cb' : '#f5c6cb';
+            const icon = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+
+            toast.style.cssText = `
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 12px 16px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                min-width: 300px;
+                max-width: 500px;
+                background: ${bgColor};
+                color: ${textColor};
+                border: 1px solid ${borderColor};
+                animation: slideIn 0.3s ease-out;
+            `;
+
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="${icon}" style="color: ${textColor};"></i>
+                    <span>${message}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" 
+                        style="background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; opacity: 0.8; color: ${textColor};">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.style.animation = 'slideOut 0.3s ease-in';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 5000);
+        }
+
+        // Check for status messages on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            <?php if ($status && $message): ?>
+                showToast(<?= json_encode($message) ?>, <?= json_encode($status) ?>);
+            <?php endif; ?>
+        });
     </script>
+
+    <style>
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
 </body>
 </html>

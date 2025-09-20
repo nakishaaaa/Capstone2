@@ -1,6 +1,14 @@
 <?php
 
 session_start();
+require_once 'includes/csrf.php'; // Include CSRF protection
+
+// Validate CSRF token first
+if (!CSRFToken::validate($_POST['csrf_token'] ?? '')) {
+    $_SESSION['forgot_error'] = 'Invalid security token. Please try again.';
+    header("Location: index.php?form=forgot");
+    exit();
+}
 
 $email = $_POST["email"];
 $token = bin2hex(random_bytes(16));

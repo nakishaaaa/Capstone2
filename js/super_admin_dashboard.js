@@ -200,6 +200,7 @@ class SuperAdminDashboard {
         try {
             await this.refreshDashboardStats();
             await this.auditModule.loadRecentActivityData();
+            await this.notificationsModule.updateNotificationBadge();
             await this.notificationsModule.updateSupportBadge();
         } catch (error) {
             console.error('Error loading initial data:', error);

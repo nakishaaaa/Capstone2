@@ -4,14 +4,14 @@ session_start(); // Start session for CSRF token
 // Check CSRF token
 if (!isset($_POST['csrf_token']) || !isset($_SESSION['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
     // Invalid CSRF token
-    echo "<p>Invalid request. Please try again.</p>";
+    header("Location: reset_password.php?token=" . urlencode($_POST['token'] ?? '') . "&status=error&message=" . urlencode("Invalid request. Please try again."));
     exit;
 }
 
 // Get token from POST
 $token = $_POST["token"] ?? null;
 if (!$token) {
-    echo "<p>Invalid or expired token.</p>";
+    header("Location: index.php?status=error&message=" . urlencode("Invalid or expired token."));
     exit;
 }
 $token_hash = hash("sha256", $token);
@@ -29,28 +29,28 @@ $user = $result->fetch_assoc();
 
 // Check if user exists and token is not expired
 if ($user === null || strtotime($user["reset_token_expires_at"]) <= time()) {
-    echo "<p>Invalid or expired token.</p>";
+    header("Location: index.php?status=error&message=" . urlencode("Invalid or expired token."));
     exit;
 }
 
 // Validate password length
 if (strlen($_POST["password"]) < 8) {
-    echo "<p>Password must be at least 8 characters.</p>";
+    header("Location: reset_password.php?token=" . urlencode($token) . "&status=error&message=" . urlencode("Password must be at least 8 characters."));
     exit;
 }
 // Validate password contains at least one letter
 if (!preg_match("/[a-z]/i", $_POST["password"])) {
-    echo "<p>Password must contain at least one letter.</p>";
+    header("Location: reset_password.php?token=" . urlencode($token) . "&status=error&message=" . urlencode("Password must contain at least one letter."));
     exit;
 }
 // Validate password contains at least one number
 if (!preg_match("/[0-9]/", $_POST["password"])) {
-    echo "<p>Password must contain at least one number.</p>";
+    header("Location: reset_password.php?token=" . urlencode($token) . "&status=error&message=" . urlencode("Password must contain at least one number."));
     exit;
 }
 // Check password confirmation
 if ($_POST["password"] !== $_POST["password_confirmation"]) {
-    echo "<p>Passwords must match.</p>";
+    header("Location: reset_password.php?token=" . urlencode($token) . "&status=error&message=" . urlencode("Passwords must match."));
     exit;
 }
 
@@ -70,16 +70,6 @@ $stmt->execute();
 // Unset CSRF token after use
 unset($_SESSION['csrf_token']);
 
-// Show user-friendly success message
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Password Reset Successful</title>
-</head>
-<body>
-    <h1>Password Reset</h1>
-    <p>Your password has been reset successfully! You may now <a href="index.php">log in</a> with your new password.</p>
-</body>
-</html>
+// Redirect to login page with success message
+header("Location: index.php?status=success&message=" . urlencode("Your password has been reset successfully! You may now log in with your new password."));
+exit;

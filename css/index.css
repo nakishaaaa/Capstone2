@@ -2123,7 +2123,8 @@ button#toggle-register-password img,
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 3rem;
-    align-items: start;
+    align-items: center;
+    min-height: 500px;
 }
 
 .contact-info {

@@ -9,7 +9,13 @@ export class NotificationsModule {
             <section class="notifications-section">
 
                 <div class="notifications-filters">
-                    <button class="btn btn-success" onclick="clearAllNotifications()">
+                    <div class="filter-tabs">
+                        <button class="filter-tab active" data-filter="all">All</button>
+                        <button class="filter-tab" data-filter="security">Security</button>
+                        <button class="filter-tab" data-filter="system">System</button>
+                        <button class="filter-tab" data-filter="customer_support">Customer Support</button>
+                    </div>
+                    <button class="btn btn-success" id="markAllReadBtn">
                         Mark All as Read
                     </button>
                 </div>
@@ -26,6 +32,8 @@ export class NotificationsModule {
             this.loadNotificationsList();
             this.updateNotificationBadge();
             this.updateSupportBadge();
+            this.setupFilterTabs();
+            this.setupMarkAllReadButton();
         }, 100);
     }
 
@@ -35,9 +43,9 @@ export class NotificationsModule {
         await this.updateSupportBadge();
     }
 
-    async loadNotificationsList() {
+    async loadNotificationsList(filter = 'all') {
         try {
-            const response = await fetch(`api/superadmin_api/super_admin_actions.php?action=get_notifications`);
+            const response = await fetch(`api/superadmin_api/super_admin_actions.php?action=get_notifications&filter=${filter}`);
             const data = await response.json();
             
             const container = document.getElementById('notificationsList');
@@ -51,19 +59,15 @@ export class NotificationsModule {
                             <h4>${notification.title}</h4>
                             <p>${notification.message.length > 80 ? notification.message.substring(0, 80) + '...' : notification.message}</p>
                             <span class="notification-time">${new Date(notification.created_at).toLocaleString()}</span>
-                            ${notification.notification_source === 'customer_support' ? `
-                                <div class="notification-badge customer-support">
-                                    <i class="fas fa-headset"></i> Customer Support
-                                </div>
-                            ` : ''}
+                            ${this.getNotificationBadge(notification)}
                         </div>
                         <div class="notification-actions">
                             ${!notification.is_read ? `
-                                <button class="notification-btn read-btn" onclick="markAsRead(${notification.id}, '${notification.notification_source || 'developer'}', '${notification.support_type || 'ticket'}')">
+                                <button class="notification-btn read-btn" onclick="markAsRead(${notification.id}, '${notification.notification_source || 'system'}', '${notification.support_type || notification.system_type || 'ticket'}')">
                                     <i class="fas fa-check"></i>
                                 </button>
                             ` : ''}
-                            <button class="notification-btn delete-btn" onclick="deleteNotification(${notification.id}, '${notification.notification_source || 'developer'}', '${notification.support_type || 'ticket'}')">
+                            <button class="notification-btn delete-btn" onclick="deleteNotification(${notification.id}, '${notification.notification_source || 'system'}', '${notification.support_type || notification.system_type || 'ticket'}')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -93,6 +97,38 @@ export class NotificationsModule {
             return 'headset';
         }
         
+        // Handle security notifications
+        if (notification.notification_source === 'security') {
+            const securityIconMap = {
+                'failed_login': 'shield-alt',
+                'new_staff': 'user-plus'
+            };
+            return securityIconMap[notification.security_type] || 'shield-alt';
+        }
+        
+        // Handle system notifications
+        if (notification.notification_source === 'system') {
+            const systemIconMap = {
+                'high_value_order': 'dollar-sign',
+                'system_error': 'exclamation-triangle',
+                'low_inventory': 'boxes'
+            };
+            return systemIconMap[notification.system_type] || 'cog';
+        }
+        
+        // Handle admin action notifications
+        if (notification.notification_source === 'admin_actions') {
+            const adminIconMap = {
+                'user_role_change': 'user-cog',
+                'user_delete': 'user-times',
+                'maintenance_toggle': 'tools',
+                'system_setting_change': 'cogs',
+                'admin_login': 'sign-in-alt',
+                'cashier_login': 'cash-register'
+            };
+            return adminIconMap[notification.action_type] || 'user-shield';
+        }
+        
         // Handle developer notifications by type
         const iconMap = {
             'error': 'exclamation-circle',
@@ -102,6 +138,66 @@ export class NotificationsModule {
             'critical': 'times-circle'
         };
         return iconMap[notification.type] || 'bell';
+    }
+
+    getNotificationBadge(notification) {
+        const badgeMap = {
+            'customer_support': {
+                class: 'customer-support',
+                icon: 'headset',
+                text: 'Customer Support'
+            },
+            'security': {
+                class: 'security',
+                icon: 'shield-alt',
+                text: 'Security Alert'
+            },
+            'system': {
+                class: 'system',
+                icon: 'cog',
+                text: 'System'
+            },
+            'admin_actions': {
+                class: 'admin-actions',
+                icon: 'user-shield',
+                text: 'Admin Action'
+            }
+        };
+
+        const badge = badgeMap[notification.notification_source];
+        if (badge) {
+            return `
+                <div class="notification-badge ${badge.class}">
+                    <i class="fas fa-${badge.icon}"></i> ${badge.text}
+                </div>
+            `;
+        }
+        return '';
+    }
+
+    setupFilterTabs() {
+        const filterTabs = document.querySelectorAll('.filter-tab');
+        filterTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                // Remove active class from all tabs
+                filterTabs.forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tab
+                e.target.classList.add('active');
+                
+                // Load notifications with selected filter
+                const filter = e.target.getAttribute('data-filter');
+                this.loadNotificationsList(filter);
+            });
+        });
+    }
+
+    setupMarkAllReadButton() {
+        const markAllReadBtn = document.getElementById('markAllReadBtn');
+        if (markAllReadBtn) {
+            markAllReadBtn.addEventListener('click', () => {
+                this.markAllNotificationsRead();
+            });
+        }
     }
 
     navigateToSupport(supportType, id) {
@@ -115,7 +211,7 @@ export class NotificationsModule {
         }
     }
 
-    async markAsRead(notificationId, notificationSource = 'developer', supportType = 'ticket') {
+    async markAsRead(notificationId, notificationSource = 'system', supportType = 'ticket') {
         try {
             // Immediately update UI to show as read
             const notificationElement = document.querySelector(`[data-notification-id="${notificationId}"]`);
@@ -130,15 +226,22 @@ export class NotificationsModule {
                 }
             }
 
+            const requestBody = {
+                action: 'mark_notification_read',
+                id: notificationId,
+                source: notificationSource,
+                support_type: supportType
+            };
+
+            // Add system_type for system notifications
+            if (notificationSource === 'system') {
+                requestBody.system_type = supportType;
+            }
+
             const response = await fetch('api/superadmin_api/super_admin_actions.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'mark_notification_read',
-                    id: notificationId,
-                    source: notificationSource,
-                    support_type: supportType
-                })
+                body: JSON.stringify(requestBody)
             });
 
             const data = await response.json();
@@ -168,19 +271,26 @@ export class NotificationsModule {
         }
     }
 
-    async deleteNotification(notificationId, notificationSource = 'developer', supportType = 'ticket') {
+    async deleteNotification(notificationId, notificationSource = 'system', supportType = 'ticket') {
         if (!confirm('Delete this notification?')) return;
 
         try {
+            const requestBody = {
+                action: 'delete_notification',
+                id: notificationId,
+                source: notificationSource,
+                support_type: supportType
+            };
+
+            // Add system_type for system notifications
+            if (notificationSource === 'system') {
+                requestBody.system_type = supportType;
+            }
+
             const response = await fetch('api/superadmin_api/super_admin_actions.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'delete_notification',
-                    id: notificationId,
-                    source: notificationSource,
-                    support_type: supportType
-                })
+                body: JSON.stringify(requestBody)
             });
 
             const data = await response.json();
@@ -283,3 +393,18 @@ export class NotificationsModule {
         }
     }
 }
+
+// Global functions for inline onclick handlers
+window.markAsRead = function(notificationId, notificationSource, supportType) {
+    // Get the current notifications module instance from the dashboard
+    if (window.superAdminDashboard && window.superAdminDashboard.notificationsModule) {
+        window.superAdminDashboard.notificationsModule.markAsRead(notificationId, notificationSource, supportType);
+    }
+};
+
+window.deleteNotification = function(notificationId, notificationSource, supportType) {
+    // Get the current notifications module instance from the dashboard
+    if (window.superAdminDashboard && window.superAdminDashboard.notificationsModule) {
+        window.superAdminDashboard.notificationsModule.deleteNotification(notificationId, notificationSource, supportType);
+    }
+};

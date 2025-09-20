@@ -38,20 +38,8 @@ $stats = getSystemStats($conn);
 $maintenanceResult = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'maintenance_mode'");
 $maintenanceMode = $maintenanceResult ? $maintenanceResult->fetch_assoc()['setting_value'] === 'true' : false;
 
-// Get unread notification count (customer support only)
+// Get unread notification count - let JavaScript handle the badge count dynamically
 $unreadCount = 0;
-
-// Count unread support tickets
-$supportTicketsResult = $conn->query("SELECT COUNT(*) as count FROM support_tickets WHERE is_read = FALSE AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
-if ($supportTicketsResult) {
-    $unreadCount += $supportTicketsResult->fetch_assoc()['count'];
-}
-
-// Count unread support messages
-$supportMessagesResult = $conn->query("SELECT COUNT(*) as count FROM support_messages WHERE is_read = FALSE AND message_type = 'customer_support' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
-if ($supportMessagesResult) {
-    $unreadCount += $supportMessagesResult->fetch_assoc()['count'];
-}
 ?>
 
 <!DOCTYPE html>

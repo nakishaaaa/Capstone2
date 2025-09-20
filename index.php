@@ -1,6 +1,7 @@
 <?php
 
 session_start();
+require_once 'includes/csrf.php'; // Include CSRF protection
 
 $errors = [
   'login' => $_SESSION['login_error'] ?? '',
@@ -16,6 +17,9 @@ unset($_SESSION['active_form']);
 unset($_SESSION['register_success']);
 unset($_SESSION['forgot_success']);
 unset($_SESSION['forgot_error']);
+
+// Generate CSRF token for forms
+$csrfToken = CSRFToken::getToken();
 
 function showError($error) {
   return !empty($error) ? "<p class='error-message'>$error</p>" : '';
@@ -34,7 +38,7 @@ function isActiveForm($formName, $activeForm) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>053 Login</title>
+  <title>053prints</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="css/index.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -161,6 +165,7 @@ function isActiveForm($formName, $activeForm) {
               <form action="login_register.php" method="post">
                 <div class="form-title">Login</div>
                 <?php showError($errors['login']); ?>
+                <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                 <input type="text" name="username" placeholder="Username" required>
                 <div class="input-container">
                   <input type="password" name="password" id="login-password" placeholder="Password" required>
@@ -185,6 +190,7 @@ function isActiveForm($formName, $activeForm) {
               </p>
               
               <form method="post" action="send_password_reset.php" id="forgotPasswordForm">
+                <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                 <input type="email" name="email" id="fp-email" placeholder="Enter your email address" required>
                 <button type="submit">Send Reset Link</button>
               </form>
@@ -198,6 +204,7 @@ function isActiveForm($formName, $activeForm) {
               <form action="login_register.php" method="post">
                 <h2>Register <span style="color: #4facfe;">•</span></h2>
                 <?php showError($errors['register']); ?>
+                <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                 <div class="form-row">
                   <div class="form-group half-width">
                     <label for="first_name">First Name <span style="color: #4facfe;">*</span></label>
@@ -681,6 +688,17 @@ function isActiveForm($formName, $activeForm) {
       }, 5000);
     }
 
+    // Handle status messages from password reset
+    var statusMsg = document.getElementById('status-message');
+    if (statusMsg) {
+      setTimeout(function() {
+        statusMsg.style.opacity = '0';
+        setTimeout(function() {
+          statusMsg.style.display = 'none';
+        }, 500);
+      }, 5000);
+    }
+
     // Handle forgot password form messages and auto-open
     const params = new URLSearchParams(window.location.search);
     const forgotSuccessMsg = document.getElementById('forgot-success-message');
@@ -759,6 +777,40 @@ function isActiveForm($formName, $activeForm) {
     }
     setupPasswordToggle('login-password', 'toggle-login-password', 'login-eye-icon');
     setupPasswordToggle('register-password', 'toggle-register-password', 'register-eye-icon');
+
+    // First name validation (only letters and spaces)
+    const firstNameInput = document.getElementById('first_name');
+    if (firstNameInput) {
+      firstNameInput.addEventListener('input', function(e) {
+        // Remove any non-letter and non-space characters
+        let value = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+        e.target.value = value;
+      });
+
+      firstNameInput.addEventListener('keypress', function(e) {
+        // Only allow letters and spaces
+        if (!/[a-zA-Z\s]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
+          e.preventDefault();
+        }
+      });
+    }
+
+    // Last name validation (only letters and spaces)
+    const lastNameInput = document.getElementById('last_name');
+    if (lastNameInput) {
+      lastNameInput.addEventListener('input', function(e) {
+        // Remove any non-letter and non-space characters
+        let value = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+        e.target.value = value;
+      });
+
+      lastNameInput.addEventListener('keypress', function(e) {
+        // Only allow letters and spaces
+        if (!/[a-zA-Z\s]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
+          e.preventDefault();
+        }
+      });
+    }
 
     // Contact number validation
     const contactInput = document.getElementById('contact_number');

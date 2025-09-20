@@ -4,6 +4,7 @@
  */
 
 import { categoryOptions, API_ENDPOINTS, ANIMATION_SETTINGS } from './config-module.js';
+import { csrfService } from './csrf-module.js';
 
 export class FormManager {
     constructor() {
@@ -16,7 +17,6 @@ export class FormManager {
         this.requestFormContainer = null;
         this.requestButtonContainer = null;
         this.heroOverlay = null;
-        this.csrfToken = null;
         
         this.init();
     }
@@ -24,7 +24,7 @@ export class FormManager {
     init() {
         this.initializeElements();
         this.setupEventListeners();
-        this.loadCSRFToken();
+        this.initializeFormState();
     }
     
     initializeElements() {
@@ -96,8 +96,41 @@ export class FormManager {
         }
     }
     
+    initializeFormState() {
+        // Ensure custom size field is hidden on initialization
+        const customSizeGroup = document.getElementById('customSizeGroup');
+        const customSizeInput = document.getElementById('customSize');
+        
+        if (customSizeGroup) {
+            customSizeGroup.style.display = 'none';
+        }
+        if (customSizeInput) {
+            customSizeInput.required = false;
+            customSizeInput.value = '';
+        }
+        
+        // Ensure T-shirt fields are hidden on initialization
+        this.toggleTshirtFields('');
+        
+        console.log('Form state initialized - custom size field hidden');
+    }
+    
     handleCategoryChange() {
         const selectedCategory = this.categorySelect.value;
+        
+        // Clear all uploaded files when category changes
+        this.clearAllUploadedFiles();
+        
+        // Always hide custom size field when category changes
+        const customSizeGroup = document.getElementById('customSizeGroup');
+        const customSizeInput = document.getElementById('customSize');
+        if (customSizeGroup) {
+            customSizeGroup.style.display = 'none';
+        }
+        if (customSizeInput) {
+            customSizeInput.required = false;
+            customSizeInput.value = '';
+        }
         
         if (selectedCategory && categoryOptions[selectedCategory]) {
             this.populateSizeOptions(selectedCategory);
@@ -112,10 +145,12 @@ export class FormManager {
     
     handleSizeChange() {
         const selectedSize = this.sizeSelect.value;
+        const selectedCategory = this.categorySelect.value;
         const customSizeGroup = document.getElementById('customSizeGroup');
         const customSizeInput = document.getElementById('customSize');
         
-        if (selectedSize === 'custom') {
+        // Only show custom size input for card-print category
+        if (selectedSize === 'custom' && selectedCategory === 'card-print') {
             if (customSizeGroup) {
                 customSizeGroup.style.display = 'block';
                 if (customSizeInput) {
@@ -237,19 +272,6 @@ export class FormManager {
         }
     }
     
-    async loadCSRFToken() {
-        try {
-            const response = await fetch(API_ENDPOINTS.CSRF_TOKEN, {
-                credentials: 'include'
-            });
-            const data = await response.json();
-            if (data.success) {
-                this.csrfToken = data.token;
-            }
-        } catch (error) {
-            console.error('Failed to load CSRF token:', error);
-        }
-    }
     
     async handleFormSubmit(event) {
         event.preventDefault();
@@ -266,12 +288,16 @@ export class FormManager {
         submitBtn.disabled = true;
         
         try {
+            // Ensure CSRF token is available
+            await csrfService.ensure();
+            
             // Prepare form data
             const formData = new FormData(this.requestForm);
             
             // Add CSRF token
-            if (this.csrfToken) {
-                formData.append('csrf_token', this.csrfToken);
+            const token = csrfService.getToken();
+            if (token) {
+                formData.append('csrf_token', token);
             }
             
             // Submit request
@@ -286,13 +312,13 @@ export class FormManager {
             if (result.success) {
                 window.showModal('success', result.message);
                 this.clearForm();
-                // Reload CSRF token for next request
-                await this.loadCSRFToken();
+                // Load new CSRF token for next request
+                await csrfService.load();
             } else {
                 window.showModal('error', result.message || 'Failed to submit request');
                 // If CSRF error, reload token
                 if (response.status === 403) {
-                    await this.loadCSRFToken();
+                    await csrfService.load();
                 }
             }
             
@@ -323,8 +349,8 @@ export class FormManager {
             return false;
         }
         
-        // Validate custom size input if custom is selected
-        if (size === 'custom' && customSizeInput) {
+        // Validate custom size input if custom is selected and category is card-print
+        if (size === 'custom' && category === 'card-print' && customSizeInput) {
             if (!customSizeInput.value.trim()) {
                 window.showModal('error', 'Please enter the custom size.');
                 return false;
@@ -339,6 +365,30 @@ export class FormManager {
         if (!contactNumber) {
             window.showModal('error', 'Please enter your contact number.');
             return false;
+        }
+        
+        // Validate T-shirt tag requirements
+        if (category === 't-shirt-print') {
+            const designOption = document.getElementById('designOption').value;
+            if (designOption === 'customize') {
+                const tagImageInput = document.getElementById('tagImage');
+                const tagLocationSelect = document.getElementById('tagLocation');
+                
+                // Check if tag file is uploaded
+                const hasTagFile = tagImageInput && tagImageInput.files && tagImageInput.files.length > 0;
+                
+                // If tag file is uploaded, tag location is required
+                if (hasTagFile && tagLocationSelect && !tagLocationSelect.value) {
+                    window.showModal('error', 'Please select a tag location since you uploaded a tag design.');
+                    return false;
+                }
+                
+                // If tag location is selected but no tag file, show warning
+                if (!hasTagFile && tagLocationSelect && tagLocationSelect.value) {
+                    window.showModal('error', 'Please upload a tag design file or remove the tag location selection.');
+                    return false;
+                }
+            }
         }
         
         return true;
@@ -394,7 +444,7 @@ export class FormManager {
         this.disableSizeSelect();
         this.toggleTshirtFields('');
         
-        // Hide custom size input
+        // Hide custom size input (should only be visible for card-print category)
         const customSizeGroup = document.getElementById('customSizeGroup');
         const customSizeInput = document.getElementById('customSize');
         if (customSizeGroup) {
@@ -424,38 +474,62 @@ export class FormManager {
     setupTshirtFileUploads() {
         // Front image upload
         if (this.frontImageInput) {
-            const frontFileName = this.frontImageInput.closest('.file-upload').querySelector('.file-name');
-            this.frontImageInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    frontFileName.textContent = this.files[0].name;
-                } else {
-                    frontFileName.textContent = 'No file chosen';
-                }
+            const frontFileContainer = this.frontImageInput.closest('.file-upload').querySelector('.file-name');
+            this.frontImageInput.addEventListener('change', (event) => {
+                this.displaySingleTshirtFile(event.target.files, frontFileContainer, 'front');
             });
         }
         
         // Back image upload
         if (this.backImageInput) {
-            const backFileName = this.backImageInput.closest('.file-upload').querySelector('.file-name');
-            this.backImageInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    backFileName.textContent = this.files[0].name;
-                } else {
-                    backFileName.textContent = 'No file chosen';
-                }
+            const backFileContainer = this.backImageInput.closest('.file-upload').querySelector('.file-name');
+            this.backImageInput.addEventListener('change', (event) => {
+                this.displaySingleTshirtFile(event.target.files, backFileContainer, 'back');
             });
         }
         
-        // Tag image upload
+        // Tag image upload with tag location validation
         if (this.tagImageInput) {
-            const tagFileName = this.tagImageInput.closest('.file-upload').querySelector('.file-name');
-            this.tagImageInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    tagFileName.textContent = this.files[0].name;
+            const tagFileContainer = this.tagImageInput.closest('.file-upload').querySelector('.file-name');
+            const tagLocationSelect = document.getElementById('tagLocation');
+            
+            this.tagImageInput.addEventListener('change', (event) => {
+                this.displaySingleTshirtFile(event.target.files, tagFileContainer, 'tag');
+                
+                // Handle tag location requirements
+                if (event.target.files.length > 0) {
+                    // Make tag location required when tag file is uploaded
+                    if (tagLocationSelect) {
+                        tagLocationSelect.required = true;
+                        tagLocationSelect.style.borderColor = '#007bff'; // Blue border to indicate required
+                    }
                 } else {
-                    tagFileName.textContent = 'No file chosen';
+                    // Make tag location optional when no tag file
+                    if (tagLocationSelect) {
+                        tagLocationSelect.required = false;
+                        tagLocationSelect.value = ''; // Clear selection
+                        tagLocationSelect.style.borderColor = ''; // Reset border
+                    }
                 }
             });
+            
+            // Add validation for tag location selection
+            if (tagLocationSelect) {
+                tagLocationSelect.addEventListener('change', function() {
+                    const tagImageInput = document.getElementById('tagImage');
+                    const hasTagFile = tagImageInput && tagImageInput.files && tagImageInput.files.length > 0;
+                    
+                    // If user selects tag location but no tag file uploaded, show warning
+                    if (this.value && !hasTagFile) {
+                        window.showModal('warning', 'Please upload a tag design file first before selecting tag location.');
+                        this.value = ''; // Clear the selection
+                        this.style.borderColor = '#ffc107'; // Yellow border for warning
+                        setTimeout(() => {
+                            this.style.borderColor = ''; // Reset border after 3 seconds
+                        }, 3000);
+                    }
+                });
+            }
         }
     }
     
@@ -523,14 +597,17 @@ export class FormManager {
             return;
         }
         
+        // Create file list for both single and multiple files
+        let fileListHTML = '<div class="multiple-files-container">';
+        
         if (files.length === 1) {
-            container.innerHTML = `<span class="file-name">${files[0].name}</span>`;
-            return;
+            // Single file display with remove button
+            fileListHTML += `<div class="file-count">1 file selected</div>`;
+        } else {
+            // Multiple files display
+            fileListHTML += `<div class="file-count">${files.length} files selected</div>`;
         }
         
-        // Create file list for multiple files
-        let fileListHTML = '<div class="multiple-files-container">';
-        fileListHTML += `<div class="file-count">${files.length} files selected</div>`;
         fileListHTML += '<div class="file-items">';
         
         for (let i = 0; i < files.length; i++) {
@@ -618,6 +695,107 @@ export class FormManager {
             this.displayMultipleFiles(this.accumulatedFiles, fileList);
         }
     }
+    
+    displaySingleTshirtFile(files, container, fileType) {
+        if (!files || files.length === 0) {
+            container.innerHTML = 'No file chosen';
+            return;
+        }
+        
+        const file = files[0];
+        const fileSize = this.formatFileSize(file.size);
+        const fileIcon = this.getFileIcon(file.type);
+        
+        // Create single file display with remove button
+        const fileHTML = `
+            <div class="single-file-container">
+                <div class="file-item">
+                    <div class="file-info">
+                        <i class="${fileIcon}"></i>
+                        <span class="file-name-text">${file.name}</span>
+                        <span class="file-size">${fileSize}</span>
+                    </div>
+                    <button type="button" class="remove-file-btn" onclick="window.removeTshirtFile('${fileType}')" title="Remove file">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = fileHTML;
+    }
+    
+    removeTshirtFile(fileType) {
+        let fileInput;
+        let container;
+        
+        switch(fileType) {
+            case 'front':
+                fileInput = document.getElementById('frontImage');
+                container = fileInput.closest('.file-upload').querySelector('.file-name');
+                break;
+            case 'back':
+                fileInput = document.getElementById('backImage');
+                container = fileInput.closest('.file-upload').querySelector('.file-name');
+                break;
+            case 'tag':
+                fileInput = document.getElementById('tagImage');
+                container = fileInput.closest('.file-upload').querySelector('.file-name');
+                // Also handle tag location requirements
+                const tagLocationSelect = document.getElementById('tagLocation');
+                if (tagLocationSelect) {
+                    tagLocationSelect.required = false;
+                    tagLocationSelect.value = '';
+                    tagLocationSelect.style.borderColor = '';
+                }
+                break;
+        }
+        
+        if (fileInput && container) {
+            // Clear the file input
+            fileInput.value = '';
+            
+            // Reset display
+            container.innerHTML = 'No file chosen';
+        }
+    }
+    
+    clearAllUploadedFiles() {
+        // Clear regular image upload (multiple files)
+        const regularFileInput = document.getElementById('image');
+        const regularFileList = document.querySelector('#regularImageField .file-list');
+        if (regularFileInput && regularFileList) {
+            regularFileInput.value = '';
+            this.accumulatedFiles = [];
+            regularFileList.innerHTML = '<span class="file-name">No files chosen</span>';
+        }
+        
+        // Clear T-shirt specific uploads
+        const tshirtUploads = [
+            { id: 'frontImage', type: 'front' },
+            { id: 'backImage', type: 'back' },
+            { id: 'tagImage', type: 'tag' }
+        ];
+        
+        tshirtUploads.forEach(upload => {
+            const fileInput = document.getElementById(upload.id);
+            if (fileInput) {
+                const container = fileInput.closest('.file-upload')?.querySelector('.file-name');
+                if (container) {
+                    fileInput.value = '';
+                    container.innerHTML = 'No file chosen';
+                }
+            }
+        });
+        
+        // Reset tag location requirements
+        const tagLocationSelect = document.getElementById('tagLocation');
+        if (tagLocationSelect) {
+            tagLocationSelect.required = false;
+            tagLocationSelect.value = '';
+            tagLocationSelect.style.borderColor = '';
+        }
+    }
 }
 
 // Make functions available globally for onclick handlers
@@ -630,5 +808,11 @@ window.clearForm = function() {
 window.removeFile = function(index) {
     if (window.formManager) {
         window.formManager.removeFile(index);
+    }
+};
+
+window.removeTshirtFile = function(fileType) {
+    if (window.formManager) {
+        window.formManager.removeTshirtFile(fileType);
     }
 };

@@ -174,7 +174,7 @@ export class ProductManagementModule {
       </div>
     `
 
-    this.modal.open("Add New Product", content)
+    this.modal.open("Add New Product", content, { preventOutsideClick: true })
     this.setupProductPreview()
   }
 

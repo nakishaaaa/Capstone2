@@ -829,7 +829,7 @@ body {
 }
 
 .btn-close-form {
-    background: #ff4757;
+    background: none;
     color: white;
     border: none;
     width: 40px;
@@ -840,17 +840,10 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
-    transition: all 0.3s ease;
     position: absolute;
     right: 0;
     top: 50%;
     transform: translateY(-50%);
-}
-
-.btn-close-form:hover {
-    background: #ff3742;
-    transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 5px 15px rgba(255, 71, 87, 0.3);
 }
 
 .request-form {
@@ -892,6 +885,10 @@ body {
     background: rgba(255, 255, 255, 0.1);
     color: #ffffff;
     backdrop-filter: blur(10px);
+}
+
+.form-group textarea {
+    resize: none;
 }
 
 .form-group select option {
@@ -1154,6 +1151,31 @@ body {
     font-size: 0.75rem;
 }
 
+/* Single file container for T-shirt uploads */
+.single-file-container {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.single-file-container .file-item {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.single-file-container .file-item:hover {
+    border-color: #6366f1;
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+}
+
 /* Contact Number Input Group */
 .contact-input-group {
     display: flex;
@@ -1349,23 +1371,14 @@ body {
     right: 1rem;
     top: 1rem;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: none;
+    border: none;
     border-radius: 50%;
     width: 40px;
     height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
-}
-
-.close:hover {
-    color: #ffffff;
-    background: rgba(255, 71, 87, 0.8);
-    border-color: rgba(255, 71, 87, 1);
-    transform: scale(1.05);
 }
 
 /* Alert Styles */
@@ -1688,7 +1701,8 @@ transform: translateY(-1px);
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 3rem;
-    align-items: start;
+    align-items: center;
+    min-height: 500px;
 }
 
 .contact-info {
@@ -2849,6 +2863,28 @@ box-shadow: none;
     transition: opacity 0.3s ease;
 }
 
+/* Default: Prevent all support modals from closing on outside click */
+.support-modal {
+    pointer-events: none;
+}
+
+.support-modal .support-modal-content {
+    pointer-events: all;
+}
+
+/* Alternative: Create a blocking overlay */
+.support-modal::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    z-index: 999;
+    pointer-events: none;
+}
+
 .support-modal.active {
     display: block;
     opacity: 1;
@@ -2911,7 +2947,28 @@ box-shadow: none;
     padding: 2rem;
     /* Fill remaining space and scroll inside body */
     flex: 1 1 auto;
-    overflow-y: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+}
+
+/* Custom scrollbar for support modal body */
+.support-modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.support-modal-body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.support-modal-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.support-modal-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
 }
 
 
@@ -2938,21 +2995,43 @@ box-shadow: none;
     display: grid;
     grid-template-columns: 1fr;
     gap: 1rem;
+    background-color: #f7f7f7;
 }
 
 .conversations-list {
     display: grid;
-    gap: 0.75rem;
+    gap: 1.5rem;
     max-height: 700px;
     overflow-y: auto;
-    padding-right: 0.5rem;
+    padding-right: 1rem;
+    margin-right: -0.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.1);
+}
+
+.conversations-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.conversations-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.conversations-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.conversations-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
 }
 
 .conversation-card {
     background: #ffffff;
     border: 1px solid #eeeeee;
     border-radius: 14px;
-    padding: 1rem;
+    padding: 1.25rem;
     position: relative;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(0,0,0,0.06);
@@ -2961,11 +3040,12 @@ box-shadow: none;
     display: flex;          
     flex-direction: column;
     justify-content: space-between;
+    margin-right: 0.5rem;
 }
 
 .conversation-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+    border-color: #4facfe;
 }
 
 .conversation-card .conv-meta {
@@ -3020,12 +3100,23 @@ box-shadow: none;
     border-top: 1px dashed #e5e5e5;
     padding-top: 0.5rem;
     margin-top: -2rem;
+    display: flex;
+    flex-direction: column;
+    height: calc(80vh - 120px);
+    position: relative;
+    overflow: hidden;
 }
 
 .conversation-reply {
     border-top: 1px solid #e5e5e5;
-    padding: 1rem 0;
-    margin-top: 1rem;
+    padding: 1rem;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 10;
 }
 
 .reply-textarea {
@@ -3035,7 +3126,7 @@ box-shadow: none;
     border-radius: 8px;
     font-size: 0.9rem;
     font-family: inherit;
-    resize: vertical;
+    resize: none;
     min-height: 80px;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -3049,7 +3140,7 @@ box-shadow: none;
 .reply-actions {
     display: flex;
     justify-content: flex-end;
-    margin-top: 0.10rem;
+    margin-top: 0.75rem;
 }
 
 .reply-actions .support-send-btn {
@@ -3106,8 +3197,31 @@ box-shadow: none;
 .conversation-messages {
     display: grid;
     gap: 0.5rem;
-    max-height: 45vh;
-    overflow: auto;
+    max-height: calc(100% - 223px);
+    overflow-y: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 2rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.1);
+}
+
+/* Custom scrollbar for conversation messages */
+.conversation-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.conversation-messages::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+
+.conversation-messages::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.conversation-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
 }
 
 .message-row {
@@ -3195,7 +3309,7 @@ box-shadow: none;
 }
 
 .support-form-group textarea {
-    resize: vertical;
+    resize: none;
     min-height: 120px;
 }
 

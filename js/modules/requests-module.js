@@ -16,6 +16,7 @@ export class RequestsModule {
 
   init() {
     console.log('Initializing Requests Module...')
+    console.log('Current user role:', window.userRole)
     this.setupEventListeners()
     this.initializeSSE()
   }
@@ -24,8 +25,14 @@ export class RequestsModule {
     // Make functions globally accessible for onclick handlers
     window.refreshRequests = () => this.loadRequests()
     window.filterRequests = () => this.filterRequests()
-    window.approveRequest = (id) => this.showApprovalModal(id)
-    window.rejectRequest = (id) => this.showRejectionModal(id)
+    window.approveRequest = (id) => {
+      console.log('approveRequest called with id:', id)
+      this.showApprovalModal(id)
+    }
+    window.rejectRequest = (id) => {
+      console.log('rejectRequest called with id:', id)
+      this.showRejectionModal(id)
+    }
     window.viewRequest = (id) => this.viewRequestDetails(id)
     window.viewRequestHistory = () => this.viewHistory()
     window.backToRequests = () => this.backToRequests()
@@ -388,11 +395,11 @@ export class RequestsModule {
             border-radius: 0 0 12px 12px;
           ">
             <button class="btn btn-success" style="padding: 0.5rem 1rem; border-radius: 6px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
-                    onclick="approveRequest(${request.id}); window.modalManager.close();">
+                    onclick="console.log('Approve button clicked, approveRequest available:', typeof window.approveRequest); window.modalManager.close(); setTimeout(() => window.approveRequest(${request.id}), 100);">
               <i class="fa-solid fa-check"></i> Approve
             </button>
             <button class="btn btn-danger" style="padding: 0.5rem 1rem; border-radius: 6px; background: #dc3545; color: white; border: none; cursor: pointer; font-size: 0.9rem;"
-                    onclick="rejectRequest(${request.id}); window.modalManager.close();">
+                    onclick="console.log('Reject button clicked, rejectRequest available:', typeof window.rejectRequest); window.modalManager.close(); setTimeout(() => window.rejectRequest(${request.id}), 100);">
               <i class="fa-solid fa-xmark"></i> Reject
             </button>
           </div>

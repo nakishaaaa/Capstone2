@@ -194,11 +194,29 @@ function getSecurityAnalytics($conn) {
 function getUserAnalytics($conn) {
     $data = [];
     
+    // Get time range from request parameter
+    $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
+    $interval = '30 DAY';
+    
+    switch($timeRange) {
+        case '7d':
+            $interval = '7 DAY';
+            break;
+        case '90d':
+            $interval = '90 DAY';
+            break;
+        case '1y':
+            $interval = '365 DAY';
+            break;
+        default:
+            $interval = '30 DAY';
+    }
+    
     // User registrations over time
     $stmt = $conn->prepare("
         SELECT DATE(created_at) as date, COUNT(*) as registrations
         FROM users 
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
         GROUP BY DATE(created_at)
         ORDER BY date ASC
     ");
@@ -235,6 +253,24 @@ function getUserAnalytics($conn) {
 function getSystemPerformance($conn) {
     $data = [];
     
+    // Get time range from request parameter
+    $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
+    $interval = '30 DAY';
+    
+    switch($timeRange) {
+        case '7d':
+            $interval = '7 DAY';
+            break;
+        case '90d':
+            $interval = '90 DAY';
+            break;
+        case '1y':
+            $interval = '365 DAY';
+            break;
+        default:
+            $interval = '30 DAY';
+    }
+    
     // Database size
     $stmt = $conn->prepare("
         SELECT 
@@ -252,7 +288,7 @@ function getSystemPerformance($conn) {
     $stmt = $conn->prepare("
         SELECT DATE(created_at) as date, COUNT(*) as activity_count
         FROM audit_logs
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
         GROUP BY DATE(created_at)
         ORDER BY date ASC
     ");
@@ -433,12 +469,45 @@ function formatUserResponse($data) {
     $activeUsers = 0;
     $usersChange = 0;
     
-    // Process daily registrations for chart
+    // Get the time range to determine how many days to show
+    $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
+    $daysToShow = 30;
+    
+    switch($timeRange) {
+        case '7d':
+            $daysToShow = 7;
+            break;
+        case '90d':
+            $daysToShow = 90;
+            break;
+        case '1y':
+            $daysToShow = 365;
+            break;
+        default:
+            $daysToShow = 30;
+    }
+    
+    // Create a complete date range for user registrations
+    $dateMap = [];
+    for ($i = $daysToShow - 1; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-$i days"));
+        $dateMap[$date] = 0;
+    }
+    
+    // Fill in actual registration data
     if (isset($data['daily_registrations']) && !empty($data['daily_registrations'])) {
         foreach ($data['daily_registrations'] as $reg) {
-            $labels[] = date('M j', strtotime($reg['date']));
-            $chartData[] = intval($reg['registrations'] ?? 0);
+            $regDate = date('Y-m-d', strtotime($reg['date']));
+            if (isset($dateMap[$regDate])) {
+                $dateMap[$regDate] = intval($reg['registrations'] ?? 0);
+            }
         }
+    }
+    
+    // Convert to arrays for chart
+    foreach ($dateMap as $date => $count) {
+        $labels[] = date('M j', strtotime($date));
+        $chartData[] = $count;
     }
     
     if (isset($data['activity_summary'])) {
@@ -472,14 +541,47 @@ function formatPerformanceResponse($data) {
     $labels = [];
     $chartData = [];
     
-    // Process daily activity for chart
+    // Get the time range to determine how many days to show
+    $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
+    $daysToShow = 30;
+    
+    switch($timeRange) {
+        case '7d':
+            $daysToShow = 7;
+            break;
+        case '90d':
+            $daysToShow = 90;
+            break;
+        case '1y':
+            $daysToShow = 365;
+            break;
+        default:
+            $daysToShow = 30;
+    }
+    
+    // Create a complete date range for performance data
+    $dateMap = [];
+    for ($i = $daysToShow - 1; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-$i days"));
+        $dateMap[$date] = 0;
+    }
+    
+    // Fill in actual activity data
     if (isset($data['daily_activity']) && !empty($data['daily_activity'])) {
         foreach ($data['daily_activity'] as $activity) {
-            $labels[] = date('M j', strtotime($activity['date']));
-            // Simulate response time based on activity count
-            $responseTime = max(50, min(500, intval($activity['activity_count']) * 2));
-            $chartData[] = $responseTime;
+            $activityDate = date('Y-m-d', strtotime($activity['date']));
+            if (isset($dateMap[$activityDate])) {
+                $dateMap[$activityDate] = intval($activity['activity_count'] ?? 0);
+            }
         }
+    }
+    
+    // Convert to arrays for chart
+    foreach ($dateMap as $date => $count) {
+        $labels[] = date('M j', strtotime($date));
+        // Simulate response time based on activity count
+        $responseTime = max(50, min(500, $count * 2));
+        $chartData[] = $responseTime;
     }
     
     return [

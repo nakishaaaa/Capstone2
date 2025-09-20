@@ -1,10 +1,19 @@
 <?php
 session_start(); // Start the session to use session variables
 require_once 'includes/config.php'; // Include the database connection
+require_once 'includes/csrf.php'; // Include CSRF protection
 require_once 'includes/audit_helper.php'; // Include audit logging functions
 
 // Handle registration form submission
 if (isset($_POST['register'])) {
+    // Validate CSRF token first
+    if (!CSRFToken::validate($_POST['csrf_token'] ?? '')) {
+        $_SESSION['register_error'] = 'Invalid security token. Please try again.';
+        $_SESSION['active_form'] = 'register';
+        header("Location: index.php");
+        exit();
+    }
+
     // Get form data safely
     $first_name = isset($_POST['first_name']) ? trim($_POST['first_name']) : '';
     $last_name = isset($_POST['last_name']) ? trim($_POST['last_name']) : '';
@@ -13,6 +22,22 @@ if (isset($_POST['register'])) {
     $contact_number = isset($_POST['contact_number']) ? trim($_POST['contact_number']) : '';
     // Hash the password for security
     $password = isset($_POST['password']) ? password_hash($_POST['password'], PASSWORD_DEFAULT) : '';
+
+    // Validate first name (only letters and spaces allowed)
+    if ($first_name && !preg_match('/^[a-zA-Z\s]+$/', $first_name)) {
+        $_SESSION['register_error'] = 'First name can only contain letters and spaces!';
+        $_SESSION['active_form'] = 'register';
+        header("Location: index.php");
+        exit();
+    }
+
+    // Validate last name (only letters and spaces allowed)
+    if ($last_name && !preg_match('/^[a-zA-Z\s]+$/', $last_name)) {
+        $_SESSION['register_error'] = 'Last name can only contain letters and spaces!';
+        $_SESSION['active_form'] = 'register';
+        header("Location: index.php");
+        exit();
+    }
 
     // Validate contact number format (10 digits)
     if ($contact_number && !preg_match('/^[0-9]{10}$/', $contact_number)) {
@@ -83,6 +108,14 @@ if (isset($_POST['register'])) {
 
 // Handle login form submission
 if (isset($_POST['login'])) {
+    // Validate CSRF token first
+    if (!CSRFToken::validate($_POST['csrf_token'] ?? '')) {
+        $_SESSION['login_error'] = 'Invalid security token. Please try again.';
+        $_SESSION['active_form'] = 'login';
+        header("Location: index.php");
+        exit();
+    }
+
     // Get login form data
     $username = isset($_POST['username']) ? $_POST['username'] : '';
     $password = isset($_POST['password']) ? $_POST['password'] : '';

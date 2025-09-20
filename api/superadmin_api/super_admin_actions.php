@@ -384,6 +384,81 @@ try {
             $filter = $_GET['filter'] ?? 'all';
             $notifications = [];
             
+            // Get security notifications (failed logins, suspicious activity) from audit_logs
+            if ($filter === 'all' || $filter === 'security') {
+                // Security events from audit logs (last 24 hours)
+                $securityQuery = "
+                    SELECT 
+                        al.id,
+                        CASE 
+                            WHEN al.action LIKE '%login_fail%' THEN 'Failed Login Attempt'
+                            WHEN al.action LIKE '%suspicious%' THEN 'Suspicious Activity'
+                            WHEN al.action LIKE '%blocked%' THEN 'Security Block'
+                            ELSE 'Security Alert'
+                        END as title,
+                        CONCAT('Action: ', al.action, ' - ', al.description, ' (IP: ', COALESCE(al.ip_address, 'unknown'), ')') as message,
+                        CASE 
+                            WHEN al.action LIKE '%fail%' OR al.action LIKE '%blocked%' THEN 'error'
+                            WHEN al.action LIKE '%suspicious%' THEN 'warning'
+                            ELSE 'info'
+                        END as type,
+                        COALESCE(al.is_read, FALSE) as is_read,
+                        al.created_at,
+                        'security' as notification_source,
+                        'security_event' as security_type
+                    FROM audit_logs al
+                    WHERE (al.action LIKE '%login_failed%' OR al.action LIKE '%suspicious%' OR al.action LIKE '%blocked%' OR al.action LIKE '%security%')
+                    AND al.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    AND COALESCE(al.deleted, FALSE) = FALSE
+                    ORDER BY al.created_at DESC 
+                    LIMIT 10
+                ";
+                
+                $stmt = $conn->prepare($securityQuery);
+                $stmt->execute();
+                $securityNotifications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                $notifications = array_merge($notifications, $securityNotifications);
+                
+                // Debug logging for security notifications
+                error_log("Security notifications query executed. Found " . count($securityNotifications) . " security events");
+                if (count($securityNotifications) > 0) {
+                    error_log("First security notification: " . json_encode($securityNotifications[0]));
+                }
+                
+            }
+            
+            // Get system health notifications (technical issues only, no business/sales data)
+            if ($filter === 'all' || $filter === 'system') {
+                // Add is_read and deleted columns to audit_logs if they don't exist
+                $conn->query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
+                $conn->query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE");
+                
+                // System errors from audit logs (last 24 hours) - technical issues only
+                $errorQuery = "
+                    SELECT 
+                        al.id,
+                        'System Error Detected' as title,
+                        CONCAT('Action: ', al.action, ' - ', al.description) as message,
+                        'error' as type,
+                        COALESCE(al.is_read, FALSE) as is_read,
+                        al.created_at,
+                        'system' as notification_source,
+                        'system_error' as system_type
+                    FROM audit_logs al
+                    WHERE (al.action LIKE '%error%' OR (al.action LIKE '%fail%' AND al.action NOT LIKE '%login_failed%'))
+                    AND al.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    AND COALESCE(al.deleted, FALSE) = FALSE
+                    ORDER BY al.created_at DESC 
+                    LIMIT 10
+                ";
+                
+                $stmt = $conn->prepare($errorQuery);
+                $stmt->execute();
+                $errorNotifications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                $notifications = array_merge($notifications, $errorNotifications);
+            }
+            
+            
             // Get customer support ticket notifications (last 7 days)
             if ($filter === 'all' || $filter === 'customer_support') {
                 // Add is_read column to support_tickets table if it doesn't exist
@@ -463,47 +538,93 @@ try {
         case 'mark_notification_read':
             $data = json_decode(file_get_contents('php://input'), true);
             $notificationId = $data['id'];
-            $notificationSource = $data['source'] ?? 'developer';
+            $notificationSource = $data['source'] ?? 'system';
+            
+            $success = false;
             
             if ($notificationSource === 'customer_support') {
                 // Check if it's a ticket or message and update accordingly
                 $supportType = $data['support_type'] ?? 'ticket';
                 if ($supportType === 'ticket') {
                     $stmt = $conn->prepare("UPDATE support_tickets SET is_read = TRUE WHERE id = ?");
+                    $stmt->bind_param("i", $notificationId);
+                    $success = $stmt->execute();
                 } else {
                     $stmt = $conn->prepare("UPDATE support_messages SET is_read = TRUE WHERE id = ?");
+                    $stmt->bind_param("i", $notificationId);
+                    $success = $stmt->execute();
                 }
-            } else {
-                $stmt = $conn->prepare("UPDATE developer_notifications SET is_read = TRUE WHERE id = ?");
+            } elseif ($notificationSource === 'security') {
+                // For security notifications from audit_logs
+                $stmt = $conn->prepare("UPDATE audit_logs SET is_read = TRUE WHERE id = ?");
+                $stmt->bind_param("i", $notificationId);
+                $success = $stmt->execute();
+            } elseif ($notificationSource === 'system') {
+                // Determine which table based on system_type
+                $systemType = $data['system_type'] ?? 'high_value_order';
+                if ($systemType === 'high_value_order') {
+                    $stmt = $conn->prepare("UPDATE user_requests SET is_read = TRUE WHERE id = ?");
+                } elseif ($systemType === 'low_inventory') {
+                    $stmt = $conn->prepare("UPDATE inventory SET is_read = TRUE WHERE id = ?");
+                } else {
+                    // system_error or other audit log types
+                    $stmt = $conn->prepare("UPDATE audit_logs SET is_read = TRUE WHERE id = ?");
+                }
+                $stmt->bind_param("i", $notificationId);
+                $success = $stmt->execute();
             }
             
-            $stmt->bind_param("i", $notificationId);
-            $stmt->execute();
-            
-            echo json_encode(['success' => true, 'message' => 'Notification marked as read']);
+            if ($success) {
+                echo json_encode(['success' => true, 'message' => 'Notification marked as read']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to mark notification as read']);
+            }
             break;
 
         case 'delete_notification':
             $data = json_decode(file_get_contents('php://input'), true);
             $notificationId = $data['id'];
-            $notificationSource = $data['source'] ?? 'developer';
+            $notificationSource = $data['source'] ?? 'system';
+            
+            $success = false;
             
             if ($notificationSource === 'customer_support') {
-                // Check if it's a ticket or message and delete accordingly
+                // For customer support, we can actually delete the records
                 $supportType = $data['support_type'] ?? 'ticket';
                 if ($supportType === 'ticket') {
                     $stmt = $conn->prepare("DELETE FROM support_tickets WHERE id = ?");
+                    $stmt->bind_param("i", $notificationId);
+                    $success = $stmt->execute();
                 } else {
                     $stmt = $conn->prepare("DELETE FROM support_messages WHERE id = ?");
+                    $stmt->bind_param("i", $notificationId);
+                    $success = $stmt->execute();
                 }
-            } else {
-                $stmt = $conn->prepare("DELETE FROM developer_notifications WHERE id = ?");
+            } elseif ($notificationSource === 'security') {
+                // For security notifications from audit_logs, mark as deleted
+                $stmt = $conn->prepare("UPDATE audit_logs SET deleted = TRUE WHERE id = ?");
+                $stmt->bind_param("i", $notificationId);
+                $success = $stmt->execute();
+            } elseif ($notificationSource === 'system') {
+                // For system notifications, mark as deleted instead of actually deleting the records
+                $systemType = $data['system_type'] ?? 'high_value_order';
+                if ($systemType === 'high_value_order') {
+                    $stmt = $conn->prepare("UPDATE user_requests SET deleted = TRUE WHERE id = ?");
+                } elseif ($systemType === 'low_inventory') {
+                    $stmt = $conn->prepare("UPDATE inventory SET deleted = TRUE WHERE id = ?");
+                } else {
+                    // system_error or other audit log types
+                    $stmt = $conn->prepare("UPDATE audit_logs SET deleted = TRUE WHERE id = ?");
+                }
+                $stmt->bind_param("i", $notificationId);
+                $success = $stmt->execute();
             }
             
-            $stmt->bind_param("i", $notificationId);
-            $stmt->execute();
-            
-            echo json_encode(['success' => true, 'message' => 'Notification deleted']);
+            if ($success) {
+                echo json_encode(['success' => true, 'message' => 'Notification deleted']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete notification']);
+            }
             break;
 
         case 'get_backup_history':
@@ -815,25 +936,46 @@ try {
         case 'mark_all_notifications_read':
             $totalAffected = 0;
             
-            // Mark all developer notifications as read
-            $stmt = $conn->prepare("UPDATE developer_notifications SET is_read = TRUE WHERE is_read = FALSE");
-            $stmt->execute();
-            $totalAffected += $stmt->affected_rows;
+            // Mark all security notifications as read (from audit_logs)
+            $stmt = $conn->prepare("UPDATE audit_logs SET is_read = TRUE WHERE COALESCE(is_read, FALSE) = FALSE AND (action LIKE '%login_failed%' OR action LIKE '%suspicious%' OR action LIKE '%blocked%' OR action LIKE '%security%') AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+            if ($stmt) {
+                $stmt->execute();
+                $totalAffected += $stmt->affected_rows;
+                $stmt->close();
+            }
+            
+            
+            // Mark all audit log notifications as read (system errors and admin actions)
+            $stmt = $conn->prepare("UPDATE audit_logs SET is_read = TRUE WHERE COALESCE(is_read, FALSE) = FALSE AND ((action LIKE '%error%' OR (action LIKE '%fail%' AND action NOT LIKE '%login_failed%')) OR action IN ('user_role_change', 'user_delete', 'maintenance_toggle', 'system_setting_change', 'admin_login', 'cashier_login')) AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+            if ($stmt) {
+                $stmt->execute();
+                $totalAffected += $stmt->affected_rows;
+                $stmt->close();
+            }
             
             // Mark all support tickets as read (last 7 days)
-            $stmt = $conn->prepare("UPDATE support_tickets SET is_read = TRUE WHERE is_read = FALSE AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
-            $stmt->execute();
-            $totalAffected += $stmt->affected_rows;
+            $tableCheck = $conn->query("SHOW TABLES LIKE 'support_tickets'");
+            if ($tableCheck && $tableCheck->num_rows > 0) {
+                $stmt = $conn->prepare("UPDATE support_tickets SET is_read = TRUE WHERE COALESCE(is_read, FALSE) = FALSE AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+                if ($stmt) {
+                    $stmt->execute();
+                    $totalAffected += $stmt->affected_rows;
+                    $stmt->close();
+                }
+            }
             
             // Mark all support messages as read (last 7 days)
             $tableCheck = $conn->query("SHOW TABLES LIKE 'support_messages'");
-            if ($tableCheck->num_rows > 0) {
-                $stmt = $conn->prepare("UPDATE support_messages SET is_read = TRUE WHERE is_read = FALSE AND message_type = 'customer' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
-                $stmt->execute();
-                $totalAffected += $stmt->affected_rows;
+            if ($tableCheck && $tableCheck->num_rows > 0) {
+                $stmt = $conn->prepare("UPDATE support_messages SET is_read = TRUE WHERE COALESCE(is_read, FALSE) = FALSE AND message_type = 'customer_support' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+                if ($stmt) {
+                    $stmt->execute();
+                    $totalAffected += $stmt->affected_rows;
+                    $stmt->close();
+                }
             }
             
-            echo json_encode(['success' => true, 'message' => "{$totalAffected} notifications marked as read"]);
+            echo json_encode(['success' => true, 'message' => "All notifications marked as read"]);
             break;
 
         case 'get_analytics_data':

@@ -94,7 +94,7 @@ export class AuditModule {
                     <td>
                         <div class="audit-user-info">
                             
-                            <div class="audit-user-name" style="font-weight: bold;">${log.user_name || log.username || 'System'}</div>
+                            <div class="audit-user-name" style="font-weight: bold;">${log.user_name || log.username || 'Anonymous'}</div>
                         </div>
                     </td>
                     <td>
@@ -152,7 +152,7 @@ export class AuditModule {
                         </div>
                         <div class="activity-details">
                             <div class="activity-text">
-                                <strong>${activity.user_name || activity.username || 'System'}</strong> ${activity.description || activity.action || 'performed an action'}
+                                <strong>${activity.user_name || activity.username || 'Anonymous'}</strong> ${activity.description || activity.action || 'performed an action'}
                             </div>
                             <div class="activity-time">${this.formatRelativeTime(activity.timestamp || activity.created_at)}</div>
                         </div>
