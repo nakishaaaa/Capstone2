@@ -65,7 +65,7 @@ export class AdminSupportManager {
         }
     }
     
-    async loadConversations() {
+    async loadConversations(preserveSearch = false) {
         try {
             const response = await fetch('/Capstone2/api/admin_support_messages.php?action=conversations');
             const result = await response.json();
@@ -74,6 +74,14 @@ export class AdminSupportManager {
                 this.currentConversations = result.data.conversations;
                 this.updateConversationsList();
                 this.updateSupportStats(result.data.stats);
+                
+                // Preserve search filter if requested
+                if (preserveSearch) {
+                    const searchInput = document.getElementById('conversationSearch');
+                    if (searchInput && searchInput.value.trim()) {
+                        this.filterConversations();
+                    }
+                }
                 
                 // Check for unread messages on initial load
                 this.checkForUnreadMessages(result.data.stats);
@@ -176,8 +184,12 @@ export class AdminSupportManager {
                 </div>
                 <div class="message-content">
                     <div class="message-header">
-                        <span class="message-sender">${this.escapeHtml(msg.sender_name)}</span>
-                        <span class="message-time">${this.timeAgo(msg.created_at)}</span>
+                        ${msg.is_admin ? 
+                            `<span class="message-time">${this.timeAgo(msg.created_at)}</span>
+                             <span class="message-sender">${this.escapeHtml(msg.sender_name)}</span>` :
+                            `<span class="message-sender">${this.escapeHtml(msg.sender_name)}</span>
+                             <span class="message-time">${this.timeAgo(msg.created_at)}</span>`
+                        }
                     </div>
                     <div class="message-text">${this.escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
                     ${msg.subject ? `<div class="message-subject">Subject: ${this.escapeHtml(msg.subject)}</div>` : ''}
@@ -298,7 +310,7 @@ export class AdminSupportManager {
             if (result.success) {
                 document.getElementById('adminReplyInput').value = '';
                 this.loadConversationMessages(this.selectedConversationId); // Refresh messages
-                this.loadConversations(); // Refresh conversation list
+                this.loadConversations(true); // Refresh conversation list, preserving search
             } else {
                 this.showError(result.message || 'Failed to send reply');
             }
@@ -357,7 +369,7 @@ export class AdminSupportManager {
                 }
                 
                 // Refresh conversation list to update counts, then restore active state
-                await this.loadConversations();
+                await this.loadConversations(true);
                 this.restoreActiveConversation();
             }
         } catch (error) {
@@ -518,8 +530,8 @@ export class AdminSupportManager {
         
         if (supportActivities.length > 0) {
             console.log('Admin Support: New support activity detected');
-            // Refresh conversations to update unread counts and ordering
-            this.loadConversations();
+            // Refresh conversations to update unread counts and ordering, preserving search
+            this.loadConversations(true);
 
             // If the current conversation received a new user message, refresh its messages view
             const hasCurrentConvUpdate = supportActivities.some(a => 

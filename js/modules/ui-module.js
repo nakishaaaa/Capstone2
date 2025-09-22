@@ -22,7 +22,7 @@ export class UIManager {
     initializeElements() {
         this.modal = document.getElementById('messageModal');
         this.modalMessage = document.getElementById('modalMessage');
-        this.closeBtn = document.querySelector('.close');
+        this.closeBtn = document.querySelector('#messageModal .close');
     }
     
     setupEventListeners() {
@@ -39,6 +39,11 @@ export class UIManager {
     }
     
     showModal(type, message) {
+        // Re-initialize elements in case they weren't available during initial load
+        if (!this.modal || !this.modalMessage) {
+            this.initializeElements();
+        }
+        
         if (!this.modalMessage || !this.modal) return;
         
         this.modalMessage.innerHTML = `
@@ -48,6 +53,14 @@ export class UIManager {
             </div>
         `;
         this.modal.style.display = 'block';
+        
+        // Re-setup event listeners if close button wasn't available before
+        if (!this.closeBtn) {
+            this.closeBtn = document.querySelector('#messageModal .close');
+            if (this.closeBtn) {
+                this.closeBtn.addEventListener('click', () => this.closeModal());
+            }
+        }
         
         // Auto-close success messages after 3 seconds
         if (type === 'success') {
@@ -65,3 +78,9 @@ export class UIManager {
 // Create global instance and expose showModal function
 const uiManager = new UIManager();
 window.showModal = (type, message) => uiManager.showModal(type, message);
+
+// Re-initialize when DOM is fully loaded as a fallback
+document.addEventListener('DOMContentLoaded', () => {
+    uiManager.initializeElements();
+    uiManager.setupEventListeners();
+});

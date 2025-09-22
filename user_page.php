@@ -52,7 +52,7 @@ if (!$isUserLoggedIn) {
                 <a href="#services" class="nav-link">Services</a>
                 <a href="#gallery" class="nav-link">Gallery</a>
                 <a href="#how" class="nav-link">How It Works</a>
-                <a href="#testimonials" class="nav-link">Testimonials</a>
+                <a href="#reviews" class="nav-link">Reviews</a>
             </nav>
             <div class="user-info">
                 <div class="user-dropdown">
@@ -253,25 +253,20 @@ if (!$isUserLoggedIn) {
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label for="tagLocation">Tag Location</label>
+                                        <div class="label-with-help">
+                                            <label for="tagLocation">Tag Location</label>
+                                            <button type="button" class="help-icon-btn" onclick="showTagLocationsModal()" title="View tag location diagram">
+                                                <i class="fas fa-question"></i>
+                                            </button>
+                                        </div>
                                         <select id="tagLocation" name="tag_location">
                                             <option value="" disabled selected>Select Tag Location</option>
-                                            <option value="full-front">Full Front</option>
-                                            <option value="medium-front">Medium Front</option>
-                                            <option value="center-chest">Center Chest</option>
-                                            <option value="across-chest">Across Chest</option>
-                                            <option value="right-chest">Right Chest</option>
-                                            <option value="left-chest">Left Chest</option>
-                                            <option value="right-sleeve">Right Sleeve</option>
-                                            <option value="left-sleeve">Left Sleeve</option>
-                                            <option value="right-vertical">Right Vertical</option>
-                                            <option value="left-vertical">Left Vertical</option>
-                                            <option value="front-bottom-right">Front Bottom Right</option>
-                                            <option value="front-bottom-left">Front Bottom Left</option>
-                                            <option value="full-back">Full Back</option>
-                                            <option value="medium-back">Medium Back</option>
-                                            <option value="locker-patch-area">Locker Patch Area</option>
-                                            <option value="across-shoulders">Across Shoulders</option>
+                                            <option value="right-sleeve">1. Right Sleeve</option>
+                                            <option value="inside-neck">2. Inside Neck</option>
+                                            <option value="left-sleeve">3. Left Sleeve</option>
+                                            <option value="left-hem">4. Left Hem</option>
+                                            <option value="right-hem">5. Right Hem</option>
+                                            <option value="outside-neck">6. Outside Neck</option>
                                         </select>
                                     </div>
                                 </div>
@@ -495,7 +490,7 @@ if (!$isUserLoggedIn) {
                 </div>
             </section>
 
-            <section id="testimonials" class="content-section testimonials-section">
+            <section id="reviews" class="content-section testimonials-section">
                 <div class="section-header">
                     <h2>What Customers Say</h2>
                     <p> </p>
@@ -915,6 +910,20 @@ if (!$isUserLoggedIn) {
         </div>
     </div>
 
+    <!-- Tag Locations Modal -->
+    <div id="tagLocationsModal" class="modal" style="display: none;">
+        <div class="modal-content tag-locations-modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeTagLocationsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="tag-locations-image-container">
+                    <img src="images/taglocations.png" alt="T-Shirt Tag Locations Diagram" class="tag-locations-image zoomable-image" onclick="toggleImageZoom(this)">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/slideshow.js"></script>
     <script type="module" src="js/user_page.main.js"></script>
     <script>
@@ -1034,6 +1043,159 @@ if (!$isUserLoggedIn) {
                 else if (delta > 0 && scrollTop + height >= scrollHeight) {
                     e.preventDefault();
                 }
+            });
+        }
+    });
+
+    // Tag Locations Modal Functions
+    function showTagLocationsModal() {
+        const modal = document.getElementById('tagLocationsModal');
+        if (modal) {
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+    }
+
+    function closeTagLocationsModal() {
+        const modal = document.getElementById('tagLocationsModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto'; // Restore scrolling
+        }
+    }
+
+    // Close modal when clicking outside of it
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('tagLocationsModal');
+        if (event.target === modal) {
+            closeTagLocationsModal();
+        }
+    });
+
+    // Enhanced image zoom and pan functionality
+    let zoomLevel = 1;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let translateX = 0;
+    let translateY = 0;
+    let lastTap = 0;
+
+    function toggleImageZoom(img) {
+        if (zoomLevel === 1) {
+            // Zoom in to 2.5x for better detail viewing
+            zoomLevel = 2.5;
+            img.style.transform = `scale(${zoomLevel}) translate(0, 0)`;
+            img.style.cursor = 'grab';
+            img.classList.add('zoomed');
+        } else {
+            // Reset zoom
+            zoomLevel = 1;
+            isDragging = false;
+            translateX = 0;
+            translateY = 0;
+            img.style.transform = 'scale(1) translate(0, 0)';
+            img.style.cursor = 'zoom-in';
+            img.classList.remove('zoomed');
+        }
+    }
+
+    function addWheelZoom(img) {
+        img.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            
+            const delta = e.deltaY > 0 ? -0.2 : 0.2;
+            const newZoom = Math.max(1, Math.min(4, zoomLevel + delta));
+            
+            if (newZoom !== zoomLevel) {
+                zoomLevel = newZoom;
+                
+                if (zoomLevel === 1) {
+                    translateX = 0;
+                    translateY = 0;
+                    img.style.cursor = 'zoom-in';
+                    img.classList.remove('zoomed');
+                } else {
+                    img.style.cursor = 'grab';
+                    img.classList.add('zoomed');
+                }
+                
+                img.style.transform = `scale(${zoomLevel}) translate(${translateX}px, ${translateY}px)`;
+            }
+        });
+    }
+
+    // Add mouse event listeners for panning
+    document.addEventListener('DOMContentLoaded', function() {
+        const tagImage = document.querySelector('.tag-locations-image');
+        if (tagImage) {
+            // Add wheel zoom functionality
+            addWheelZoom(tagImage);
+            
+            // Mouse drag for panning
+            tagImage.addEventListener('mousedown', function(e) {
+                if (zoomLevel > 1) {
+                    isDragging = true;
+                    startX = e.clientX - translateX;
+                    startY = e.clientY - translateY;
+                    this.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging && zoomLevel > 1) {
+                    const newTranslateX = e.clientX - startX;
+                    const newTranslateY = e.clientY - startY;
+                    tagImage.style.transform = `scale(${zoomLevel}) translate(${newTranslateX}px, ${newTranslateY}px)`;
+                }
+            });
+
+            document.addEventListener('mouseup', function(e) {
+                if (isDragging) {
+                    // Update the final position
+                    if (zoomLevel > 1) {
+                        translateX = e.clientX - startX;
+                        translateY = e.clientY - startY;
+                        tagImage.style.cursor = 'grab';
+                    }
+                    isDragging = false;
+                }
+            });
+
+            // Touch events for mobile
+            tagImage.addEventListener('touchstart', function(e) {
+                if (zoomLevel > 1 && e.touches.length === 1) {
+                    isDragging = true;
+                    const touch = e.touches[0];
+                    startX = touch.clientX - translateX;
+                    startY = touch.clientY - translateY;
+                    e.preventDefault();
+                } else if (e.touches.length === 1) {
+                    // Handle double-tap for mobile zoom
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTap;
+                    
+                    if (tapLength < 500 && tapLength > 0) {
+                        e.preventDefault();
+                        toggleImageZoom(tagImage);
+                    }
+                    lastTap = currentTime;
+                }
+            });
+
+            document.addEventListener('touchmove', function(e) {
+                if (isDragging && zoomLevel > 1 && e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    translateX = touch.clientX - startX;
+                    translateY = touch.clientY - startY;
+                    tagImage.style.transform = `scale(${zoomLevel}) translate(${translateX}px, ${translateY}px)`;
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('touchend', function() {
+                isDragging = false;
             });
         }
     });

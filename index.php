@@ -63,7 +63,7 @@ function isActiveForm($formName, $activeForm) {
         <a href="#services" class="nav-link">Services</a>
         <a href="#gallery" class="nav-link">Gallery</a>
         <a href="#how" class="nav-link">How It Works</a>
-        <a href="#testimonials" class="nav-link">Testimonials</a>
+        <a href="#reviews" class="nav-link">Reviews</a>
       </nav>
       <div class="user-info">
         <div class="user-dropdown">
@@ -410,7 +410,7 @@ function isActiveForm($formName, $activeForm) {
       </div>
     </section>
 
-    <section id="testimonials" class="content-section testimonials-section">
+    <section id="reviews" class="content-section testimonials-section">
       <div class="section-header">
         <h2>What Customers Say</h2>
         <p> </p>

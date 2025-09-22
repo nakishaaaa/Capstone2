@@ -6,6 +6,7 @@ import { POSModule } from "./modules/pos-module.js"
 import { ProductManagementModule } from "./modules/product-management-module.js"
 import { NotificationsModule } from "./modules/notifications-module.js"
 import { RequestsModule } from "./modules/requests-module.js"
+import { OrderManagementModule } from "./modules/order-management-module.js"
 import { NavigationModule } from "./modules/navigation-module.js"
 import AdminSupportModule from './modules/admin-support-module.js';
 import UserManagementModule from './modules/user-management-module.js';
@@ -72,6 +73,8 @@ class AdminDashboard {
       // Only initialize requests module for admin users
       if (window.userRole === 'admin') {
         this.modules.requests = new RequestsModule(this.toast, this.modal)
+        this.modules.orderManagement = new OrderManagementModule(this.toast, this.modal)
+        this.modules.orderManagement.init()
         this.modules.salesReport = new SalesReportModule(this.toast, this.apiClient)
       }
       
@@ -90,6 +93,11 @@ class AdminDashboard {
         window.requestsModule = this.modules.requests
         window.refreshRequests = () => window.requestsModule.loadRequests()
         window.viewRequestHistory = () => window.requestsModule.viewHistory()
+      }
+      
+      // Only expose order management module for admin users
+      if (this.modules.orderManagement) {
+        window.orderManagement = this.modules.orderManagement
       }
       
       // Only expose sales report module for admin users
@@ -171,6 +179,11 @@ class AdminDashboard {
 
   async handleSectionChange(sectionId) {
     try {
+      // Deactivate order management if switching away from it
+      if (this.modules.orderManagement && sectionId !== 'order-management') {
+        this.modules.orderManagement.deactivate()
+      }
+      
       switch (sectionId) {
         case "dashboard":
           await this.modules.dashboard.loadStats()
@@ -190,6 +203,12 @@ class AdminDashboard {
         case "requests":
           if (this.modules.requests) {
             await this.modules.requests.loadRequests()
+          }
+          break
+        case "order-management":
+          if (this.modules.orderManagement) {
+            this.modules.orderManagement.activate()
+            await this.modules.orderManagement.loadOrders()
           }
           break
         case "sales-report":
