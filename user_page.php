@@ -175,7 +175,6 @@ if (!$isUserLoggedIn) {
                                         <option value="photo-print">Photo Print</option>
                                         <option value="photo-copy">Photo Copy</option>
                                         <option value="lamination">Lamination</option>
-                                        <option value="typing-job">Typing Job</option>
                                     </select>
                                 </div>
                                 
@@ -271,13 +270,42 @@ if (!$isUserLoggedIn) {
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Card Print Specific Fields (reusing T-shirt field names) -->
+                            <div id="cardFields" class="tshirt-customization-fields" style="display: none;">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="cardFrontImage">Front Design <span class="required">*</span></label>
+                                        <div class="file-upload">
+                                            <input type="file" id="cardFrontImage" name="front_image" accept="image/*,.pdf">
+                                            <label for="cardFrontImage" class="file-upload-label">
+                                                <i class="fas fa-download"></i>
+                                                <span>Choose Front Design</span>
+                                            </label>
+                                            <span class="file-name">No file chosen</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="cardBackImage">Back Design</label>
+                                        <div class="file-upload">
+                                            <input type="file" id="cardBackImage" name="back_image" accept="image/*,.pdf">
+                                            <label for="cardBackImage" class="file-upload-label">
+                                                <i class="fas fa-download"></i>
+                                                <span>Choose Back Design</span>
+                                            </label>
+                                            <span class="file-name">No file chosen</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <!-- Regular Image Upload (for non-tshirt categories) -->
                             <div id="regularImageField" class="form-row">
                                 <div class="form-group">
                                     <label for="image">Images/Files</label>
                                     <div class="file-upload">
-                                        <input type="file" id="image" name="image[]" accept="image/*,.pdf" multiple>
+                                        <input type="file" id="image" name="image[]" accept="image/*,.pdf" multiple required>
                                         <label for="image" class="file-upload-label">
                                             <i class="fas fa-download"></i>
                                             <span>Choose Files</span>
@@ -287,7 +315,10 @@ if (!$isUserLoggedIn) {
                                         </div>
                                     </div>
                                 </div>
-                                
+                            </div>
+                            
+                            <!-- Customer Information Row (Always Visible) -->
+                            <div class="form-row customer-info-row">
                                 <div class="form-group">
                                     <label for="name">Full Name</label>
                                     <input type="text" id="name" name="name" 
@@ -329,18 +360,36 @@ if (!$isUserLoggedIn) {
                     </div>
                 </div>
                 <!-- Social Links over the slideshow -->
-                <div class="social-links" role="navigation" aria-label="Social Media Links">
-                    <a href="https://www.facebook.com/053printingservice" target="_blank" rel="noopener" aria-label="Facebook">
-                        <i class="fab fa-facebook-f"></i>
-                    </a>
-                    <a href="https://www.instagram.com/053prints" target="_blank" rel="noopener" aria-label="Instagram">
-                        <i class="fab fa-instagram"></i>
-                    </a>
-                    <a href="https://www.tiktok.com/@053.prints?lang=en" target="_blank" rel="noopener" aria-label="TikTok">
-                        <i class="fab fa-tiktok"></i>
-                    </a>
+                <div class="social-section">
+                    <div class="social-text">
+                        <span>Visit Our Socials</span>
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="social-links" role="navigation" aria-label="Social Media Links">
+                        <a href="https://www.facebook.com/053printingservice" target="_blank" rel="noopener" aria-label="Facebook">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="https://www.instagram.com/053prints" target="_blank" rel="noopener" aria-label="Instagram">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="https://www.tiktok.com/@053.prints?lang=en" target="_blank" rel="noopener" aria-label="TikTok">
+                            <i class="fab fa-tiktok"></i>
+                        </a>
+                    </div>
                 </div>
             </div> 
+            
+            <!-- AI Feature Banner - Top Left -->
+            <div class="ai-feature-banner">
+                <div class="ai-banner-content">
+                    <i class="fas fa-atom ai-banner-icon"></i>
+                    <div class="ai-banner-text">
+                        <span class="ai-banner-title">NEW: AI Design Tools</span>
+                        <span class="ai-banner-subtitle">Generate & enhance images with AI • Powered by DeepAI</span>
+                    </div>
+                    <span class="ai-banner-badge">TRY NOW</span>
+                </div>
+            </div>
             
             <!-- Border div above contact section -->
             <div class="contact-border-divider"></div>
@@ -669,12 +718,11 @@ if (!$isUserLoggedIn) {
                         <label for="supportMessage">How can we help?</label>
                         <textarea id="supportMessage" name="message" rows="6" required placeholder="Describe your issue or question..."></textarea>
                         <div class="support-message-actions">
-                            <button type="button" class="support-attachment-btn">
+                            <button type="button" class="support-attachment-btn" title="Attach file">
                                 <i class="fas fa-paperclip"></i>
                             </button>
-                            <button type="button" class="support-emoji-btn">
-                                <i class="fas fa-smile"></i>
-                            </button>
+                            <input type="file" id="supportAttachment" name="attachments[]" multiple style="display: none;" accept="image/*">
+                            <span class="attachment-name" id="attachmentName"></span>
                         </div>
                     </div>
                     

@@ -169,12 +169,22 @@ function updateProduct($id, $data) {
                         $product['name'] . " is out of stock" :
                         $product['name'] . " stock is low (" . intval($product['stock']) . " remaining)";
                     
+                    $notificationType = intval($product['stock']) == 0 ? 'error' : 'warning';
+                    
                     $insStmt = $pdo->prepare("INSERT INTO notifications (title, message, type) VALUES (?, ?, ?)");
                     $insStmt->execute([
                         $notificationTitle,
                         $message,
-                        intval($product['stock']) == 0 ? 'error' : 'warning'
+                        $notificationType
                     ]);
+                    
+                    // Send email notification to admins for low stock (non-blocking)
+                    try {
+                        require_once '../includes/email_notifications.php';
+                        EmailNotifications::sendAdminNotification($notificationTitle, $message, $notificationType);
+                    } catch (Exception $emailError) {
+                        error_log("Email notification error: " . $emailError->getMessage());
+                    }
                 }
             }
         } catch (Exception $e) {

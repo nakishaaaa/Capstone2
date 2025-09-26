@@ -772,6 +772,16 @@
     flex-direction: row;
     gap: 0.5rem;
     align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .request-notification .notification-actions {
+    gap: 0.4rem;
+  }
+
+  .request-notification .notification-actions .btn {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
   }
 
   .btn-danger {
@@ -803,7 +813,6 @@
   .notification-icon.error {
     background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
   }
-
   .notification-icon.info {
     background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
   }
@@ -811,10 +820,30 @@
   .notification-icon.success {
     background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
   }
-  
+
+  /* Request notification styling */
+  .request-notification {
+    border-left: 4px solid #28a745 !important;
+    background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
+  }
+
+  .request-notification .notification-icon {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  }
+
+  .notification-badge {
+    display: inline-block;
+    background: #28a745;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+  }
+
   @media (max-width: 768px) {
     .sidebar {
-      transform: translateX(-100%);
       transition: transform 0.3s ease;
     }
   
@@ -2194,6 +2223,174 @@ table tbody tr td:last-child .action-btn {
   text-align: right;
 }
 
+.message-attachments {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-message.user-message .message-attachments {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.attachments-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.attachments-header i {
+  color: #4caf50;
+}
+
+.chat-message.admin-message .attachments-header i {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.attachments-count {
+  color: inherit;
+}
+
+.attachments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.attachment-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.attachment-preview {
+  width: 150px;
+  height: 150px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.attachment-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.attachment-preview img:hover {
+  opacity: 0.8;
+}
+
+.attachment-filename {
+  font-size: 0.75rem;
+  color: inherit;
+  word-break: break-all;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+}
+
+.message-attachment {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-message.user-message .message-attachment {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.attachment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.attachment-header i {
+  color: #4caf50;
+}
+
+.chat-message.admin-message .attachment-header i {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.attachment-filename {
+  color: inherit;
+  word-break: break-all;
+}
+
+.attachment-preview img {
+  display: block;
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.attachment-preview img:hover {
+  opacity: 0.8;
+}
+
+.attachment-download {
+  margin-top: 0.5rem;
+}
+
+.attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.chat-message.admin-message .attachment-link {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.attachment-link:hover {
+  background: rgba(76, 175, 80, 0.2);
+  color: #388e3c;
+  transform: translateY(-1px);
+}
+
+.chat-message.admin-message .attachment-link:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
 .chat-input-area {
   padding: 1rem;
   border-top: 1px solid #e0e0e0;
@@ -3343,4 +3540,17 @@ table tbody tr td:last-child .action-btn {
         width: 100%;
         margin-bottom: 0.5rem;
     }
+}
+
+/* Status Note Textarea - Larger size and no resize */
+#statusNote {
+    min-height: 200px !important;
+    height: 200px !important;
+    resize: none !important;
+    font-family: inherit;
+    line-height: 1.5;
+    width: 100% !important;
+    padding: 0.75rem !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 8px !important;
 }

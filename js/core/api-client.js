@@ -39,7 +39,32 @@ export class ApiClient {
 
   // Sales API methods
   async getSalesStats() {
-    return this.request("sales.php?stats=1")
+    try {
+      // First get regular stats
+      const response = await this.request("sales.php?stats=1")
+      
+      // Then get production orders count
+      try {
+        const productionResponse = await fetch('api/order_management.php?action=get_production_count', {
+          credentials: 'include'
+        })
+        
+        if (productionResponse.ok) {
+          const productionData = await productionResponse.json()
+          if (productionData.success) {
+            response.data.production_orders = productionData.production_count
+          }
+        }
+      } catch (productionError) {
+        console.warn('Failed to fetch production count:', productionError)
+        // Continue without production count
+      }
+      
+      return response
+    } catch (error) {
+      console.error('Error fetching sales stats:', error)
+      throw error
+    }
   }
 
   async processSale(saleData) {
@@ -90,8 +115,8 @@ export class ApiClient {
     return this.request("notifications.php")
   }
 
-  async markNotificationRead(id) {
-    return this.request(`notifications.php?id=${id}`, {
+  async markNotificationRead(id, source = 'notification') {
+    return this.request(`notifications.php?id=${id}&source=${source}`, {
       method: "PUT",
     })
   }
@@ -102,8 +127,8 @@ export class ApiClient {
     })
   }
 
-  async deleteNotification(id) {
-    return this.request(`notifications.php?id=${id}`, {
+  async deleteNotification(id, source = 'notification') {
+    return this.request(`notifications.php?id=${id}&source=${source}`, {
       method: "DELETE",
     })
   }

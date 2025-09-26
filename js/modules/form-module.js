@@ -86,6 +86,9 @@ export class FormManager {
         // File upload display for T-shirt specific fields
         this.setupTshirtFileUploads();
         
+        // File upload display for card specific fields
+        this.setupCardFileUploads();
+        
         // Form toggle events
         if (this.showFormBtn) {
             this.showFormBtn.addEventListener('click', () => this.showRequestForm());
@@ -117,6 +120,7 @@ export class FormManager {
     
     handleCategoryChange() {
         const selectedCategory = this.categorySelect.value;
+        console.log('Category changed to:', selectedCategory);
         
         // Clear all uploaded files when category changes
         this.clearAllUploadedFiles();
@@ -136,10 +140,14 @@ export class FormManager {
             this.populateSizeOptions(selectedCategory);
             this.enableSizeSelect();
             this.toggleTshirtFields(selectedCategory);
+            this.toggleCardFields(selectedCategory);
+            this.updateFileRequirements(selectedCategory);
         } else {
             this.clearSizeOptions();
             this.disableSizeSelect();
             this.toggleTshirtFields('');
+            this.toggleCardFields('');
+            this.updateFileRequirements('');
         }
     }
     
@@ -166,6 +174,11 @@ export class FormManager {
                 }
             }
         }
+        
+        // Toggle card fields for card-print category
+        if (selectedCategory === 'card-print') {
+            this.toggleCardFields(selectedCategory);
+        }
     }
     
     handleDesignOptionChange() {
@@ -174,6 +187,7 @@ export class FormManager {
         
         if (selectedCategory === 't-shirt-print') {
             this.toggleTshirtFields(selectedCategory, designOption);
+            this.updateFileRequirements(selectedCategory);
         }
     }
     
@@ -391,6 +405,65 @@ export class FormManager {
             }
         }
         
+        // Validate file upload requirements
+        const servicesRequiringFiles = [
+            't-shirt-print', 'tag-print', 'sticker-print', 'card-print', 
+            'document-print', 'photo-print', 'photo-copy', 'lamination'
+        ];
+        
+        if (servicesRequiringFiles.includes(category)) {
+            let hasFiles = false;
+            
+            if (category === 't-shirt-print') {
+                // For T-shirt, check if at least one of front, back, or regular image is uploaded
+                const frontImageInput = document.getElementById('frontImage');
+                const backImageInput = document.getElementById('backImage');
+                const regularImageInput = document.getElementById('image');
+                
+                const hasFrontImage = frontImageInput && frontImageInput.files && frontImageInput.files.length > 0;
+                const hasBackImage = backImageInput && backImageInput.files && backImageInput.files.length > 0;
+                const hasRegularImage = regularImageInput && regularImageInput.files && regularImageInput.files.length > 0;
+                
+                hasFiles = hasFrontImage || hasBackImage || hasRegularImage;
+                
+                if (!hasFiles) {
+                    window.showModal('error', 'Please upload at least one design file (front design, back design, or regular image).');
+                    return false;
+                }
+            } else if (category === 'card-print' && (size === 'calling' || size === 'business')) {
+                // For calling/business cards, check front/back design uploads
+                const cardFrontImageInput = document.getElementById('cardFrontImage');
+                const cardBackImageInput = document.getElementById('cardBackImage');
+                const regularImageInput = document.getElementById('image');
+                
+                const hasCardFrontImage = cardFrontImageInput && cardFrontImageInput.files && cardFrontImageInput.files.length > 0;
+                const hasCardBackImage = cardBackImageInput && cardBackImageInput.files && cardBackImageInput.files.length > 0;
+                const hasRegularImage = regularImageInput && regularImageInput.files && regularImageInput.files.length > 0;
+                
+                // Front design is required for calling/business cards
+                if (!hasCardFrontImage) {
+                    window.showModal('error', 'Front design is required for calling and business cards.');
+                    return false;
+                }
+                
+                hasFiles = hasCardFrontImage || hasCardBackImage || hasRegularImage;
+                
+                if (!hasFiles) {
+                    window.showModal('error', 'Please upload at least the front design for your card.');
+                    return false;
+                }
+            } else {
+                // For other services, check regular image upload
+                const regularImageInput = document.getElementById('image');
+                hasFiles = regularImageInput && regularImageInput.files && regularImageInput.files.length > 0;
+                
+                if (!hasFiles) {
+                    window.showModal('error', 'File upload is required for this service. Please select at least one image or document file.');
+                    return false;
+                }
+            }
+        }
+        
         return true;
     }
     
@@ -443,6 +516,7 @@ export class FormManager {
         this.clearSizeOptions();
         this.disableSizeSelect();
         this.toggleTshirtFields('');
+        this.toggleCardFields('');
         
         // Hide custom size input (should only be visible for card-print category)
         const customSizeGroup = document.getElementById('customSizeGroup');
@@ -469,6 +543,16 @@ export class FormManager {
         
         // Reset accumulated files
         this.accumulatedFiles = [];
+        
+        // Reset required attributes to default state
+        const regularImageInput = document.getElementById('image');
+        const cardFrontInput = document.getElementById('cardFrontImage');
+        if (regularImageInput) {
+            regularImageInput.required = true; // Default state
+        }
+        if (cardFrontInput) {
+            cardFrontInput.required = false; // Default state
+        }
     }
     
     setupTshirtFileUploads() {
@@ -535,10 +619,13 @@ export class FormManager {
     
     toggleTshirtFields(category, designOption = null) {
         const tshirtFields = document.getElementById('tshirtFields');
-        const regularImageGroup = document.querySelector('.form-group:has(#image)');
+        const regularImageGroup = document.getElementById('regularImageField');
         const designOptionGroup = document.getElementById('designOptionGroup');
         
+        console.log('toggleTshirtFields called with category:', category, 'designOption:', designOption);
+        
         if (category === 't-shirt-print') {
+            console.log('Showing design option group for T-shirt');
             // Show design option dropdown for T-shirt category
             if (designOptionGroup) {
                 designOptionGroup.style.display = 'block';
@@ -585,6 +672,98 @@ export class FormManager {
             }
             if (regularImageGroup) {
                 regularImageGroup.style.display = 'block';
+            }
+        }
+    }
+    
+    setupCardFileUploads() {
+        // Card front image upload
+        const cardFrontImageInput = document.getElementById('cardFrontImage');
+        if (cardFrontImageInput) {
+            const frontFileContainer = cardFrontImageInput.closest('.file-upload').querySelector('.file-name');
+            cardFrontImageInput.addEventListener('change', (event) => {
+                this.displaySingleCardFile(event.target.files, frontFileContainer, 'front');
+            });
+        }
+        
+        // Card back image upload
+        const cardBackImageInput = document.getElementById('cardBackImage');
+        if (cardBackImageInput) {
+            const backFileContainer = cardBackImageInput.closest('.file-upload').querySelector('.file-name');
+            cardBackImageInput.addEventListener('change', (event) => {
+                this.displaySingleCardFile(event.target.files, backFileContainer, 'back');
+            });
+        }
+    }
+    
+    displaySingleCardFile(files, container, type) {
+        if (!files || files.length === 0) {
+            container.textContent = 'No file chosen';
+            return;
+        }
+        
+        const file = files[0];
+        container.textContent = file.name;
+        console.log(`Card ${type} file selected:`, file.name);
+    }
+    
+    toggleCardFields(category) {
+        const cardFields = document.getElementById('cardFields');
+        const regularImageGroup = document.getElementById('regularImageField');
+        const regularImageInput = document.getElementById('image');
+        const cardFrontInput = document.getElementById('cardFrontImage');
+        const sizeSelect = this.sizeSelect;
+        
+        console.log('toggleCardFields called with category:', category);
+        
+        if (category === 'card-print') {
+            const selectedSize = sizeSelect ? sizeSelect.value : '';
+            console.log('Card print category selected, size:', selectedSize);
+            
+            // Show card fields only for calling and business cards
+            if (selectedSize === 'calling' || selectedSize === 'business') {
+                console.log('Showing card fields for:', selectedSize);
+                if (cardFields) {
+                    cardFields.style.display = 'block';
+                }
+                if (regularImageGroup) {
+                    regularImageGroup.style.display = 'none';
+                }
+                // Remove required from regular image input and add to card front input
+                if (regularImageInput) {
+                    regularImageInput.required = false;
+                }
+                if (cardFrontInput) {
+                    cardFrontInput.required = true;
+                }
+            } else {
+                console.log('Hiding card fields, showing regular upload');
+                if (cardFields) {
+                    cardFields.style.display = 'none';
+                }
+                if (regularImageGroup) {
+                    regularImageGroup.style.display = 'block';
+                }
+                // Restore required to regular image input and remove from card inputs
+                if (regularImageInput) {
+                    regularImageInput.required = true;
+                }
+                if (cardFrontInput) {
+                    cardFrontInput.required = false;
+                }
+            }
+        } else {
+            // For non-card categories, hide card fields
+            console.log('Non-card category, hiding card fields');
+            if (cardFields) {
+                cardFields.style.display = 'none';
+            }
+            // Ensure regular image input is required for other categories
+            if (regularImageInput) {
+                regularImageInput.required = true;
+            }
+            if (cardFrontInput) {
+                cardFrontInput.required = false;
             }
         }
     }
@@ -794,6 +973,79 @@ export class FormManager {
             tagLocationSelect.required = false;
             tagLocationSelect.value = '';
             tagLocationSelect.style.borderColor = '';
+        }
+    }
+    
+    updateFileRequirements(category) {
+        // Services that require file uploads
+        const servicesRequiringFiles = [
+            't-shirt-print', 'tag-print', 'sticker-print', 'card-print', 
+            'document-print', 'photo-print', 'photo-copy', 'lamination'
+        ];
+        
+        const requiresFiles = servicesRequiringFiles.includes(category);
+        
+        // Update regular image input
+        const regularImageInput = document.getElementById('image');
+        
+        // Update T-shirt specific inputs
+        const frontImageInput = document.getElementById('frontImage');
+        const backImageInput = document.getElementById('backImage');
+        
+        if (category === 't-shirt-print') {
+            const designOption = document.getElementById('designOption').value;
+            
+            if (designOption === 'customize') {
+                // For customize option, front/back images are not strictly required (at least one will be validated in form validation)
+                if (frontImageInput) frontImageInput.required = false;
+                if (backImageInput) backImageInput.required = false;
+                if (regularImageInput) regularImageInput.required = false;
+            } else if (designOption === 'ready') {
+                // For ready design option, only regular image is required
+                if (frontImageInput) frontImageInput.required = false;
+                if (backImageInput) backImageInput.required = false;
+                if (regularImageInput) regularImageInput.required = true;
+            } else {
+                // No design option selected yet, no fields required
+                if (frontImageInput) frontImageInput.required = false;
+                if (backImageInput) backImageInput.required = false;
+                if (regularImageInput) regularImageInput.required = false;
+            }
+        } else {
+            // For other categories, T-shirt inputs are not required
+            if (frontImageInput) frontImageInput.required = false;
+            if (backImageInput) backImageInput.required = false;
+            if (regularImageInput) regularImageInput.required = requiresFiles;
+        }
+        
+        // Update labels to show requirement
+        this.updateFileLabels(category, requiresFiles);
+    }
+    
+    updateFileLabels(category, requiresFiles) {
+        const regularImageLabel = document.querySelector('label[for="image"]');
+        const frontImageLabel = document.querySelector('label[for="frontImage"]');
+        const backImageLabel = document.querySelector('label[for="backImage"]');
+        
+        if (regularImageLabel && category !== 't-shirt-print') {
+            const asterisk = requiresFiles ? ' <span style="color: red;">*</span>' : '';
+            regularImageLabel.innerHTML = `Images/Files${asterisk}`;
+        }
+        
+        if (category === 't-shirt-print') {
+            if (frontImageLabel) {
+                frontImageLabel.innerHTML = 'Front Design <span style="color: red;">*</span>';
+            }
+            if (backImageLabel) {
+                backImageLabel.innerHTML = 'Back Design <span style="color: red;">*</span>';
+            }
+        } else {
+            if (frontImageLabel) {
+                frontImageLabel.innerHTML = 'Front Design';
+            }
+            if (backImageLabel) {
+                backImageLabel.innerHTML = 'Back Design';
+            }
         }
     }
 }

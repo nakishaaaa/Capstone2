@@ -78,13 +78,6 @@ export const categoryOptions = {
             { value: 'wallet', text: 'Wallet Size (2" x 3.5")' },
             { value: 'id', text: 'ID (3.5" x 2")' }
         ]
-    },
-    'typing-job': {
-        label: 'Document Type',
-        options: [
-            { value: 'document', text: 'Document' },
-            { value: 'resume', text: 'Resume' }
-        ]
     }
 };
 

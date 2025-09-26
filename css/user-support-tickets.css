@@ -41,7 +41,6 @@
 
 .ticket-card:hover {
     border-color: #4facfe;
-    box-shadow: 0 8px 24px rgba(79, 172, 254, 0.3);
 }
 
 .ticket-header {
@@ -321,6 +320,7 @@
     font-size: 14px;
     min-height: 60px;
     word-wrap: break-word;
+    text-align: left;
 }
 
 .admin-response-section {
@@ -397,6 +397,7 @@
     color: #ffffff;
     font-size: 14px;
     word-wrap: break-word;
+    text-align: left;
 }
 
 .no-response {

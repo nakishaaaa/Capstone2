@@ -132,9 +132,14 @@ function getCurrentStats() {
             COUNT(*) as total_requests,
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_requests,
             SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_requests,
-            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_requests
+            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_requests,
+            SUM(CASE WHEN status = 'approved' AND (payment_status = 'partial_paid' OR payment_status = 'fully_paid') THEN 1 ELSE 0 END) as awaiting_production,
+            SUM(CASE WHEN status IN ('printing', 'ready_for_pickup', 'on_the_way') THEN 1 ELSE 0 END) as in_production
             FROM user_requests");
         $requestsStats = $requestsStmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Calculate total production orders (awaiting + in production)
+        $requestsStats['production_orders'] = ($requestsStats['awaiting_production'] ?? 0) + ($requestsStats['in_production'] ?? 0);
         
         // Get unread notifications count
         $notificationsStmt = $pdo->query("SELECT COUNT(*) as unread_notifications FROM notifications WHERE is_read = 0");

@@ -11,12 +11,16 @@ $activeForm = $_SESSION['active_form'] ?? 'login';
 $registerSuccess = $_SESSION['register_success'] ?? '';
 $forgotSuccess = $_SESSION['forgot_success'] ?? '';
 $forgotError = $_SESSION['forgot_error'] ?? '';
+$verificationSuccess = $_SESSION['verification_success'] ?? '';
+$verificationError = $_SESSION['verification_error'] ?? '';
 unset($_SESSION['login_error']);
 unset($_SESSION['register_error']);
 unset($_SESSION['active_form']);
 unset($_SESSION['register_success']);
 unset($_SESSION['forgot_success']);
 unset($_SESSION['forgot_error']);
+unset($_SESSION['verification_success']);
+unset($_SESSION['verification_error']);
 
 // Generate CSRF token for forms
 $csrfToken = CSRFToken::getToken();
@@ -122,6 +126,16 @@ function isActiveForm($formName, $activeForm) {
     <?= htmlspecialchars($forgotError) ?>
   </div>
 <?php endif; ?>
+<?php if (!empty($verificationSuccess)): ?>
+  <div id="verification-success-message" class="success-message" style="background:#d4edda;color:#155724;padding:10px;margin:10px 0;border:1px solid #c3e6cb;border-radius:4px;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;transition:opacity 0.5s;">
+    <?= htmlspecialchars($verificationSuccess) ?>
+  </div>
+<?php endif; ?>
+<?php if (!empty($verificationError)): ?>
+  <div id="verification-error-message" class="error-message" style="background:#f8d7da;color:#721c24;padding:10px;margin:10px 0;border:1px solid #f5c6cb;border-radius:4px;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;transition:opacity 0.5s;">
+    <?= htmlspecialchars($verificationError) ?>
+  </div>
+<?php endif; ?>
 <?php if (!empty($errors['register'])): ?>
   <div id="register-error-message" class="error-message" style="background:#f8d7da;color:#721c24;padding:10px;margin:10px 0;border:1px solid #f5c6cb;border-radius:4px;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;transition:opacity 0.5s;">
     <?= htmlspecialchars($errors['register']) ?>
@@ -156,6 +170,9 @@ function isActiveForm($formName, $activeForm) {
         <!-- 053 Logo in center of slideshow -->
         <div class="hero-logo-container" id="heroLogo">
           <img src="images/053logo.png" alt="053 Printing Service" class="hero-logo">
+          <div class="hero-tagline">
+            <p>Custom prints and designs made to bring your ideas to life.</p>
+          </div>
         </div>
         
         <!-- Login/Register card shown over the slideshow when required -->
@@ -199,6 +216,7 @@ function isActiveForm($formName, $activeForm) {
                 <a href="#" onclick="hideForgotForm(); return false;">Back to Login</a>
               </p>
             </div>
+
 
             <div class="login-card <?= isActiveForm('register', $activeForm); ?>" id="register-form">
               <form action="login_register.php" method="post">
@@ -249,16 +267,33 @@ function isActiveForm($formName, $activeForm) {
           </div>
         </div>
       </div>
-      <div class="social-links" role="navigation" aria-label="Social Media Links">
-        <a href="https://www.facebook.com/053printingservice" target="_blank" rel="noopener" aria-label="Facebook">
-          <i class="fab fa-facebook-f"></i>
-        </a>
-        <a href="https://www.instagram.com/053prints" target="_blank" rel="noopener" aria-label="Instagram">
-          <i class="fab fa-instagram"></i>
-        </a>
-        <a href="https://www.tiktok.com/@053.prints?lang=en" target="_blank" rel="noopener" aria-label="TikTok">
-          <i class="fab fa-tiktok"></i>
-        </a>
+      <div class="social-section">
+        <div class="social-text">
+          <span>Visit Our Socials</span>
+          <i class="fas fa-arrow-down"></i>
+        </div>
+        <div class="social-links" role="navigation" aria-label="Social Media Links">
+          <a href="https://www.facebook.com/053printingservice" target="_blank" rel="noopener" aria-label="Facebook">
+            <i class="fab fa-facebook-f"></i>
+          </a>
+          <a href="https://www.instagram.com/053prints" target="_blank" rel="noopener" aria-label="Instagram">
+            <i class="fab fa-instagram"></i>
+          </a>
+          <a href="https://www.tiktok.com/@053.prints?lang=en" target="_blank" rel="noopener" aria-label="TikTok">
+            <i class="fab fa-tiktok"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-feature-banner">
+      <div class="ai-banner-content">
+        <i class="fas fa-atom ai-banner-icon"></i>
+        <div class="ai-banner-text">
+          <span class="ai-banner-title">NEW: AI Design Tools</span>
+          <span class="ai-banner-subtitle">Generate & enhance images with AI • Powered by DeepAI</span>
+        </div>
+        <span class="ai-banner-badge">TRY NOW</span>
       </div>
     </div>
 
@@ -489,6 +524,7 @@ function isActiveForm($formName, $activeForm) {
     }
   }
 
+
   function autoHideForgotFormSuccess() {
     var forgotCard = document.getElementById('forgot-form');
     
@@ -671,6 +707,8 @@ function isActiveForm($formName, $activeForm) {
     }
     var err = document.getElementById('register-error-message');
     if (err) {
+      // Show register form when there's a registration error
+      showForm('register-form');
       setTimeout(function() {
         err.style.opacity = '0';
         setTimeout(function() {
@@ -680,6 +718,7 @@ function isActiveForm($formName, $activeForm) {
     }
     var loginErr = document.getElementById('login-error-message');
     if (loginErr) {
+      showForm('login-form');
       setTimeout(function() {
         loginErr.style.opacity = '0';
         setTimeout(function() {
@@ -740,6 +779,28 @@ function isActiveForm($formName, $activeForm) {
         forgotErrorMsg.style.opacity = '0';
         setTimeout(function() {
           forgotErrorMsg.style.display = 'none';
+        }, 500);
+      }, 5000);
+    }
+
+    // Auto-hide verification messages
+    const verificationSuccessMsg = document.getElementById('verification-success-message');
+    const verificationErrorMsg = document.getElementById('verification-error-message');
+    
+    if (verificationSuccessMsg) {
+      setTimeout(function() {
+        verificationSuccessMsg.style.opacity = '0';
+        setTimeout(function() {
+          verificationSuccessMsg.style.display = 'none';
+        }, 500);
+      }, 5000);
+    }
+    
+    if (verificationErrorMsg) {
+      setTimeout(function() {
+        verificationErrorMsg.style.opacity = '0';
+        setTimeout(function() {
+          verificationErrorMsg.style.display = 'none';
         }, 500);
       }, 5000);
     }

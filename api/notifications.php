@@ -15,14 +15,16 @@ switch($method) {
         break;
     case 'PUT':
         if (isset($_GET['id'])) {
-            markAsRead($_GET['id']);
+            $source = $_GET['source'] ?? 'notification';
+            markAsRead($_GET['id'], $source);
         } elseif (isset($_GET['mark_all_read'])) {
             markAllAsRead();
         }
         break;
     case 'DELETE':
         if (isset($_GET['id'])) {
-            deleteNotification($_GET['id']);
+            $source = $_GET['source'] ?? 'notification';
+            deleteNotification($_GET['id'], $source);
         }
         break;
 }
@@ -30,17 +32,32 @@ switch($method) {
 function getAllNotifications() {
     global $pdo;
     try {
-        $stmt = $pdo->query("SELECT * FROM notifications ORDER BY created_at DESC");
+        // Create request notification tracking table if it doesn't exist
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS request_notification_tracking (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                request_id INT NOT NULL,
+                is_read BOOLEAN DEFAULT FALSE,
+                is_dismissed BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_request (request_id)
+            )
+        ");
+        
+        // Get all notifications (now includes request notifications stored in the table)
+        $stmt = $pdo->query("SELECT id, title, message, type, is_read, created_at, 'notification' as source FROM notifications ORDER BY created_at DESC");
         $notifications = $stmt->fetchAll();
+        
         echo json_encode(['success' => true, 'data' => $notifications]);
     } catch(PDOException $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
 }
 
-function markAsRead($id) {
+function markAsRead($id, $source = 'notification') {
     global $pdo;
     try {
+        // All notifications are now in the notifications table
         $stmt = $pdo->prepare("UPDATE notifications SET is_read = TRUE WHERE id = ?");
         $stmt->execute([$id]);
         echo json_encode(['success' => true]);
@@ -60,9 +77,10 @@ function markAllAsRead() {
     }
 }
 
-function deleteNotification($id) {
+function deleteNotification($id, $source = 'notification') {
     global $pdo;
     try {
+        // All notifications are now in the notifications table
         $stmt = $pdo->prepare("DELETE FROM notifications WHERE id = ?");
         $stmt->execute([$id]);
         echo json_encode(['success' => true]);

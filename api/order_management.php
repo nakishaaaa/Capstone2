@@ -36,6 +36,8 @@ try {
         case 'GET':
             if ($action === 'get_orders') {
                 handleGetOrders($pdo);
+            } elseif ($action === 'get_production_count') {
+                handleGetProductionCount($pdo);
             } else {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'message' => 'Invalid action']);
@@ -278,6 +280,30 @@ function handleBulkUpdate($pdo, $input) {
         $pdo->rollBack();
         error_log("Bulk update error: " . $e->getMessage());
         throw $e;
+    }
+}
+
+function handleGetProductionCount($pdo) {
+    try {
+        $stmt = $pdo->query("SELECT 
+            SUM(CASE WHEN status = 'approved' AND (payment_status = 'partial_paid' OR payment_status = 'fully_paid') THEN 1 ELSE 0 END) as awaiting_production,
+            SUM(CASE WHEN status IN ('printing', 'ready_for_pickup', 'on_the_way') THEN 1 ELSE 0 END) as in_production
+            FROM user_requests");
+        
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $productionCount = ($result['awaiting_production'] ?? 0) + ($result['in_production'] ?? 0);
+        
+        echo json_encode([
+            'success' => true,
+            'production_count' => $productionCount,
+            'awaiting_production' => $result['awaiting_production'] ?? 0,
+            'in_production' => $result['in_production'] ?? 0
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Error fetching production count: ' . $e->getMessage()
+        ]);
     }
 }
 

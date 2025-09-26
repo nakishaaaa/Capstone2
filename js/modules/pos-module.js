@@ -320,6 +320,13 @@ export class POSModule {
 
   printReceipt(transactionId, transactionData) {
     const receiptWindow = window.open("", "_blank")
+    
+    // Check if popup was blocked
+    if (!receiptWindow) {
+      this.showReceiptModal(transactionId, transactionData)
+      return
+    }
+    
     const receiptHTML = `
       <!DOCTYPE html>
       <html>
@@ -378,9 +385,88 @@ export class POSModule {
       </html>
     `
 
-    receiptWindow.document.write(receiptHTML)
-    receiptWindow.document.close()
-    receiptWindow.print()
+    try {
+      receiptWindow.document.write(receiptHTML)
+      receiptWindow.document.close()
+      
+      // Wait a moment for the content to load before printing
+      setTimeout(() => {
+        receiptWindow.print()
+        // Close the window after printing (optional)
+        setTimeout(() => {
+          receiptWindow.close()
+        }, 1000)
+      }, 100)
+    } catch (error) {
+      console.error("Error printing receipt:", error)
+      this.toast.error("Error printing receipt. Showing in modal instead.")
+      if (receiptWindow) {
+        receiptWindow.close()
+      }
+      this.showReceiptModal(transactionId, transactionData)
+    }
+  }
+
+  showReceiptModal(transactionId, transactionData) {
+    const receiptHTML = `
+      <div style="font-family: monospace; max-width: 400px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2>053 PRINTS</h2>
+          <h3>RECEIPT</h3>
+          <p>Transaction ID: ${transactionId}</p>
+          <p>Date: ${new Date().toLocaleString()}</p>
+        </div>
+        <div style="margin-bottom: 20px;">
+          ${transactionData.items.map(item => `
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+              <span>${item.name} x${item.quantity}</span>
+              <span>₱${(item.price * item.quantity).toFixed(2)}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div style="border-top: 1px solid #000; padding-top: 10px;">
+          <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+            <span><strong>Total:</strong></span>
+            <span><strong>₱${transactionData.total_amount.toFixed(2)}</strong></span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+            <span>Payment (${transactionData.payment_method}):</span>
+            <span>₱${transactionData.amount_received.toFixed(2)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+            <span>Change:</span>
+            <span>₱${transactionData.change_amount.toFixed(2)}</span>
+          </div>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+          <p>Thank you for your business!</p>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+          <button onclick="window.print()" class="btn btn-primary" style="margin-right: 10px;">Print Receipt</button>
+          <button onclick="document.getElementById('receiptModal').style.display='none'" class="btn btn-secondary">Close</button>
+        </div>
+      </div>
+    `
+
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('receiptModal')
+    if (!modal) {
+      modal = document.createElement('div')
+      modal.id = 'receiptModal'
+      modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.5); display: flex; align-items: center; 
+        justify-content: center; z-index: 10000;
+      `
+      document.body.appendChild(modal)
+    }
+
+    modal.innerHTML = `
+      <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; max-height: 80vh; overflow-y: auto;">
+        ${receiptHTML}
+      </div>
+    `
+    modal.style.display = 'flex'
   }
 
   searchProducts() {

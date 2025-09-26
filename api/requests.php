@@ -124,6 +124,47 @@ function handleCreateRequest() {
         }
     }
     
+    // Validate that file upload is required for all print services and lamination
+    $category = $_POST['category'];
+    $services_requiring_files = [
+        't-shirt-print', 'tag-print', 'sticker-print', 'card-print', 
+        'document-print', 'photo-print', 'photo-copy', 'lamination'
+    ];
+    
+    if (in_array($category, $services_requiring_files)) {
+        $has_files = false;
+        
+        // Check for T-shirt specific files or card-specific files
+        if ($category === 't-shirt-print') {
+            $has_files = (isset($_FILES['front_image']) && $_FILES['front_image']['error'] === UPLOAD_ERR_OK) ||
+                        (isset($_FILES['back_image']) && $_FILES['back_image']['error'] === UPLOAD_ERR_OK) ||
+                        (isset($_FILES['image']) && (
+                            (is_array($_FILES['image']['error']) && in_array(UPLOAD_ERR_OK, $_FILES['image']['error'])) ||
+                            (!is_array($_FILES['image']['error']) && $_FILES['image']['error'] === UPLOAD_ERR_OK)
+                        ));
+        } elseif ($category === 'card-print' && (isset($_POST['size']) && ($_POST['size'] === 'calling' || $_POST['size'] === 'business'))) {
+            // For calling/business cards, check for front/back designs using the same field names as T-shirts
+            $has_files = (isset($_FILES['front_image']) && $_FILES['front_image']['error'] === UPLOAD_ERR_OK) ||
+                        (isset($_FILES['back_image']) && $_FILES['back_image']['error'] === UPLOAD_ERR_OK) ||
+                        (isset($_FILES['image']) && (
+                            (is_array($_FILES['image']['error']) && in_array(UPLOAD_ERR_OK, $_FILES['image']['error'])) ||
+                            (!is_array($_FILES['image']['error']) && $_FILES['image']['error'] === UPLOAD_ERR_OK)
+                        ));
+        } else {
+            // Check for regular image uploads
+            $has_files = isset($_FILES['image']) && (
+                (is_array($_FILES['image']['error']) && in_array(UPLOAD_ERR_OK, $_FILES['image']['error'])) ||
+                (!is_array($_FILES['image']['error']) && $_FILES['image']['error'] === UPLOAD_ERR_OK)
+            );
+        }
+        
+        if (!$has_files) {
+            http_response_code(400);
+            echo json_encode(['error' => 'File upload is required for this service. Please select at least one image or document file.']);
+            return;
+        }
+    }
+    
     try {
         // Handle file uploads
         $image_path = null;
@@ -169,12 +210,16 @@ function handleCreateRequest() {
         // Convert array to JSON string for database storage
         $image_path = !empty($image_paths) ? json_encode($image_paths) : null;
         
-        // Handle T-shirt specific uploads
-        if ($_POST['category'] === 't-shirt-print') {
+        // Handle T-shirt and card specific uploads (both use front_image and back_image fields)
+        if ($_POST['category'] === 't-shirt-print' || 
+            ($_POST['category'] === 'card-print' && isset($_POST['size']) && ($_POST['size'] === 'calling' || $_POST['size'] === 'business'))) {
+            // Determine prefix based on category
+            $prefix = ($_POST['category'] === 'card-print') ? 'card' : 'tshirt';
+            
             // Front image
             if (isset($_FILES['front_image']) && $_FILES['front_image']['error'] === UPLOAD_ERR_OK) {
                 $file_extension = pathinfo($_FILES['front_image']['name'], PATHINFO_EXTENSION);
-                $file_name = uniqid('req_front_', true) . '.' . $file_extension;
+                $file_name = uniqid('req_' . $prefix . '_front_', true) . '.' . $file_extension;
                 $destination = $upload_dir . $file_name;
                 
                 if (!move_uploaded_file($_FILES['front_image']['tmp_name'], $destination)) {
@@ -187,7 +232,7 @@ function handleCreateRequest() {
             // Back image
             if (isset($_FILES['back_image']) && $_FILES['back_image']['error'] === UPLOAD_ERR_OK) {
                 $file_extension = pathinfo($_FILES['back_image']['name'], PATHINFO_EXTENSION);
-                $file_name = uniqid('req_back_', true) . '.' . $file_extension;
+                $file_name = uniqid('req_' . $prefix . '_back_', true) . '.' . $file_extension;
                 $destination = $upload_dir . $file_name;
                 
                 if (!move_uploaded_file($_FILES['back_image']['tmp_name'], $destination)) {
@@ -264,6 +309,28 @@ function handleCreateRequest() {
             $_POST['design_option'] ?? null,
             $_POST['custom_size'] ?? null
         ]);
+        
+        // Get the ID of the newly created request
+        $requestId = $pdo->lastInsertId();
+        
+        // Create a notification for the admin
+        $notificationTitle = "New Order Request: " . $_POST['category'];
+        $notificationMessage = "Customer: " . $_POST['name'] . " - " . $_POST['category'] . " (" . $_POST['size'] . ") - Qty: " . $_POST['quantity'];
+        
+        $notificationSql = "INSERT INTO notifications (title, message, type, is_read, created_at) VALUES (?, ?, 'info', 0, NOW())";
+        $notificationStmt = $pdo->prepare($notificationSql);
+        $notificationStmt->execute([$notificationTitle, $notificationMessage]);
+        
+        // Send email notification to all admins (non-blocking)
+        try {
+            require_once '../includes/email_notifications.php';
+            error_log("Attempting to send admin notification: " . $notificationTitle);
+            $emailResult = EmailNotifications::sendAdminNotification($notificationTitle, $notificationMessage, 'info');
+            error_log("Email notification result: " . ($emailResult ? 'SUCCESS' : 'FAILED'));
+        } catch (Exception $emailError) {
+            // Log email error but don't fail the request submission
+            error_log("Email notification error: " . $emailError->getMessage());
+        }
         
         echo json_encode(['success' => true, 'message' => 'Request submitted successfully']);
     } catch (Exception $e) {

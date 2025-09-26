@@ -26,17 +26,23 @@ require_once '../includes/csrf.php';
 // Check admin authentication
 session_start();
 
-// Temporarily disable admin check for testing
-/*
-if (!isset($_SESSION['admin_name']) || !isset($_SESSION['admin_email']) || !isset($_SESSION['admin_role']) || $_SESSION['admin_role'] !== 'admin') {
+// Check admin authentication - allow both admin and cashier roles
+$allowedRoles = ['admin', 'cashier'];
+$userRole = $_SESSION['role'] ?? null;
+
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['username']) || !isset($_SESSION['email']) || !in_array($userRole, $allowedRoles)) {
     http_response_code(403);
     echo json_encode([
         'success' => false, 
-        'message' => 'Access denied. Admin privileges required.'
+        'message' => 'Access denied. Admin or cashier privileges required.'
     ]);
     exit();
 }
-*/
+
+// Set admin-specific session variables for compatibility with existing code
+$_SESSION['admin_name'] = $_SESSION['username'];
+$_SESSION['admin_email'] = $_SESSION['email'];
+$_SESSION['admin_role'] = $_SESSION['role'];
 
 try {
     // Database connection is already established in database.php as $pdo
@@ -52,6 +58,7 @@ try {
             admin_name VARCHAR(255) NULL,
             subject VARCHAR(255) NULL,
             message TEXT NOT NULL,
+            attachment_paths TEXT NULL,
             message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support',
             is_admin BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -65,10 +72,24 @@ try {
     
     $pdo->exec($createTableSQL);
     
+    // Check if attachment_paths column exists (updated for multiple attachments)
+    $stmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'attachment_paths'");
+    if ($stmt->rowCount() == 0) {
+        // Check if old attachment_path column exists and migrate data
+        $oldStmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'attachment_path'");
+        if ($oldStmt->rowCount() > 0) {
+            // Rename old column to new column
+            $pdo->exec("ALTER TABLE support_messages CHANGE attachment_path attachment_paths TEXT NULL");
+        } else {
+            // Add new column
+            $pdo->exec("ALTER TABLE support_messages ADD COLUMN attachment_paths TEXT NULL AFTER message");
+        }
+    }
+    
     // Check if message_type column exists in existing table
     $stmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'message_type'");
     if ($stmt->rowCount() == 0) {
-        $pdo->exec("ALTER TABLE support_messages ADD COLUMN message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support' AFTER message");
+        $pdo->exec("ALTER TABLE support_messages ADD COLUMN message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support' AFTER attachment_path");
         
         // Update existing messages to have customer_support type
         $pdo->exec("UPDATE support_messages SET message_type = 'customer_support' WHERE message_type IS NULL");
@@ -221,7 +242,7 @@ function getConversationMessages($pdo, $conversationId) {
     $query = "
         SELECT 
             id, conversation_id, user_name, user_email, admin_name, 
-            subject, message, is_admin, created_at, is_read
+            subject, message, attachment_paths, is_admin, created_at, is_read
         FROM support_messages 
         WHERE conversation_id = ? AND message_type = 'customer_support'
         ORDER BY created_at ASC
@@ -242,6 +263,7 @@ function getConversationMessages($pdo, $conversationId) {
             'sender_email' => $msg['user_email'],
             'message' => $msg['message'],
             'subject' => $msg['subject'],
+            'attachment_paths' => $msg['attachment_paths'],
             'is_admin' => (bool)$msg['is_admin'],
             'created_at' => $msg['created_at'],
             'time_ago' => timeAgo($msg['created_at']),

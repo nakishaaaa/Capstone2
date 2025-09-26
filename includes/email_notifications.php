@@ -363,5 +363,209 @@ class EmailNotifications {
         </body>
         </html>";
     }
+    
+    /**
+     * Send notification to all admin users
+     * @param string $notificationTitle Notification title
+     * @param string $notificationMessage Notification message
+     * @param string $notificationType Notification type (info, warning, error, success)
+     * @return bool Success status
+     */
+    public static function sendAdminNotification($notificationTitle, $notificationMessage, $notificationType = 'info') {
+        global $pdo;
+        
+        try {
+            // Ensure database connection is available
+            if (!isset($pdo)) {
+                require_once __DIR__ . '/../config/database.php';
+            }
+            // Get all admin email addresses
+            $stmt = $pdo->prepare("SELECT email, firstname, lastname FROM users WHERE role = 'admin' AND status = 'active'");
+            $stmt->execute();
+            $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            error_log("Found " . count($admins) . " admin users for notification");
+            
+            if (empty($admins)) {
+                error_log("No active admin users found for notification");
+                return false;
+            }
+            
+            $subject = "New Notification - " . $notificationTitle;
+            $success = true;
+            
+            foreach ($admins as $admin) {
+                $adminName = trim($admin['firstname'] . ' ' . $admin['lastname']);
+                if (empty($adminName)) {
+                    $adminName = 'Admin';
+                }
+                
+                $message = self::buildAdminNotificationTemplate($adminName, $notificationTitle, $notificationMessage, $notificationType);
+                
+                error_log("Attempting to send email to: " . $admin['email']);
+                if (!self::send($admin['email'], $subject, $message)) {
+                    $success = false;
+                    error_log("Failed to send admin notification to: " . $admin['email']);
+                } else {
+                    error_log("Successfully sent email to: " . $admin['email']);
+                }
+            }
+            
+            return $success;
+            
+        } catch (Exception $e) {
+            error_log("Admin notification error: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Build HTML email template for admin notifications
+     * @param string $adminName Admin name
+     * @param string $title Notification title
+     * @param string $message Notification message
+     * @param string $type Notification type
+     * @return string HTML email content
+     */
+    private static function buildAdminNotificationTemplate($adminName, $title, $message, $type) {
+        // Type-specific styling
+        $typeColors = [
+            'info' => ['bg' => '#e3f2fd', 'border' => '#2196f3', 'icon' => 'ℹ️'],
+            'warning' => ['bg' => '#fff3e0', 'border' => '#ff9800', 'icon' => '⚠️'],
+            'error' => ['bg' => '#ffebee', 'border' => '#f44336', 'icon' => '❌'],
+            'success' => ['bg' => '#e8f5e8', 'border' => '#4caf50', 'icon' => '✅']
+        ];
+        
+        $colors = $typeColors[$type] ?? $typeColors['info'];
+        
+        return "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Admin Notification - 053 PRINTS</title>
+            <style>
+                body { 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    line-height: 1.6; 
+                    color: #333; 
+                    margin: 0; 
+                    padding: 0; 
+                    background-color: #f4f4f4; 
+                }
+                .container { 
+                    max-width: 600px; 
+                    margin: 20px auto; 
+                    background: white; 
+                    border-radius: 12px; 
+                    overflow: hidden; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+                }
+                .header { 
+                    background: #1a1a1a; 
+                    color: white; 
+                    padding: 30px 20px; 
+                    text-align: center; 
+                }
+                .header h1 { 
+                    margin: 0; 
+                    font-size: 24px; 
+                    font-weight: 600; 
+                }
+                .content { 
+                    padding: 30px 20px; 
+                }
+                .notification-alert { 
+                    background: {$colors['bg']}; 
+                    border-radius: 8px; 
+                    padding: 20px; 
+                    margin: 20px 0; 
+                }
+                .notification-title { 
+                    font-size: 18px; 
+                    font-weight: bold; 
+                    margin-bottom: 10px; 
+                    color: #333;
+                }
+                .notification-message { 
+                    font-size: 16px; 
+                    color: #555; 
+                    margin-bottom: 15px;
+                }
+                .notification-type { 
+                    display: inline-block; 
+                    padding: 5px 12px; 
+                    background: {$colors['border']}; 
+                    color: white; 
+                    border-radius: 15px; 
+                    font-size: 12px; 
+                    font-weight: bold; 
+                    text-transform: uppercase;
+                }
+                .action-section { 
+                    background: #f8f9fa; 
+                    border-radius: 8px; 
+                    padding: 20px; 
+                    margin: 20px 0; 
+                    text-align: center;
+                }
+                .admin-btn { 
+                    display: inline-block; 
+                    padding: 12px 24px; 
+                    background: #1a1a1a; 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 6px; 
+                    font-weight: bold; 
+                    margin: 5px;
+                }
+                .footer { 
+                    background: #f8f9fa; 
+                    text-align: center; 
+                    padding: 20px; 
+                    color: #666; 
+                    font-size: 14px; 
+                    border-top: 1px solid #eee;
+                }
+                .timestamp { 
+                    color: #999; 
+                    font-size: 12px; 
+                    margin-top: 15px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h1>053 PRINTS</h1>
+                    <p style='margin: 10px 0 0 0; opacity: 0.9;'>Admin Notification</p>
+                </div>
+                
+                <div class='content'>
+                    <p style='font-size: 16px; margin-bottom: 20px;'>Hello <strong>$adminName</strong>,</p>
+                    
+                    <p style='font-size: 16px;'>You have received a new notification:</p>
+                    
+                    <div class='notification-alert'>
+                        <div class='notification-title'>" . htmlspecialchars($title) . "</div>
+                        <div class='notification-message'>" . htmlspecialchars($message) . "</div>
+                        <span class='notification-type'>$type</span>
+                    </div>
+                    
+                    
+                    <div class='timestamp'>
+                        <p>Notification sent: " . date('Y-m-d H:i:s') . "</p>
+                    </div>
+                </div>
+                
+                <div class='footer'>
+                    <p><strong>053 PRINTS Admin System</strong></p>
+                    <p>This is an automated notification. Please do not reply to this email.</p>
+                </div>
+            </div>
+        </body>
+        </html>";
+    }
 }
 ?>

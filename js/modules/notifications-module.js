@@ -52,42 +52,66 @@ export class NotificationsModule {
     container.innerHTML = this.notifications
       .map(
         (notification) => `
-      <div class="notification-item ${!notification.is_read ? "unread" : ""}">
+      <div class="notification-item ${!notification.is_read ? "unread" : ""} ${notification.source === 'request' ? 'request-notification' : ''}">
         <div class="notification-icon ${notification.type}">
-          <i class="fas fa-${Utils.getNotificationIcon(notification.type)}"></i>
+          <i class="fas fa-${this.getNotificationIcon(notification)}"></i>
         </div>
         <div class="notification-content">
           <div class="notification-title">${Utils.escapeHtml(notification.title)}</div>
           <div class="notification-message">${Utils.escapeHtml(notification.message)}</div>
           <div class="notification-time">${Utils.formatTime(notification.created_at)}</div>
+          ${notification.source === 'request' ? '<div class="notification-badge">New Request</div>' : ''}
         </div>
         <div class="notification-actions">
           ${
-            !notification.is_read
+            !notification.is_read && notification.source !== 'request'
               ? `
-            <button class="btn btn-sm btn-primary" onclick="window.notificationsModule.markAsRead(${notification.id})">
+            <button class="btn btn-sm btn-primary" onclick="window.notificationsModule.markAsRead(${notification.id}, '${notification.source}')">
               Mark as Read
             </button>
           `
               : ""
           }
-          <button class="btn btn-sm btn-danger" onclick="window.notificationsModule.deleteNotification(${notification.id})">
-            Delete
-          </button>
+          ${notification.source === 'request' 
+            ? `
+            <button class="btn btn-sm btn-success" onclick="window.location.href='#requests'; window.dispatchEvent(new CustomEvent('sectionChange', {detail: {sectionId: 'requests'}}))">
+              View Request
+            </button>
+            ${!notification.is_read ? `
+            <button class="btn btn-sm btn-primary" onclick="window.notificationsModule.markRequestAsRead(${notification.id})">
+              Mark as Read
+            </button>
+            ` : ''}
+            <button class="btn btn-sm btn-danger" onclick="window.notificationsModule.dismissRequestNotification(${notification.id})">
+              Delete
+            </button>
+          ` 
+            : `
+            <button class="btn btn-sm btn-danger" onclick="window.notificationsModule.deleteNotification(${notification.id}, '${notification.source}')">
+              Delete
+            </button>
+          `}
         </div>
       </div>
     `,
       )
       .join("")
 
-    // Update sidebar badge with unread count
-    const unreadCount = this.notifications.filter(n => !n.is_read).length
+    // Update sidebar badge with unread count (count request notifications as unread)
+    const unreadCount = this.notifications.filter(n => !n.is_read || n.source === 'request').length
     this.updateNotificationsBadge(unreadCount)
   }
 
-  async markAsRead(id) {
+  getNotificationIcon(notification) {
+    if (notification.source === 'request') {
+      return 'file-alt'; // Icon for new requests
+    }
+    return Utils.getNotificationIcon(notification.type);
+  }
+
+  async markAsRead(id, source = 'notification') {
     try {
-      const result = await this.api.markNotificationRead(id)
+      const result = await this.api.markNotificationRead(id, source)
 
       if (result.success) {
         await this.displayNotifications()
@@ -116,9 +140,9 @@ export class NotificationsModule {
     }
   }
 
-  async deleteNotification(id) {
+  async deleteNotification(id, source = 'notification') {
     try {
-      const result = await this.api.deleteNotification(id)
+      const result = await this.api.deleteNotification(id, source)
 
       if (result.success) {
         this.toast.success("Notification dismissed")
@@ -129,6 +153,42 @@ export class NotificationsModule {
     } catch (error) {
       console.error("Error dismissing notification:", error)
       this.toast.error("Error dismissing notification")
+    }
+  }
+
+  async markRequestAsRead(requestId) {
+    try {
+      // For request notifications, we'll create a local tracking system
+      // since we don't want to modify the actual request status
+      const result = await this.api.markNotificationRead(requestId, 'request')
+      
+      if (result.success) {
+        this.toast.success("Request notification marked as read")
+        await this.displayNotifications()
+      } else {
+        this.toast.error("Error marking request as read")
+      }
+    } catch (error) {
+      console.error("Error marking request as read:", error)
+      this.toast.error("Error marking request as read")
+    }
+  }
+
+  async dismissRequestNotification(requestId) {
+    try {
+      // For request notifications, we'll create a local tracking system
+      // to hide dismissed notifications without affecting the actual request
+      const result = await this.api.deleteNotification(requestId, 'request')
+      
+      if (result.success) {
+        this.toast.success("Request notification dismissed")
+        await this.displayNotifications()
+      } else {
+        this.toast.error("Error dismissing request notification")
+      }
+    } catch (error) {
+      console.error("Error dismissing request notification:", error)
+      this.toast.error("Error dismissing request notification")
     }
   }
 

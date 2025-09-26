@@ -41,6 +41,7 @@ try {
                 admin_name VARCHAR(255) NULL,
                 subject VARCHAR(255) NULL,
                 message TEXT NOT NULL,
+                attachment_paths TEXT NULL,
                 message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support',
                 is_admin BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -59,10 +60,24 @@ try {
             $pdo->exec("ALTER TABLE support_messages ADD COLUMN subject VARCHAR(255) NULL AFTER admin_name");
         }
         
+        // Check if attachment_paths column exists (updated for multiple attachments)
+        $stmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'attachment_paths'");
+        if ($stmt->rowCount() == 0) {
+            // Check if old attachment_path column exists and migrate data
+            $oldStmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'attachment_path'");
+            if ($oldStmt->rowCount() > 0) {
+                // Rename old column to new column
+                $pdo->exec("ALTER TABLE support_messages CHANGE attachment_path attachment_paths TEXT NULL");
+            } else {
+                // Add new column
+                $pdo->exec("ALTER TABLE support_messages ADD COLUMN attachment_paths TEXT NULL AFTER message");
+            }
+        }
+        
         // Check if message_type column exists
         $stmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'message_type'");
         if ($stmt->rowCount() == 0) {
-            $pdo->exec("ALTER TABLE support_messages ADD COLUMN message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support' AFTER message");
+            $pdo->exec("ALTER TABLE support_messages ADD COLUMN message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support' AFTER attachment_path");
         }
     }
     
@@ -110,7 +125,7 @@ function handleGetMessages($pdo) {
     
     // Get messages after the last message ID for real-time updates
     $query = "
-        SELECT id, user_name, admin_name, message, is_admin, created_at, is_read
+        SELECT id, user_name, admin_name, message, attachment_paths, is_admin, created_at, is_read
         FROM support_messages 
         WHERE conversation_id = ? AND id > ? AND message_type = 'customer_support'
         ORDER BY created_at ASC
@@ -148,21 +163,52 @@ function handleGetMessages($pdo) {
 }
 
 function handleSendMessage($pdo) {
-    // Get JSON input
-    $input = json_decode(file_get_contents('php://input'), true);
+    $attachmentPaths = [];
     
-    if (!$input) {
-        throw new Exception('Invalid JSON input');
+    // Check if this is a form data request (with file upload) or JSON request
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    $isFormData = strpos($contentType, 'multipart/form-data') !== false;
+    
+    if ($isFormData) {
+        // Handle form data with file upload
+        $message = trim($_POST['message'] ?? '');
+        $subject = trim($_POST['subject'] ?? '');
+        $conversationId = $_POST['conversation_id'] ?? '';
+        $csrfToken = $_POST['csrf_token'] ?? '';
+        
+        // Handle multiple image uploads
+        if (isset($_FILES['attachments']) && is_array($_FILES['attachments']['name'])) {
+            for ($i = 0; $i < count($_FILES['attachments']['name']); $i++) {
+                if ($_FILES['attachments']['error'][$i] === UPLOAD_ERR_OK) {
+                    $file = [
+                        'name' => $_FILES['attachments']['name'][$i],
+                        'type' => $_FILES['attachments']['type'][$i],
+                        'tmp_name' => $_FILES['attachments']['tmp_name'][$i],
+                        'error' => $_FILES['attachments']['error'][$i],
+                        'size' => $_FILES['attachments']['size'][$i]
+                    ];
+                    $attachmentPaths[] = handleImageUpload($file);
+                }
+            }
+        }
+    } else {
+        // Handle JSON input (existing functionality)
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        if (!$input) {
+            throw new Exception('Invalid JSON input');
+        }
+        
+        $message = trim($input['message'] ?? '');
+        $subject = trim($input['subject'] ?? '');
+        $conversationId = $input['conversation_id'] ?? '';
+        $csrfToken = $input['csrf_token'] ?? '';
     }
     
     // Validate CSRF token
-    if (!isset($input['csrf_token']) || !validateCSRFToken($input['csrf_token'])) {
+    if (!isset($csrfToken) || !validateCSRFToken($csrfToken)) {
         throw new Exception('Invalid CSRF token');
     }
-    
-    $message = trim($input['message'] ?? '');
-    $subject = trim($input['subject'] ?? '');
-    $conversationId = $input['conversation_id'] ?? '';
     
     // Get user information from session
     $user_id = $_SESSION['user_user_id'] ?? $_SESSION['user_id'] ?? null;
@@ -196,11 +242,14 @@ function handleSendMessage($pdo) {
         }
     }
     
-    // Insert message with customer_support type
+    // Convert attachment paths to JSON for storage
+    $attachmentPathsJson = !empty($attachmentPaths) ? json_encode($attachmentPaths) : null;
+    
+    // Insert message with customer_support type and attachments
     $stmt = $pdo->prepare("
         INSERT INTO support_messages 
-        (conversation_id, user_id, user_name, user_email, subject, message, message_type, is_admin, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, 'customer_support', FALSE, NOW())
+        (conversation_id, user_id, user_name, user_email, subject, message, attachment_paths, message_type, is_admin, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'customer_support', FALSE, NOW())
     ");
     
     $stmt->execute([
@@ -209,13 +258,16 @@ function handleSendMessage($pdo) {
         $user_name,
         $user_email,
         $subject,
-        $message
+        $message,
+        $attachmentPathsJson
     ]);
     
     $messageId = $pdo->lastInsertId();
     
     // Log the message for admin notification
-    error_log("New support message from $user_email in conversation $conversationId: $message");
+    $attachmentCount = count($attachmentPaths);
+    $attachmentInfo = $attachmentCount > 0 ? " (with $attachmentCount image" . ($attachmentCount > 1 ? 's' : '') . ")" : "";
+    error_log("New support message from $user_email in conversation $conversationId: $message$attachmentInfo");
     
     // Return success response
     echo json_encode([
@@ -224,9 +276,54 @@ function handleSendMessage($pdo) {
         'data' => [
             'message_id' => $messageId,
             'conversation_id' => $conversationId,
+            'attachment_paths' => $attachmentPaths,
+            'attachment_count' => $attachmentCount,
             'created_at' => date('Y-m-d H:i:s')
         ]
     ]);
+}
+
+function handleImageUpload($file) {
+    // Define upload directory
+    $uploadDir = '../uploads/support_attachments/';
+    
+    // Create directory if it doesn't exist
+    if (!is_dir($uploadDir)) {
+        if (!mkdir($uploadDir, 0755, true)) {
+            throw new Exception('Failed to create upload directory');
+        }
+    }
+    
+    // Validate image file
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    $maxSize = 5 * 1024 * 1024; // 5MB per image
+    
+    if (!in_array($file['type'], $allowedTypes)) {
+        throw new Exception('Invalid image type. Please upload JPEG, PNG, GIF, or WebP images only.');
+    }
+    
+    if ($file['size'] > $maxSize) {
+        throw new Exception('Image size too large. Maximum size is 5MB per image.');
+    }
+    
+    // Additional image validation
+    $imageInfo = getimagesize($file['tmp_name']);
+    if ($imageInfo === false) {
+        throw new Exception('Invalid image file.');
+    }
+    
+    // Generate unique filename
+    $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $fileName = 'support_' . date('Y-m-d_H-i-s') . '_' . uniqid() . '.' . $fileExtension;
+    $filePath = $uploadDir . $fileName;
+    
+    // Move uploaded file
+    if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+        throw new Exception('Failed to upload image');
+    }
+    
+    // Return relative path for database storage
+    return 'uploads/support_attachments/' . $fileName;
 }
 
 function timeAgo($datetime) {

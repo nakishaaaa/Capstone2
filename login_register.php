@@ -3,6 +3,7 @@ session_start(); // Start the session to use session variables
 require_once 'includes/config.php'; // Include the database connection
 require_once 'includes/csrf.php'; // Include CSRF protection
 require_once 'includes/audit_helper.php'; // Include audit logging functions
+require_once 'includes/email_verification.php'; // Include email verification functions
 
 // Handle registration form submission
 if (isset($_POST['register'])) {
@@ -74,20 +75,34 @@ if (isset($_POST['register'])) {
                 $_SESSION['register_error'] = 'Username is already taken!';
                 $_SESSION['active_form'] = 'register';
             } else {
-                // Insert new user into the database with contact number and default role 'user'
-                $insertStmt = $conn->prepare("INSERT INTO users (username, firstname, lastname, email, contact_number, password, role) VALUES (?, ?, ?, ?, ?, ?, 'user')");
-                $insertStmt->bind_param("ssssss", $username, $first_name, $last_name, $email, $full_contact_number, $password);
+                // Generate email verification token
+                $verification_token = generateVerificationToken();
+                
+                // Insert new user into the database with email verification token and unverified status
+                $insertStmt = $conn->prepare("INSERT INTO users (username, firstname, lastname, email, contact_number, password, role, email_verification_token, is_email_verified) VALUES (?, ?, ?, ?, ?, ?, 'user', ?, FALSE)");
+                $insertStmt->bind_param("sssssss", $username, $first_name, $last_name, $email, $full_contact_number, $password, $verification_token);
                 
                 if ($insertStmt->execute()) {
                     // Get the new user ID for audit logging
                     $new_user_id = $conn->insert_id;
                     
-                    // Log registration event
-                    logRegistrationEvent($new_user_id, $username);
-                    
-                    // Registration successful
-                    $_SESSION['register_success'] = 'Registration successful! You can now log in.';
-                    $_SESSION['active_form'] = 'login';
+                    // Send verification email
+                    if (sendVerificationEmail($email, $username, $verification_token)) {
+                        // Log registration event
+                        logRegistrationEvent($new_user_id, $username);
+                        
+                        // Registration successful - email sent
+                        $_SESSION['register_success'] = 'Registration successful! Please check your email to verify your account before logging in.';
+                        $_SESSION['active_form'] = 'login';
+                    } else {
+                        // Email sending failed - delete the user record
+                        $deleteStmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+                        $deleteStmt->bind_param("i", $new_user_id);
+                        $deleteStmt->execute();
+                        
+                        $_SESSION['register_error'] = 'Registration failed. Unable to send verification email. Please try again.';
+                        $_SESSION['active_form'] = 'register';
+                    }
                 } else {
                     // Database insert failed
                     $_SESSION['register_error'] = 'Registration failed. Please try again.';
@@ -135,6 +150,14 @@ if (isset($_POST['login'])) {
                 // Check if account is active
                 if (isset($user['status']) && $user['status'] === 'inactive') {
                     $_SESSION['login_error'] = 'Your account has been deactivated. Please contact an administrator.';
+                    $_SESSION['active_form'] = 'login';
+                    header("Location: index.php");
+                    exit();
+                }
+                
+                // Check if email is verified
+                if (isset($user['is_email_verified']) && !$user['is_email_verified']) {
+                    $_SESSION['login_error'] = 'Please verify your email address before logging in. Check your email for the verification link.';
                     $_SESSION['active_form'] = 'login';
                     header("Location: index.php");
                     exit();

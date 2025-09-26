@@ -242,23 +242,62 @@ class MyOrdersModule {
             
             <div class="order-footer">
                 <div class="order-timeline-mini">
-                    <div class="timeline-step ${order.status !== 'pending' ? 'completed' : ''}">
-                        <i class="fas fa-plus-circle"></i>
-                        <span>Placed</span>
-                    </div>
-                    <div class="timeline-step ${order.status === 'approved' || order.status === 'rejected' ? 'completed' : ''}">
-                        <i class="fas fa-search"></i>
-                        <span>Reviewed</span>
-                    </div>
-                    <div class="timeline-step ${order.status === 'approved' ? 'completed' : order.status === 'rejected' ? 'rejected' : ''}">
-                        <i class="fas fa-${order.status === 'approved' ? 'check-circle' : order.status === 'rejected' ? 'times-circle' : 'clock'}"></i>
-                        <span>${order.status === 'approved' ? 'Approved' : order.status === 'rejected' ? 'Rejected' : 'Pending'}</span>
-                    </div>
+                    ${this.generateMiniTimeline(order)}
                 </div>
             </div>
         `;
         
         return card;
+    }
+
+    generateMiniTimeline(order) {
+        const statusFlow = ['pending', 'approved', 'printing', 'ready_for_pickup', 'on_the_way', 'completed'];
+        const currentIndex = statusFlow.indexOf(order.status);
+        
+        // Handle rejected orders separately
+        if (order.status === 'rejected') {
+            return `
+                <div class="timeline-step completed">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Placed</span>
+                </div>
+                <div class="timeline-step completed">
+                    <i class="fas fa-search"></i>
+                    <span>Reviewed</span>
+                </div>
+                <div class="timeline-step rejected">
+                    <i class="fas fa-times-circle"></i>
+                    <span>Rejected</span>
+                </div>
+            `;
+        }
+        
+        // Show current status with appropriate icon
+        const statusConfig = {
+            'pending': { icon: 'fas fa-clock', label: 'Under Review' },
+            'approved': { icon: 'fas fa-check-circle', label: 'Approved' },
+            'printing': { icon: 'fas fa-print', label: 'Printing' },
+            'ready_for_pickup': { icon: 'fas fa-box', label: 'Ready' },
+            'on_the_way': { icon: 'fas fa-truck', label: 'On the Way' },
+            'completed': { icon: 'fas fa-check-double', label: 'Completed' }
+        };
+        
+        const currentConfig = statusConfig[order.status] || { icon: 'fas fa-clock', label: order.statusDisplay };
+        
+        return `
+            <div class="timeline-step completed">
+                <i class="fas fa-plus-circle"></i>
+                <span>Placed</span>
+            </div>
+            <div class="timeline-step ${currentIndex >= 1 ? 'completed' : ''}">
+                <i class="fas fa-search"></i>
+                <span>Reviewed</span>
+            </div>
+            <div class="timeline-step ${currentIndex >= 1 ? 'completed' : ''}">
+                <i class="${currentConfig.icon}"></i>
+                <span>${currentConfig.label}</span>
+            </div>
+        `;
     }
 
     async viewOrderDetail(orderId) {
@@ -330,10 +369,6 @@ class MyOrdersModule {
                             <label>Attached Image</label>
                             <div class="image-preview">
                                 <img src="${order.image_url}" alt="Order image" onclick="window.open('${order.image_url}', '_blank')">
-                                <button class="btn btn-outline btn-sm" onclick="window.open('${order.image_url}', '_blank')">
-                                    <i class="fas fa-external-link-alt"></i>
-                                    View Full Size
-                                </button>
                             </div>
                         </div>
                     ` : ''}
@@ -732,43 +767,21 @@ class MyOrdersModule {
                             font-weight: 600;
                         ">Payment Details</h4>
                         <div class="payment-methods" style="
-                            display: grid;
-                            grid-template-columns: repeat(3, 1fr);
+                            display: flex;
+                            justify-content: center;
                             gap: 0.75rem;
                         ">
                             <label class="payment-method" style="cursor: pointer;">
-                                <input type="radio" name="paymentMethod" value="cash" style="display: none;">
+                                <input type="radio" name="paymentMethod" value="paymongo_link" style="display: none;" checked>
                                 <div class="method-card" style="
-                                    border: 2px solid #e2e8f0;
+                                    border: 2px solid #3182ce;
                                     border-radius: 12px;
                                     padding: 1rem;
                                     text-align: center;
                                     transition: all 0.2s;
                                     background: white;
-                                " onmouseover="this.style.borderColor='#cbd5e1'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'">
-                                    <i class="fas fa-money-bill-wave" style="
-                                        font-size: 1.5rem;
-                                        color: #38a169;
-                                        margin-bottom: 0.5rem;
-                                        display: block;
-                                    "></i>
-                                    <span style="
-                                        color: #2d3748;
-                                        font-weight: 500;
-                                        font-size: 0.875rem;
-                                    ">Cash</span>
-                                </div>
-                            </label>
-                            <label class="payment-method" style="cursor: pointer;">
-                                <input type="radio" name="paymentMethod" value="paymongo_link" style="display: none;">
-                                <div class="method-card" style="
-                                    border: 2px solid #e2e8f0;
-                                    border-radius: 12px;
-                                    padding: 1rem;
-                                    text-align: center;
-                                    transition: all 0.2s;
-                                    background: white;
-                                " onmouseover="this.style.borderColor='#cbd5e1'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'">
+                                    min-width: 150px;
+                                " onmouseover="this.style.borderColor='#2c5aa0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#3182ce'; this.style.transform='translateY(0)'">
                                     <i class="fas fa-link" style="
                                         font-size: 1.5rem;
                                         color: #3182ce;
@@ -780,29 +793,6 @@ class MyOrdersModule {
                                         font-weight: 500;
                                         font-size: 0.875rem;
                                     ">PayMongo Link</span>
-                                </div>
-                            </label>
-                            <label class="payment-method" style="cursor: pointer;">
-                                <input type="radio" name="paymentMethod" value="gcash" style="display: none;">
-                                <div class="method-card" style="
-                                    border: 2px solid #e2e8f0;
-                                    border-radius: 12px;
-                                    padding: 1rem;
-                                    text-align: center;
-                                    transition: all 0.2s;
-                                    background: white;
-                                " onmouseover="this.style.borderColor='#cbd5e1'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'">
-                                    <i class="fas fa-mobile-alt" style="
-                                        font-size: 1.5rem;
-                                        color: #38a169;
-                                        margin-bottom: 0.5rem;
-                                        display: block;
-                                    "></i>
-                                    <span style="
-                                        color: #2d3748;
-                                        font-weight: 500;
-                                        font-size: 0.875rem;
-                                    ">GCash</span>
                                 </div>
                             </label>
                         </div>

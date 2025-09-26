@@ -193,6 +193,7 @@ export class AdminSupportManager {
                     </div>
                     <div class="message-text">${this.escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
                     ${msg.subject ? `<div class="message-subject">Subject: ${this.escapeHtml(msg.subject)}</div>` : ''}
+                    ${msg.attachment_paths ? this.renderAttachments(msg.attachment_paths) : ''}
                 </div>
             </div>
         `).join('');
@@ -604,6 +605,85 @@ export class AdminSupportManager {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    renderAttachments(attachmentPaths) {
+        if (!attachmentPaths) return '';
+        
+        let paths;
+        try {
+            // Try to parse as JSON array first
+            paths = JSON.parse(attachmentPaths);
+            if (!Array.isArray(paths)) {
+                // If it's not an array, treat as single path (backward compatibility)
+                paths = [attachmentPaths];
+            }
+        } catch (e) {
+            // If parsing fails, treat as single path (backward compatibility)
+            paths = [attachmentPaths];
+        }
+        
+        if (paths.length === 0) return '';
+        
+        const attachmentHtml = paths.map(path => this.renderSingleAttachment(path)).join('');
+        
+        return `
+            <div class="message-attachments">
+                <div class="attachments-header">
+                    <i class="fas fa-images"></i>
+                    <span class="attachments-count">${paths.length} image${paths.length > 1 ? 's' : ''}</span>
+                </div>
+                <div class="attachments-grid">
+                    ${attachmentHtml}
+                </div>
+            </div>
+        `;
+    }
+    
+    renderSingleAttachment(attachmentPath) {
+        if (!attachmentPath) return '';
+        
+        const fileName = attachmentPath.split('/').pop();
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
+        const fullPath = `/Capstone2/${attachmentPath}`;
+        
+        if (isImage) {
+            return `
+                <div class="attachment-item">
+                    <div class="attachment-preview">
+                        <img src="${fullPath}" alt="${this.escapeHtml(fileName)}" 
+                             onclick="window.open('${fullPath}', '_blank')" 
+                             title="${this.escapeHtml(fileName)}">
+                    </div>
+                </div>
+            `;
+        } else {
+            // For non-image files (backward compatibility)
+            const icon = this.getFileIcon(fileExtension);
+            return `
+                <div class="attachment-item">
+                    <div class="attachment-download">
+                        <a href="${fullPath}" target="_blank" class="attachment-link">
+                            <i class="fas ${icon}"></i>
+                            <span>${this.escapeHtml(fileName)}</span>
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    getFileIcon(extension) {
+        const iconMap = {
+            'pdf': 'fa-file-pdf',
+            'doc': 'fa-file-word',
+            'docx': 'fa-file-word',
+            'txt': 'fa-file-text',
+            'zip': 'fa-file-archive',
+            'rar': 'fa-file-archive'
+        };
+        return iconMap[extension] || 'fa-file';
     }
     
     debounce(func, wait) {

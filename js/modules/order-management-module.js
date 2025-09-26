@@ -780,8 +780,10 @@ export class OrderManagementModule {
         
         let imagesHtml = ''
         
-        // Regular image upload (for non-T-shirt orders or T-shirt orders with regular uploads)
-        if (order.image_path && (order.category !== 't-shirt-print' || order.design_option !== 'customize')) {
+        // Regular image upload (for non-T-shirt/non-card orders or T-shirt orders with regular uploads)
+        if (order.image_path && 
+            (order.category !== 't-shirt-print' || order.design_option !== 'customize') &&
+            !(order.category === 'card-print' && (order.size === 'calling' || order.size === 'business'))) {
             imagesHtml += this.renderAttachedImages(order.image_path)
         }
         
@@ -937,6 +939,107 @@ export class OrderManagementModule {
             `
         }
         
+        // Card customization images (for calling and business cards)
+        if (order.category === 'card-print' && (order.size === 'calling' || order.size === 'business')) {
+            imagesHtml += `
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="margin: 0 0 0.75rem 0; color: #6b7280; font-size: 0.875rem; font-weight: 500;">Card Design Details</h4>
+                    <div style="
+                        background: #f8fafc;
+                        border: 2px dashed #e2e8f0;
+                        border-radius: 12px;
+                        padding: 1rem;
+                    ">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            ${order.front_image_path ? `
+                                <div>
+                                    <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem; font-weight: 600;">Front Design</div>
+                                    <div style="
+                                        background: white;
+                                        border: 1px solid #e2e8f0;
+                                        border-radius: 8px;
+                                        padding: 0.5rem;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        min-height: 100px;
+                                        cursor: pointer;
+                                    " onclick="window.open('${this.escapeHtml(order.front_image_path)}', '_blank')">
+                                        <img src="${this.escapeHtml(order.front_image_path)}" alt="Card Front Design" style="
+                                            max-width: 100%;
+                                            max-height: 150px;
+                                            border-radius: 6px;
+                                            object-fit: contain;
+                                        ">
+                                    </div>
+                                    <div style="margin-top: 0.4rem;">
+                                        <a href="${this.escapeHtml(order.front_image_path)}" download target="_blank" rel="noopener" style="
+                                            display: inline-flex;
+                                            align-items: center;
+                                            gap: 0.4rem;
+                                            color: #3b82f6;
+                                            text-decoration: none;
+                                            font-size: 0.8rem;
+                                            padding: 0.25rem 0.5rem;
+                                            border-radius: 4px;
+                                            border: 1px solid #cbd5e1;
+                                            background: white;
+                                            transition: all 0.2s;
+                                        " onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">
+                                            <i class="fa-solid fa-download"></i>
+                                            Download Front
+                                        </a>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${order.back_image_path ? `
+                                <div>
+                                    <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem; font-weight: 600;">Back Design</div>
+                                    <div style="
+                                        background: white;
+                                        border: 1px solid #e2e8f0;
+                                        border-radius: 8px;
+                                        padding: 0.5rem;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        min-height: 100px;
+                                        cursor: pointer;
+                                    " onclick="window.open('${this.escapeHtml(order.back_image_path)}', '_blank')">
+                                        <img src="${this.escapeHtml(order.back_image_path)}" alt="Card Back Design" style="
+                                            max-width: 100%;
+                                            max-height: 150px;
+                                            border-radius: 6px;
+                                            object-fit: contain;
+                                        ">
+                                    </div>
+                                    <div style="margin-top: 0.4rem;">
+                                        <a href="${this.escapeHtml(order.back_image_path)}" download target="_blank" rel="noopener" style="
+                                            display: inline-flex;
+                                            align-items: center;
+                                            gap: 0.4rem;
+                                            color: #3b82f6;
+                                            text-decoration: none;
+                                            font-size: 0.8rem;
+                                            padding: 0.25rem 0.5rem;
+                                            border-radius: 4px;
+                                            border: 1px solid #cbd5e1;
+                                            background: white;
+                                            transition: all 0.2s;
+                                        " onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">
+                                            <i class="fa-solid fa-download"></i>
+                                            Download Back
+                                        </a>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `
+        }
+        
         return imagesHtml
     }
 
@@ -1025,6 +1128,11 @@ export class OrderManagementModule {
         // Check for T-shirt customization images
         if (order.category === 't-shirt-print' && order.design_option === 'customize') {
             return order.front_image_path || order.back_image_path || order.tag_image_path
+        }
+        
+        // Check for card customization images
+        if (order.category === 'card-print' && (order.size === 'calling' || order.size === 'business')) {
+            return order.front_image_path || order.back_image_path
         }
         
         return false

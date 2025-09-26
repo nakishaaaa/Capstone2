@@ -17,8 +17,9 @@ export class InventoryModule {
       const result = await this.api.getAllProducts()
 
       if (result.success) {
-        this.displayInventoryTable(result.data)
         console.log("Inventory data loaded successfully:", result.data.length, "items")
+        console.log("Sample item:", result.data[0]) // Debug: log first item to see structure
+        this.displayInventoryTable(result.data)
       } else {
         this.toast.error("Error loading inventory: " + result.error)
         this.displayInventoryTable([])
@@ -37,7 +38,7 @@ export class InventoryModule {
     if (!data || data.length === 0) {
       tableBody.innerHTML = `
         <tr>
-          <td colspan="8" style="text-align: center; padding: 2rem;">
+          <td colspan="9" style="text-align: center; padding: 2rem;">
             No inventory data available. Please add products to inventory.
           </td>
         </tr>
@@ -50,6 +51,21 @@ export class InventoryModule {
         (item) => `
       <tr>
         <td>${item.id}</td>
+        <td>
+          <div class="product-image">
+            ${item.image_url && item.image_url !== 'images/placeholder.jpg' && item.image_url.trim() !== '' ? 
+              `<img src="${item.image_url}" alt="${Utils.escapeHtml(item.name)}" 
+                    style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+               <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 8px; display: none; align-items: center; justify-content: center; color: #999; border: 1px solid #ddd;">
+                 <i class="fas fa-image"></i>
+               </div>` : 
+              `<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999; border: 1px solid #ddd;">
+                <i class="fas fa-image"></i>
+              </div>`
+            }
+          </div>
+        </td>
         <td>${Utils.escapeHtml(item.name)}</td>
         <td>${Utils.escapeHtml(item.category)}</td>
         <td>${item.stock}</td>

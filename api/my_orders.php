@@ -92,7 +92,10 @@ function getOrders($pdo, $userId) {
                 downpayment_percentage,
                 payment_status,
                 created_at,
-                updated_at
+                updated_at,
+                production_started_at,
+                ready_at,
+                completed_at
             FROM user_requests 
             $whereClause 
             $orderBy 
@@ -135,7 +138,7 @@ function getOrders($pdo, $userId) {
             'contactNumber' => $order['contact_number'],
             'notes' => $order['notes'],
             'status' => $order['status'],
-            'statusDisplay' => ucfirst($order['status']),
+            'statusDisplay' => formatStatusDisplay($order['status']),
             'adminResponse' => $order['admin_response'],
             'totalPrice' => $order['total_price'],
             'downpaymentPercentage' => $order['downpayment_percentage'],
@@ -201,7 +204,10 @@ function getOrderDetail($pdo, $userId) {
                 downpayment_percentage,
                 payment_status,
                 created_at,
-                updated_at
+                updated_at,
+                production_started_at,
+                ready_at,
+                completed_at
             FROM user_requests 
             WHERE id = :order_id AND user_id = :user_id";
     
@@ -245,7 +251,7 @@ function getOrderDetail($pdo, $userId) {
         'contactNumber' => $order['contact_number'],
         'notes' => $order['notes'],
         'status' => $order['status'],
-        'statusDisplay' => ucfirst($order['status']),
+        'statusDisplay' => formatStatusDisplay($order['status']),
         'adminResponse' => $order['admin_response'],
         'totalPrice' => $order['total_price'],
         'downpaymentPercentage' => $order['downpayment_percentage'],
@@ -288,7 +294,11 @@ function getOrderCounts($pdo, $userId) {
         'all' => 0,
         'pending' => 0,
         'approved' => 0,
-        'rejected' => 0
+        'rejected' => 0,
+        'printing' => 0,
+        'ready_for_pickup' => 0,
+        'on_the_way' => 0,
+        'completed' => 0
     ];
     
     foreach ($results as $result) {
@@ -311,17 +321,63 @@ function formatCategoryName($category) {
         'document-print' => 'Document Print',
         'photo-print' => 'Photo Print',
         'photo-copy' => 'Photo Copy',
-        'lamination' => 'Lamination',
-        'typing-job' => 'Typing Job'
+        'lamination' => 'Lamination'
     ];
     
     return $categoryMap[$category] ?? ucfirst(str_replace('-', ' ', $category));
 }
 
+function formatStatusDisplay($status) {
+    $statusMap = [
+        'pending' => 'Pending',
+        'approved' => 'Approved',
+        'rejected' => 'Rejected',
+        'printing' => 'Printing',
+        'ready_for_pickup' => 'Ready for Pickup',
+        'on_the_way' => 'On the Way',
+        'completed' => 'Completed'
+    ];
+    
+    return $statusMap[$status] ?? ucfirst(str_replace('_', ' ', $status));
+}
+
 function generateOrderTimeline($order) {
     $timeline = [];
+    $currentStatus = $order['status'];
     
-    // Order placed
+    // Define status progression
+    $statusFlow = ['pending', 'approved', 'printing', 'ready_for_pickup', 'on_the_way', 'completed'];
+    $currentIndex = array_search($currentStatus, $statusFlow);
+    
+    // If rejected, handle separately
+    if ($currentStatus === 'rejected') {
+        // Order placed
+        $timeline[] = [
+            'status' => 'placed',
+            'title' => 'Order Placed',
+            'description' => 'Your order has been submitted successfully',
+            'timestamp' => $order['created_at'],
+            'timestampFormatted' => date('M j, Y g:i A', strtotime($order['created_at'])),
+            'icon' => 'fas fa-plus-circle',
+            'completed' => true
+        ];
+        
+        // Order rejected
+        $timeline[] = [
+            'status' => 'rejected',
+            'title' => 'Order Rejected',
+            'description' => $order['admin_response'] ?: 'Your order could not be processed',
+            'timestamp' => $order['updated_at'],
+            'timestampFormatted' => date('M j, Y g:i A', strtotime($order['updated_at'])),
+            'icon' => 'fas fa-times-circle',
+            'completed' => true,
+            'rejected' => true
+        ];
+        
+        return $timeline;
+    }
+    
+    // Order placed (always completed)
     $timeline[] = [
         'status' => 'placed',
         'title' => 'Order Placed',
@@ -332,52 +388,82 @@ function generateOrderTimeline($order) {
         'completed' => true
     ];
     
-    // Order processing
-    if ($order['status'] !== 'pending') {
-        $timeline[] = [
-            'status' => 'processing',
-            'title' => 'Order Reviewed',
-            'description' => 'Your order is being reviewed by our team',
-            'timestamp' => $order['updated_at'],
-            'timestampFormatted' => date('M j, Y g:i A', strtotime($order['updated_at'])),
-            'icon' => 'fas fa-search',
-            'completed' => true
-        ];
-    }
+    // Order reviewed (completed if status is beyond pending)
+    $reviewCompleted = $currentIndex !== false && $currentIndex > 0;
+    $timeline[] = [
+        'status' => 'reviewed',
+        'title' => 'Order Reviewed',
+        'description' => 'Your order is being reviewed by our team',
+        'timestamp' => $reviewCompleted ? $order['updated_at'] : null,
+        'timestampFormatted' => $reviewCompleted ? date('M j, Y g:i A', strtotime($order['updated_at'])) : 'Pending',
+        'icon' => 'fas fa-search',
+        'completed' => $reviewCompleted
+    ];
     
-    // Final status
-    if ($order['status'] === 'approved') {
-        $timeline[] = [
-            'status' => 'approved',
-            'title' => 'Order Approved',
-            'description' => $order['admin_response'] ?: 'Your order has been approved and is ready for processing',
-            'timestamp' => $order['updated_at'],
-            'timestampFormatted' => date('M j, Y g:i A', strtotime($order['updated_at'])),
-            'icon' => 'fas fa-check-circle',
-            'completed' => true
-        ];
-    } elseif ($order['status'] === 'rejected') {
-        $timeline[] = [
-            'status' => 'rejected',
-            'title' => 'Order Rejected',
-            'description' => $order['admin_response'] ?: 'Your order could not be processed',
-            'timestamp' => $order['updated_at'],
-            'timestampFormatted' => date('M j, Y g:i A', strtotime($order['updated_at'])),
-            'icon' => 'fas fa-times-circle',
-            'completed' => true
-        ];
-    } else {
-        // Pending status
-        $timeline[] = [
-            'status' => 'pending',
-            'title' => 'Under Review',
-            'description' => 'Your order is currently being reviewed',
-            'timestamp' => null,
-            'timestampFormatted' => 'Pending',
-            'icon' => 'fas fa-clock',
-            'completed' => false
-        ];
-    }
+    // Order approved (completed if status is approved or beyond)
+    $approvedCompleted = $currentIndex !== false && $currentIndex >= 1;
+    $timeline[] = [
+        'status' => 'approved',
+        'title' => 'Order Approved',
+        'description' => $order['admin_response'] ?: 'Your order has been approved and payment is being processed',
+        'timestamp' => $approvedCompleted ? $order['updated_at'] : null,
+        'timestampFormatted' => $approvedCompleted ? date('M j, Y g:i A', strtotime($order['updated_at'])) : 'Pending',
+        'icon' => 'fas fa-check-circle',
+        'completed' => $approvedCompleted
+    ];
+    
+    // Printing (completed if status is printing or beyond)
+    $printingCompleted = $currentIndex !== false && $currentIndex >= 2;
+    $printingTimestamp = $order['production_started_at'] ?: ($printingCompleted ? $order['updated_at'] : null);
+    $timeline[] = [
+        'status' => 'printing',
+        'title' => 'Printing in Progress',
+        'description' => 'Your order is currently being printed',
+        'timestamp' => $printingTimestamp,
+        'timestampFormatted' => $printingTimestamp ? date('M j, Y g:i A', strtotime($printingTimestamp)) : 'Pending',
+        'icon' => 'fas fa-print',
+        'completed' => $printingCompleted
+    ];
+    
+    // Ready for pickup (completed if status is ready_for_pickup or beyond)
+    $readyCompleted = $currentIndex !== false && $currentIndex >= 3;
+    $readyTimestamp = $order['ready_at'] ?: ($readyCompleted ? $order['updated_at'] : null);
+    $timeline[] = [
+        'status' => 'ready_for_pickup',
+        'title' => 'Ready for Pickup',
+        'description' => 'Your order is ready for pickup or delivery',
+        'timestamp' => $readyTimestamp,
+        'timestampFormatted' => $readyTimestamp ? date('M j, Y g:i A', strtotime($readyTimestamp)) : 'Pending',
+        'icon' => 'fas fa-box',
+        'completed' => $readyCompleted
+    ];
+    
+    // On the way (completed if status is on_the_way or beyond)
+    $onTheWayCompleted = $currentIndex !== false && $currentIndex >= 4;
+    // For on_the_way, we use updated_at since there's no specific timestamp field for this status
+    $onTheWayTimestamp = $onTheWayCompleted ? $order['updated_at'] : null;
+    $timeline[] = [
+        'status' => 'on_the_way',
+        'title' => 'On the Way',
+        'description' => 'Your order is on the way to you',
+        'timestamp' => $onTheWayTimestamp,
+        'timestampFormatted' => $onTheWayTimestamp ? date('M j, Y g:i A', strtotime($onTheWayTimestamp)) : 'Pending',
+        'icon' => 'fas fa-truck',
+        'completed' => $onTheWayCompleted
+    ];
+    
+    // Completed (completed only if status is completed)
+    $completedCompleted = $currentStatus === 'completed';
+    $completedTimestamp = $order['completed_at'] ?: ($completedCompleted ? $order['updated_at'] : null);
+    $timeline[] = [
+        'status' => 'completed',
+        'title' => 'Order Completed',
+        'description' => 'Your order has been delivered successfully',
+        'timestamp' => $completedTimestamp,
+        'timestampFormatted' => $completedTimestamp ? date('M j, Y g:i A', strtotime($completedTimestamp)) : 'Pending',
+        'icon' => 'fas fa-check-double',
+        'completed' => $completedCompleted
+    ];
     
     return $timeline;
 }

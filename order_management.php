@@ -143,7 +143,7 @@ if (!$isStaffLoggedIn) {
 
                     <div class="form-group">
                         <label for="statusNote">Update Note</label>
-                        <textarea id="statusNote" name="note" rows="3" 
+                        <textarea id="statusNote" name="note" 
                                 placeholder="Add a note about this status change (will be sent to customer)..."></textarea>
                     </div>
 

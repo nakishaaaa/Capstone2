@@ -215,7 +215,8 @@ if (!$isStaffLoggedIn) {
                     <table class="inventory-table" id="inventoryTable">
                         <thead>
                             <tr>
-                                <th>Product ID</th>
+                                <th>ID</th>
+                                <th>Image</th>
                                 <th>Product Name</th>
                                 <th>Category</th>
                                 <th>Current Stock</th>
@@ -227,7 +228,7 @@ if (!$isStaffLoggedIn) {
                         </thead>
                         <tbody id="inventoryTableBody">
                             <tr>
-                                <td colspan="8" style="text-align: center; padding: 2rem;">Loading inventory data...</td>
+                                <td colspan="9" style="text-align: center; padding: 2rem;">Loading inventory data...</td>
                             </tr>
                         </tbody>
                     </table>

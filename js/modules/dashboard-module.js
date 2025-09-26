@@ -24,6 +24,12 @@ export class DashboardModule {
 
       if (result.success) {
         this.updateStatsDisplay(result.data)
+        
+        // Update production badge if we have the data
+        if (result.data.production_orders !== undefined) {
+          this.updateProductionBadge(result.data.production_orders)
+        }
+        
         console.log("Dashboard stats loaded successfully:", result.data)
       }
     } catch (error) {
@@ -70,6 +76,18 @@ export class DashboardModule {
         }
       }
     })
+  }
+
+  updateProductionBadge(productionCount) {
+    const productionBadge = document.getElementById('productionBadge')
+    if (productionBadge) {
+      if (productionCount > 0) {
+        productionBadge.textContent = productionCount
+        productionBadge.style.display = 'inline'
+      } else {
+        productionBadge.style.display = 'none'
+      }
+    }
   }
 
   initializeCharts() {
@@ -414,6 +432,10 @@ export class DashboardModule {
         }
         
         this.updateStatsDisplay(statsData)
+        
+        // Update production badge
+        const productionCount = data.requests?.production_orders || 0
+        this.updateProductionBadge(productionCount)
         
         const salesChanged = this.lastStatsData?.sales?.total_revenue !== data.sales?.total_revenue ||
                             this.lastStatsData?.sales?.total_sales !== data.sales?.total_sales

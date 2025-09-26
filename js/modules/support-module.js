@@ -61,9 +61,13 @@ export default class SupportMessaging {
             });
             
             attachInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file && attachName) {
-                    attachName.textContent = file.name;
+                const files = e.target.files;
+                if (files.length > 0 && attachName) {
+                    if (files.length === 1) {
+                        attachName.textContent = files[0].name;
+                    } else {
+                        attachName.textContent = `${files.length} images selected`;
+                    }
                     attachName.style.display = 'inline';
                 } else if (attachName) {
                     attachName.textContent = '';
@@ -152,7 +156,8 @@ export default class SupportMessaging {
         const formData = new FormData(this.form);
         const subject = formData.get('subject')?.trim();
         const message = formData.get('message')?.trim();
-        const attachment = formData.get('attachment');
+        const attachmentInput = document.getElementById('supportAttachment');
+        const attachments = attachmentInput ? attachmentInput.files : null;
         
         // Validation
         if (!subject || !message) {
@@ -163,6 +168,32 @@ export default class SupportMessaging {
         if (message.length < 10) {
             this.showError('Please provide a more detailed message (at least 10 characters).');
             return;
+        }
+        
+        // Validate images if attached
+        if (attachments && attachments.length > 0) {
+            const maxSize = 5 * 1024 * 1024; // 5MB per image
+            const maxFiles = 5; // Maximum 5 images
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            
+            if (attachments.length > maxFiles) {
+                this.showError(`You can upload maximum ${maxFiles} images.`);
+                return;
+            }
+            
+            for (let i = 0; i < attachments.length; i++) {
+                const file = attachments[i];
+                
+                if (file.size > maxSize) {
+                    this.showError(`Image "${file.name}" is too large. Maximum size is 5MB per image.`);
+                    return;
+                }
+                
+                if (!allowedTypes.includes(file.type)) {
+                    this.showError(`"${file.name}" is not a valid image. Please upload only JPEG, PNG, GIF, or WebP images.`);
+                    return;
+                }
+            }
         }
         
         try {
@@ -178,25 +209,50 @@ export default class SupportMessaging {
             // Get CSRF token for the request
             const csrfToken = await this.getCSRFToken();
             
-            // Prepare JSON payload for customer support API
-            const payload = {
-                subject: subject,
-                message: message,
-                csrf_token: csrfToken
-            };
+            let response;
             
-            const response = await fetch('/Capstone2/api/customer_support.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
+            // Check if we have image attachments
+            if (attachments && attachments.length > 0) {
+                // Use FormData for file upload
+                const uploadFormData = new FormData();
+                uploadFormData.append('subject', subject);
+                uploadFormData.append('message', message);
+                
+                // Append all images
+                for (let i = 0; i < attachments.length; i++) {
+                    uploadFormData.append('attachments[]', attachments[i]);
+                }
+                
+                uploadFormData.append('csrf_token', csrfToken);
+                
+                response = await fetch('/Capstone2/api/customer_support.php', {
+                    method: 'POST',
+                    body: uploadFormData
+                });
+            } else {
+                // Use JSON for text-only messages
+                const payload = {
+                    subject: subject,
+                    message: message,
+                    csrf_token: csrfToken
+                };
+                
+                response = await fetch('/Capstone2/api/customer_support.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+            }
             
             const result = await response.json();
             
             if (result.success) {
-                this.showSuccess(`Support ticket #${result.ticket_id} submitted successfully! Our customer support team will respond soon.`);
+                const messageId = result.data?.message_id || 'N/A';
+                const attachmentCount = result.data?.attachment_count || 0;
+                const attachmentInfo = attachmentCount > 0 ? ` (with ${attachmentCount} image${attachmentCount > 1 ? 's' : ''})` : '';
+                this.showSuccess(`Support message #${messageId} submitted successfully${attachmentInfo}! Our customer support team will respond soon.`);
                 this.form.reset(); // Clear form immediately after success
                 
                 // Clear attachment display
