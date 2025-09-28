@@ -21,8 +21,54 @@ if (isset($_POST['register'])) {
     $username = isset($_POST['username']) ? trim($_POST['username']) : '';
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
     $contact_number = isset($_POST['contact_number']) ? trim($_POST['contact_number']) : '';
-    // Hash the password for security
-    $password = isset($_POST['password']) ? password_hash($_POST['password'], PASSWORD_DEFAULT) : '';
+    $raw_password = isset($_POST['password']) ? $_POST['password'] : '';
+    $terms_agreement = isset($_POST['terms_agreement']) ? $_POST['terms_agreement'] : '';
+    
+    // Validate password requirements before hashing
+    if ($raw_password) {
+        // Check minimum length (8 characters)
+        if (strlen($raw_password) < 8) {
+            $_SESSION['register_error'] = 'Password must be at least 8 characters long!';
+            $_SESSION['active_form'] = 'register';
+            header("Location: index.php");
+            exit();
+        }
+        
+        // Check maximum length (64 characters)
+        if (strlen($raw_password) > 64) {
+            $_SESSION['register_error'] = 'Password must be no more than 64 characters long!';
+            $_SESSION['active_form'] = 'register';
+            header("Location: index.php");
+            exit();
+        }
+        
+        // Check for at least one lowercase letter
+        if (!preg_match('/[a-z]/', $raw_password)) {
+            $_SESSION['register_error'] = 'Password must contain at least one lowercase letter!';
+            $_SESSION['active_form'] = 'register';
+            header("Location: index.php");
+            exit();
+        }
+        
+        // Check for at least one uppercase letter
+        if (!preg_match('/[A-Z]/', $raw_password)) {
+            $_SESSION['register_error'] = 'Password must contain at least one uppercase letter!';
+            $_SESSION['active_form'] = 'register';
+            header("Location: index.php");
+            exit();
+        }
+        
+        // Check for at least one number
+        if (!preg_match('/[0-9]/', $raw_password)) {
+            $_SESSION['register_error'] = 'Password must contain at least one number!';
+            $_SESSION['active_form'] = 'register';
+            header("Location: index.php");
+            exit();
+        }
+    }
+    
+    // Hash the password for security (only after validation)
+    $password = $raw_password ? password_hash($raw_password, PASSWORD_DEFAULT) : '';
 
     // Validate first name (only letters and spaces allowed)
     if ($first_name && !preg_match('/^[a-zA-Z\s]+$/', $first_name)) {
@@ -40,6 +86,86 @@ if (isset($_POST['register'])) {
         exit();
     }
 
+    // Validate username length (3-20 characters)
+    if ($username && (strlen($username) < 3 || strlen($username) > 20)) {
+        if (strlen($username) < 3) {
+            $_SESSION['register_error'] = 'Username must be at least 3 characters long!';
+        } else {
+            $_SESSION['register_error'] = 'Username must be no more than 20 characters long!';
+        }
+        $_SESSION['active_form'] = 'register';
+        header("Location: index.php");
+        exit();
+    }
+
+    // Validate username characters (only letters and numbers allowed)
+    if ($username && !preg_match('/^[a-zA-Z0-9]+$/', $username)) {
+        $_SESSION['register_error'] = 'Username can only contain letters and numbers!';
+        $_SESSION['active_form'] = 'register';
+        header("Location: index.php");
+        exit();
+    }
+
+    // Validate email format and allowed domains
+    if ($email) {
+        // Check basic email format
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $_SESSION['register_error'] = 'Please enter a valid email address!';
+            $_SESSION['active_form'] = 'register';
+            header("Location: index.php");
+            exit();
+        }
+        
+        // List of allowed legitimate email domains
+        $allowed_domains = [
+            // Gmail
+            'gmail.com',
+            // Outlook / Hotmail / Live / MSN
+            'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+            // Yahoo Mail
+            'yahoo.com', 'ymail.com', 'rocketmail.com',
+            // iCloud Mail
+            'icloud.com', 'me.com', 'mac.com',
+            // AOL Mail
+            'aol.com',
+            // Zoho Mail
+            'zoho.com',
+            // Proton Mail
+            'protonmail.com', 'proton.me',
+            // GMX Mail
+            'gmx.com', 'gmx.net',
+            // Mail.com
+            'mail.com'
+        ];
+        
+        // List of disposable/temporary email domains to block
+        $disposable_domains = [
+            '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
+            'yopmail.com', 'temp-mail.org', 'throwaway.email', 'getnada.com',
+            'maildrop.cc', 'sharklasers.com', 'guerrillamailblock.com', 'tempail.com',
+            'dispostable.com', 'fakeinbox.com', 'spamgourmet.com', 'trashmail.com',
+            'emailondeck.com', 'mohmal.com', 'anonymbox.com', 'deadaddress.com'
+        ];
+        
+        $email_domain = strtolower(substr(strrchr($email, "@"), 1));
+        
+        // Check if domain is disposable
+        if (in_array($email_domain, $disposable_domains)) {
+            $_SESSION['register_error'] = 'Temporary or disposable email addresses are not allowed!';
+            $_SESSION['active_form'] = 'register';
+            header("Location: index.php");
+            exit();
+        }
+        
+        // Check if domain is in allowed list
+        if (!in_array($email_domain, $allowed_domains)) {
+            $_SESSION['register_error'] = 'Please use a legitimate email provider (Gmail, Outlook, Yahoo, iCloud, AOL, Zoho, Proton, GMX, or Mail.com)!';
+            $_SESSION['active_form'] = 'register';
+            header("Location: index.php");
+            exit();
+        }
+    }
+
     // Validate contact number format (10 digits)
     if ($contact_number && !preg_match('/^[0-9]{10}$/', $contact_number)) {
         $_SESSION['register_error'] = 'Contact number must be exactly 10 digits!';
@@ -50,6 +176,14 @@ if (isset($_POST['register'])) {
 
     // Format contact number with +63 prefix
     $full_contact_number = $contact_number ? '+63' . $contact_number : '';
+
+    // Validate terms and conditions agreement
+    if (!$terms_agreement || $terms_agreement !== 'on') {
+        $_SESSION['register_error'] = 'You must agree to the Terms & Conditions to register!';
+        $_SESSION['active_form'] = 'register';
+        header("Location: index.php");
+        exit();
+    }
 
     // Check if all fields are filled
     if ($first_name && $last_name && $username && $email && $password && $contact_number) {
@@ -147,6 +281,14 @@ if (isset($_POST['login'])) {
             $user = $result->fetch_assoc();
             // Verify the password
             if (password_verify($password, $user['password'])) {
+                // Check if account is soft deleted (deactivated)
+                if (isset($user['deleted_at']) && $user['deleted_at'] !== null) {
+                    $_SESSION['login_error'] = 'Your account has been deactivated by an administrator. Please contact support for assistance.';
+                    $_SESSION['active_form'] = 'login';
+                    header("Location: index.php");
+                    exit();
+                }
+                
                 // Check if account is active
                 if (isset($user['status']) && $user['status'] === 'inactive') {
                     $_SESSION['login_error'] = 'Your account has been deactivated. Please contact an administrator.';

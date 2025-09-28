@@ -1,438 +1,524 @@
-// Support Module for Super Admin Dashboard
+// Super Admin Support Module - Conversation System (matches Admin Support)
 export class SupportModule {
     constructor(dashboard) {
         this.dashboard = dashboard;
+        this.currentConversations = [];
+        this.currentMessages = [];
+        this.selectedConversationId = null;
+        this.timestampUpdateInterval = null;
+        
+        // Make functions globally available
+        window.superAdminSupportModule = this;
     }
 
     loadCustomerSupport(container) {
         container.innerHTML = `
-            <section id="customer-support" class="content-section active">
-                <div class="support-header">
-                    <div class="support-stats">
-                        <div class="stat-item">
-                            <span class="stat-number" id="openTickets">0</span>
-                            <span class="stat-label">Open Tickets</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number" id="pendingTickets">0</span>
-                            <span class="stat-label">Pending</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number" id="resolvedTickets">0</span>
-                            <span class="stat-label">Resolved Today</span>
-                        </div>
+            <div class="admin-support-container">
+                <div class="conversations-sidebar">
+                    <div class="conversations-header">
+                        <h3>Conversations</h3>
+                    </div>
+                    <div class="search-container">
+                        <input type="text" id="conversationSearch" placeholder="Search conversations..." class="search-input">
+                    </div>
+                    <div id="conversationsList" class="conversations-list">
+                        <div class="loading">Loading conversations...</div>
                     </div>
                 </div>
 
-                <div class="support-filters">
-                    <select id="ticketStatusFilter">
-                        <option value="">All Status</option>
-                        <option value="open">Open</option>
-                        <option value="pending">Pending</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="closed">Closed</option>
-                    </select>
-                    <select id="ticketPriorityFilter">
-                        <option value="">All Priority</option>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-                    <input type="text" id="ticketSearch" placeholder="Search tickets...">
-                </div>
-
-                <div class="support-tickets-container">
-                    <table class="support-tickets-table">
-                        <thead>
-                            <tr>
-                                <th>Ticket ID</th>
-                                <th>Customer</th>
-                                <th>Subject</th>
-                                <th>Priority</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="supportTicketsBody">
-                            <tr>
-                                <td colspan="7" class="loading">Loading support tickets...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- View Ticket Modal -->
-                <div id="viewTicketModal" class="modal">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h4>Ticket Details</h4>
-                            <span class="close" onclick="closeViewTicketModal()">&times;</span>
-                        </div>
-                        <div class="modal-body">
-                            <div class="ticket-details">
-                                <div class="detail-row">
-                                    <label>Ticket ID:</label>
-                                    <span id="viewTicketId"></span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Customer:</label>
-                                    <span id="viewCustomerName"></span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Email:</label>
-                                    <span id="viewCustomerEmail"></span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Subject:</label>
-                                    <span id="viewTicketSubject"></span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Priority:</label>
-                                    <span id="viewTicketPriority" class="priority-badge"></span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Status:</label>
-                                    <span id="viewTicketStatus" class="status-badge"></span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Created:</label>
-                                    <span id="viewTicketDate"></span>
-                                </div>
-                                <div class="detail-row full-width">
-                                    <label>Message:</label>
-                                    <div id="viewTicketMessage" class="ticket-message"></div>
-                                </div>
-                                <div class="detail-row full-width" id="attachmentRow" style="display: none;">
-                                    <label>Attachment:</label>
-                                    <div id="viewTicketAttachment" class="ticket-attachment"></div>
-                                </div>
+                <div class="chat-main">
+                    <div id="chatHeader" class="chat-header" style="display: none;">
+                        <div class="chat-user-info">
+                            <div class="chat-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="chat-user-details">
+                                <div id="chatUserName" class="chat-user-name">Select a conversation</div>
+                                <div id="chatUserEmail" class="chat-user-email"></div>
                             </div>
                         </div>
-                        <div class="modal-actions">
-                            <button type="button" class="reply-btn" onclick="replyToTicketFromView()">
-                                <i class="fas fa-reply"></i> Reply
+                        <div class="chat-actions">
+                            <button id="refreshSupportBtn" class="refresh-btn">
+                                <i class="fas fa-sync-alt"></i>
                             </button>
-                            <button type="button" class="cancel-btn" onclick="closeViewTicketModal()">Close</button>
                         </div>
                     </div>
-                </div>
 
-                <!-- Reply Modal -->
-                <div id="replyModal" class="modal">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h4>Reply to Ticket</h4>
-                            <span class="close" onclick="closeReplyModal()">&times;</span>
+                    <div id="chatMessages" class="chat-messages-container">
+                        <div class="no-conversation-selected">
+                            <i class="fas fa-comments"></i>
+                            <p>Select a conversation to start chatting</p>
                         </div>
-                        <form id="replyForm" onsubmit="sendReply(event)">
-                            <input type="hidden" id="ticketId" name="ticket_id">
-                            <div class="form-group">
-                                <label for="replyMessage">Reply Message</label>
-                                <textarea id="replyMessage" name="message" rows="5" required></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="ticketStatus">Update Status</label>
-                                <select id="ticketStatus" name="status">
-                                    <option value="">Keep current status</option>
-                                    <option value="open">Open</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="resolved">Resolved</option>
-                                    <option value="closed">Closed</option>
-                                </select>
-                            </div>
-                            <div class="modal-actions">
-                                <button type="button" class="cancel-btn" onclick="closeReplyModal()">Cancel</button>
-                                <button type="submit" class="save-btn">Send Reply</button>
-                            </div>
-                        </form>
+                    </div>
+
+                    <div id="chatInputArea" class="chat-input-section" style="display: none;">
+                        <div class="message-input-container">
+                            <textarea id="adminReplyInput" placeholder="Type your reply..." rows="2"></textarea>
+                            <button id="sendReplyBtn" class="send-message-btn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </section>
+            </div>
         `;
-        this.loadSupportTickets();
-        this.setupEventListeners();
+        
+        this.init();
     }
 
-    setupEventListeners() {
-        // Status filter
-        const statusFilter = document.getElementById('ticketStatusFilter');
-        if (statusFilter) {
-            statusFilter.addEventListener('change', () => this.loadSupportTickets());
+    init() {
+        this.bindEvents();
+        this.loadConversations();
+        this.startTimestampUpdates();
+    }
+
+    bindEvents() {
+        // Refresh button
+        const refreshBtn = document.getElementById('refreshSupportBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.loadConversations());
         }
 
-        // Priority filter
-        const priorityFilter = document.getElementById('ticketPriorityFilter');
-        if (priorityFilter) {
-            priorityFilter.addEventListener('change', () => this.loadSupportTickets());
+        // Conversation search
+        const conversationSearch = document.getElementById('conversationSearch');
+        if (conversationSearch) {
+            conversationSearch.addEventListener('input', this.debounce(() => this.filterConversations(), 300));
         }
 
-        // Search input with debounce
-        const searchInput = document.getElementById('ticketSearch');
-        if (searchInput) {
-            let searchTimeout;
-            searchInput.addEventListener('input', () => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => this.loadSupportTickets(), 300);
+        // Chat input and send button
+        const sendReplyBtn = document.getElementById('sendReplyBtn');
+        const adminReplyInput = document.getElementById('adminReplyInput');
+        
+        if (sendReplyBtn) {
+            sendReplyBtn.addEventListener('click', () => this.sendReply());
+        }
+        
+        if (adminReplyInput) {
+            adminReplyInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    this.sendReply();
+                }
             });
         }
     }
 
-    async loadSupportTickets() {
+    async loadConversations(preserveSearch = false) {
         try {
-            // Get filter values
-            const status = document.getElementById('ticketStatusFilter')?.value || '';
-            const priority = document.getElementById('ticketPriorityFilter')?.value || '';
-            const search = document.getElementById('ticketSearch')?.value || '';
-
-            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    action: 'get_support_tickets',
-                    status: status,
-                    priority: priority,
-                    search: search
-                })
-            });
-
-            console.log('Response status:', response.status);
-            const data = await response.json();
-            console.log('Support tickets API response:', data);
-            const tbody = document.getElementById('supportTicketsBody');
-
-            if (data.success && data.tickets) {
-                tbody.innerHTML = data.tickets.map(ticket => `
-                    <tr>
-                        <td>#${ticket.id}</td>
-                        <td>
-                            <div class="customer-info">
-                                <strong>${ticket.username || 'Unknown User'}</strong>
-                            </div>
-                        </td>
-                        <td>${ticket.subject}</td>
-                        <td><span class="priority-badge ${ticket.priority}">${ticket.priority}</span></td>
-                        <td><span class="status-badge ${ticket.status}">${ticket.status}</span></td>
-                        <td>${new Date(ticket.created_at).toLocaleDateString()}</td>
-                        <td>
-                            <button onclick="viewTicket(${ticket.id})" class="view-btn" title="View">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button onclick="replyToTicket(${ticket.id})" class="reply-btn" title="Reply">
-                                <i class="fas fa-reply"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-
-                // Update stats
-                this.updateSupportStats(data.stats);
+            const response = await fetch('api/superadmin_api/super_admin_actions.php?action=get_support_conversations');
+            const result = await response.json();
+            
+            if (result.success) {
+                this.currentConversations = result.data.conversations || [];
+                this.updateConversationsList();
+                this.updateSupportStats(result.data.stats);
                 
-                // Update support badge in sidebar
-                this.updateSupportBadge(data.stats);
+                // Preserve search filter if requested
+                if (preserveSearch) {
+                    const searchInput = document.getElementById('conversationSearch');
+                    if (searchInput && searchInput.value.trim()) {
+                        this.filterConversations();
+                    }
+                }
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="no-data">No support tickets found</td></tr>';
+                console.error('Failed to load conversations:', result.message);
+                this.showError('Failed to load conversations');
             }
         } catch (error) {
-            console.error('Error loading support tickets:', error);
-            document.getElementById('supportTicketsBody').innerHTML = '<tr><td colspan="7" class="error-row">Error loading support tickets</td></tr>';
+            console.error('Error loading conversations:', error);
+            this.showError('Network error while loading conversations');
+        }
+    }
+
+    updateConversationsList() {
+        const conversationsList = document.getElementById('conversationsList');
+        if (!conversationsList) return;
+        
+        if (this.currentConversations.length === 0) {
+            conversationsList.innerHTML = '<div class="no-conversations">No conversations found</div>';
+            return;
+        }
+        
+        conversationsList.innerHTML = this.currentConversations.map(conv => `
+            <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''} ${this.selectedConversationId === conv.ticket_id ? 'active' : ''}" 
+                 data-conversation-id="${conv.ticket_id}" 
+                 onclick="superAdminSupportModule.selectConversation('${conv.ticket_id}')">
+                <div class="conversation-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="conversation-info">
+                    <div class="conversation-header">
+                        <div class="conversation-name">${this.escapeHtml(conv.username)}</div>
+                        <div class="conversation-ticket-id">#${conv.ticket_id}</div>
+                    </div>
+                    <div class="conversation-subject">${this.escapeHtml(conv.subject)}</div>
+                    <div class="conversation-preview">
+                        ${conv.last_message_by === 'admin' ? 'You: ' : ''}${this.truncateText(conv.last_message || conv.message, 50)}
+                    </div>
+                </div>
+                <div class="conversation-time">${this.timeAgo(conv.last_message_at || conv.created_at)}</div>
+            </div>
+        `).join('');
+    }
+
+    async selectConversation(conversationId) {
+        this.selectedConversationId = conversationId;
+        
+        // Update UI to show selected conversation
+        document.querySelectorAll('.conversation-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        const selectedItem = document.querySelector(`[data-conversation-id="${conversationId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+        }
+        
+        // Load messages for this conversation
+        await this.loadConversationMessages(conversationId);
+        
+        // Automatically mark conversation as read
+        await this.markConversationAsRead(conversationId);
+    }
+
+    async loadConversationMessages(conversationId) {
+        try {
+            const response = await fetch(`api/superadmin_api/super_admin_actions.php?action=get_conversation_messages&ticket_id=${encodeURIComponent(conversationId)}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                this.currentMessages = result.data.messages || [];
+                this.updateChatMessages();
+                this.showChatInterface(result.data.ticket);
+            } else {
+                console.error('Failed to load conversation messages:', result.message);
+                this.showError('Failed to load conversation messages');
+            }
+        } catch (error) {
+            console.error('Error loading conversation messages:', error);
+            this.showError('Network error while loading messages');
+        }
+    }
+
+    updateChatMessages() {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        if (this.currentMessages.length === 0) {
+            chatMessages.innerHTML = '<div class="no-messages">No messages in this conversation</div>';
+            return;
+        }
+        
+        chatMessages.innerHTML = this.currentMessages.map(msg => {
+            const isAdmin = msg.sender_type === 'admin';
+            return `
+                <div class="message-group ${isAdmin ? 'admin-group' : 'customer-group'}">
+                    <div class="message-bubble ${isAdmin ? 'admin-bubble' : 'customer-bubble'}">
+                        <div class="bubble-header">
+                            <span class="bubble-time">${this.timeAgo(msg.created_at)}</span>
+                            <span class="bubble-sender">${this.escapeHtml(msg.sender_name)}</span>
+                        </div>
+                        <div class="message-text">${this.escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
+                        ${msg.attachment_path ? this.renderAttachment(msg.attachment_path) : ''}
+                        <div class="message-subject">Subject: ${this.escapeHtml(msg.subject || 'No subject')}</div>
+                    </div>
+                    <div class="${isAdmin ? 'admin-avatar' : 'customer-avatar'}">
+                        <i class="fas fa-${isAdmin ? 'user-shield' : 'user'}"></i>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    showChatInterface(ticket) {
+        const chatHeader = document.getElementById('chatHeader');
+        const chatInputArea = document.getElementById('chatInputArea');
+        const chatUserName = document.getElementById('chatUserName');
+        const chatUserEmail = document.getElementById('chatUserEmail');
+        
+        if (ticket) {
+            chatUserName.textContent = ticket.username;
+            chatUserEmail.textContent = ticket.customer_email || 'No email';
+        }
+        
+        chatHeader.style.display = 'flex';
+        chatInputArea.style.display = 'block';
+    }
+
+    async sendReply() {
+        const replyText = document.getElementById('adminReplyInput').value.trim();
+        if (!replyText) {
+            this.showError('Please enter a reply message');
+            return;
+        }
+        
+        if (!this.selectedConversationId) {
+            this.showError('No conversation selected');
+            return;
+        }
+        
+        try {
+            const csrfToken = await this.getCSRFToken();
+            
+            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'send_conversation_reply',
+                    ticket_id: this.selectedConversationId,
+                    message: replyText,
+                    csrf_token: csrfToken
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                document.getElementById('adminReplyInput').value = '';
+                this.loadConversationMessages(this.selectedConversationId); // Refresh messages
+                this.loadConversations(true); // Refresh conversation list, preserving search
+                this.showSuccess('Reply sent successfully');
+            } else {
+                this.showError(result.message || 'Failed to send reply');
+            }
+        } catch (error) {
+            console.error('Error sending reply:', error);
+            this.showError('Network error while sending reply');
+        }
+    }
+
+    filterConversations() {
+        const searchTerm = document.getElementById('conversationSearch').value.toLowerCase();
+        const conversationItems = document.querySelectorAll('.conversation-item');
+        
+        conversationItems.forEach(item => {
+            const name = item.querySelector('.conversation-name').textContent.toLowerCase();
+            const subject = item.querySelector('.conversation-subject').textContent.toLowerCase();
+            const message = item.querySelector('.conversation-last-message').textContent.toLowerCase();
+            
+            if (name.includes(searchTerm) || subject.includes(searchTerm) || message.includes(searchTerm)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    async markConversationAsRead(conversationId) {
+        if (!conversationId) return;
+        
+        try {
+            const csrfToken = await this.getCSRFToken();
+            
+            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'mark_conversation_read',
+                    ticket_id: conversationId,
+                    csrf_token: csrfToken
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update the conversation item UI to remove unread indicator
+                const conversationItem = document.querySelector(`[data-conversation-id="${conversationId}"]`);
+                if (conversationItem) {
+                    conversationItem.classList.remove('unread');
+                    const unreadBadge = conversationItem.querySelector('.conversation-unread-badge');
+                    if (unreadBadge) {
+                        unreadBadge.remove();
+                    }
+                }
+                
+                // Refresh conversation list to update counts, then restore active state
+                await this.loadConversations(true);
+                this.restoreActiveConversation();
+            }
+        } catch (error) {
+            console.error('Error marking conversation as read:', error);
+        }
+    }
+
+    restoreActiveConversation() {
+        if (this.selectedConversationId) {
+            const selectedItem = document.querySelector(`[data-conversation-id="${this.selectedConversationId}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
         }
     }
 
     updateSupportStats(stats) {
-        if (stats) {
-            document.getElementById('openTickets').textContent = stats.open_tickets || 0;
-            document.getElementById('pendingTickets').textContent = stats.pending_tickets || 0;
-            document.getElementById('resolvedTickets').textContent = stats.resolved_today || 0;
-        }
-    }
-
-    updateSupportBadge(stats) {
-        if (stats) {
-            const openCount = stats.open_tickets || 0;
-            const badge = document.getElementById('supportBadge');
-            
-            if (badge) {
-                if (openCount > 0) {
-                    badge.textContent = openCount;
-                    badge.style.display = 'inline-block';
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
-        }
-    }
-
-    async viewTicket(ticketId) {
-        try {
-            const response = await fetch(`api/superadmin_api/super_admin_actions.php?action=get_ticket&ticket_id=${ticketId}`);
-            const data = await response.json();
-
-            if (data.success && data.ticket) {
-                const ticket = data.ticket;
-                
-                // Populate modal with ticket details
-                document.getElementById('viewTicketId').textContent = `#${ticket.id}`;
-                document.getElementById('viewCustomerName').textContent = ticket.customer_name || 'Unknown User';
-                document.getElementById('viewCustomerEmail').textContent = ticket.customer_email || 'No email';
-                document.getElementById('viewTicketSubject').textContent = ticket.subject;
-                document.getElementById('viewTicketMessage').textContent = ticket.message;
-                document.getElementById('viewTicketDate').textContent = new Date(ticket.created_at).toLocaleString();
-                
-                // Handle attachment if present
-                const attachmentRow = document.getElementById('attachmentRow');
-                const attachmentDiv = document.getElementById('viewTicketAttachment');
-                
-                if (ticket.attachment_path && ticket.attachment_path.trim() !== '') {
-                    // Use original filename if available, otherwise fall back to generated filename
-                    const displayFileName = ticket.original_filename || ticket.attachment_path.split('/').pop();
-                    const fileExtension = displayFileName.split('.').pop().toLowerCase();
-                    
-                    // Convert server path to web-accessible URL
-                    let webPath = ticket.attachment_path;
-                    if (webPath.startsWith('../uploads/')) {
-                        webPath = webPath.replace('../uploads/', 'uploads/');
-                    } else if (webPath.startsWith('uploads/')) {
-                        // Already correct format
-                    } else if (webPath.includes('uploads/')) {
-                        // Extract from any path containing uploads
-                        webPath = webPath.substring(webPath.indexOf('uploads/'));
-                    }
-                    
-                    // Check if it's an image
-                    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-                    
-                    if (imageExtensions.includes(fileExtension)) {
-                        // For images, show as downloadable link with preview attempt
-                        attachmentDiv.innerHTML = `
-                            <div class="attachment-file">
-                                <i class="fas fa-image"></i>
-                                <a href="${webPath}" target="_blank" class="attachment-link">${displayFileName}</a>
-                                <span class="attachment-type">(Image)</span>
-                            </div>
-                        `;
-                    } else {
-                        attachmentDiv.innerHTML = `
-                            <div class="attachment-file">
-                                <i class="fas fa-file-alt"></i>
-                                <a href="${webPath}" target="_blank" class="attachment-link">${displayFileName}</a>
-                                <span class="attachment-type">(File)</span>
-                            </div>
-                        `;
-                    }
-                    attachmentRow.style.display = 'block';
-                } else {
-                    attachmentRow.style.display = 'none';
-                }
-                
-                // Set priority and status with proper classes
-                const priorityElement = document.getElementById('viewTicketPriority');
-                priorityElement.textContent = ticket.priority;
-                priorityElement.className = `priority-badge ${ticket.priority}`;
-                
-                const statusElement = document.getElementById('viewTicketStatus');
-                statusElement.textContent = ticket.status;
-                statusElement.className = `status-badge ${ticket.status}`;
-                
-                // Store ticket ID for potential reply
-                this.currentViewingTicketId = ticketId;
-                
-                // Show the modal
-                this.showViewTicketModal();
-            } else {
-                this.dashboard.showNotification('Error loading ticket details', 'error');
-            }
-        } catch (error) {
-            console.error('Error viewing ticket:', error);
-            this.dashboard.showNotification('Error loading ticket details', 'error');
-        }
-    }
-
-    replyToTicket(ticketId) {
-        const modal = document.getElementById('replyModal');
-        document.getElementById('ticketId').value = ticketId;
-        document.getElementById('replyMessage').value = '';
-        document.getElementById('ticketStatus').value = '';
+        if (!stats) return;
         
-        modal.style.display = 'flex';
-        modal.style.visibility = 'visible';
-        modal.style.opacity = '1';
-    }
-
-    closeReplyModal() {
-        const modal = document.getElementById('replyModal');
-        modal.style.display = 'none';
-        modal.style.visibility = 'hidden';
-        modal.style.opacity = '0';
-    }
-
-    showViewTicketModal() {
-        const modal = document.getElementById('viewTicketModal');
-        modal.style.display = 'flex';
-        modal.style.visibility = 'visible';
-        modal.style.opacity = '1';
-    }
-
-    closeViewTicketModal() {
-        const modal = document.getElementById('viewTicketModal');
-        modal.style.display = 'none';
-        modal.style.visibility = 'hidden';
-        modal.style.opacity = '0';
-        
-        // Clear attachment display
-        const attachmentRow = document.getElementById('attachmentRow');
-        if (attachmentRow) {
-            attachmentRow.style.display = 'none';
-        }
-    }
-
-    replyToTicketFromView() {
-        if (this.currentViewingTicketId) {
-            this.closeViewTicketModal();
-            this.replyToTicket(this.currentViewingTicketId);
-        }
-    }
-
-    async sendReply(event) {
-        event.preventDefault();
-        
-        const form = document.getElementById('replyForm');
-        const formData = new FormData(form);
-        
-        const replyData = {
-            action: 'reply_to_ticket',
-            ticket_id: formData.get('ticket_id'),
-            reply_message: formData.get('message'),
-            status: formData.get('status') || null
+        const elements = {
+            'total-messages': stats.total || 0,
+            'unread-messages': stats.unread || 0,
+            'replied-messages': stats.replied || 0,
+            'active-conversations': stats.active || 0
         };
-
-        // Debug logging
-        console.log('Form data collected:', {
-            ticket_id: formData.get('ticket_id'),
-            message: formData.get('message'),
-            status: formData.get('status')
-        });
-        console.log('Reply data being sent:', replyData);
-
-        try {
-            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(replyData)
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                this.dashboard.showNotification('Reply sent successfully', 'success');
-                this.closeReplyModal();
-                this.loadSupportTickets();
-            } else {
-                this.dashboard.showNotification(data.message || 'Failed to send reply', 'error');
+        
+        Object.entries(elements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
             }
+        });
+
+        // Update sidebar badge for unread support messages
+        this.updateSupportBadge(stats.unread || 0);
+    }
+
+    startTimestampUpdates() {
+        // Update timestamps every 30 seconds
+        this.timestampUpdateInterval = setInterval(() => {
+            this.updateTimestamps();
+        }, 30000);
+    }
+
+    updateTimestamps() {
+        // Update conversation timestamps
+        document.querySelectorAll('.conversation-time').forEach(element => {
+            const conversationId = element.closest('.conversation-item')?.dataset.conversationId;
+            if (conversationId) {
+                const conversation = this.currentConversations.find(c => c.ticket_id === conversationId);
+                if (conversation && (conversation.last_message_at || conversation.created_at)) {
+                    element.textContent = this.timeAgo(conversation.last_message_at || conversation.created_at);
+                }
+            }
+        });
+
+        // Update message timestamps
+        document.querySelectorAll('.message-time').forEach(element => {
+            const messageElement = element.closest('.chat-message');
+            if (messageElement) {
+                const messageIndex = Array.from(messageElement.parentNode.children).indexOf(messageElement);
+                if (this.currentMessages[messageIndex] && this.currentMessages[messageIndex].created_at) {
+                    element.textContent = this.timeAgo(this.currentMessages[messageIndex].created_at);
+                }
+            }
+        });
+    }
+
+    renderAttachment(attachmentPath) {
+        if (!attachmentPath) return '';
+        
+        const fileName = attachmentPath.split('/').pop();
+        const fullPath = `/${attachmentPath}`;
+        
+        return `
+            <div class="message-attachment">
+                <i class="fas fa-paperclip"></i>
+                <a href="${fullPath}" target="_blank">${this.escapeHtml(fileName)}</a>
+            </div>
+        `;
+    }
+
+    // Utility functions
+    timeAgo(datetime) {
+        if (!datetime) return 'Never';
+        const now = new Date();
+        const past = new Date(datetime);
+        const diffInSeconds = Math.floor((now - past) / 1000);
+        
+        if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+        if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
+        return `${Math.floor(diffInSeconds / 31536000)}y ago`;
+    }
+
+    truncateText(text, maxLength) {
+        if (!text || text.length <= maxLength) return text || '';
+        return text.substring(0, maxLength) + '...';
+    }
+
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    async getCSRFToken() {
+        try {
+            const response = await fetch('api/csrf_token.php');
+            const data = await response.json();
+            return data.token;
         } catch (error) {
-            console.error('Error sending reply:', error);
-            this.dashboard.showNotification('Error sending reply', 'error');
+            console.error('Error getting CSRF token:', error);
+            throw new Error('Failed to get CSRF token');
         }
+    }
+
+    showError(message) {
+        console.error('Support Error:', message);
+        if (this.dashboard && this.dashboard.showNotification) {
+            this.dashboard.showNotification(message, 'error');
+        } else {
+            alert('Error: ' + message);
+        }
+    }
+
+    showSuccess(message) {
+        console.log('Support Success:', message);
+        if (this.dashboard && this.dashboard.showNotification) {
+            this.dashboard.showNotification(message, 'success');
+        }
+    }
+
+    updateSupportBadge(count) {
+        try {
+            const badge = document.getElementById('supportBadge');
+            if (!badge) return;
+            const value = Number(count) || 0;
+            if (value > 0) {
+                badge.textContent = value > 99 ? '99+' : String(value);
+                badge.style.display = 'inline-block';
+            } else {
+                badge.textContent = '0';
+                badge.style.display = 'none';
+            }
+        } catch (e) {
+            console.warn('Failed to update support badge', e);
+        }
+    }
+
+    destroy() {
+        // Clear timestamp update interval
+        if (this.timestampUpdateInterval) {
+            clearInterval(this.timestampUpdateInterval);
+            this.timestampUpdateInterval = null;
+        }
+        
+        console.log('Super Admin Support module destroyed');
     }
 }
+
+// Make it globally accessible
+window.superAdminSupportModule = null;
+
+export default SupportModule;

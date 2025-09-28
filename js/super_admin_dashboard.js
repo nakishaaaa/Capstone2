@@ -174,9 +174,7 @@ class SuperAdminDashboard {
     }
 
     // Delegation methods for module functionality
-    async deleteUser(userId) {
-        return this.userManagementModule.deleteUser(userId);
-    }
+    // deleteUser method removed - now handled by soft delete functions
 
     showCreateUserModal() {
         return this.userManagementModule.showAddUserModal();
@@ -314,9 +312,7 @@ function setupGlobalHandlers() {
         if (dashboard) dashboard.showEditUserModal(userId);
     };
 
-    window.deleteUser = function(userId) {
-        if (dashboard) dashboard.deleteUser(userId);
-    };
+    // window.deleteUser removed - now handled by soft delete functions (showSoftDeleteModal)
 
     window.showAddUserModal = function() {
         if (dashboard) dashboard.showCreateUserModal();

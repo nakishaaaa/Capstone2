@@ -89,6 +89,35 @@ try {
     if ($stmt->execute()) {
         $ticket_id = $conn->insert_id;
         
+        // Also create entry in support_tickets_messages for the new conversation system
+        try {
+            $conversation_id = 'ticket_' . $ticket_id;
+            $user_email = $_SESSION['user_email'] ?? 'no-email@example.com';
+            
+            $msg_stmt = $conn->prepare("
+                INSERT INTO support_tickets_messages 
+                (conversation_id, user_id, user_name, user_email, admin_name, subject, message, attachment_paths, is_admin, created_at, is_read) 
+                VALUES (?, ?, ?, ?, NULL, ?, ?, ?, FALSE, NOW(), TRUE)
+            ");
+            
+            if ($msg_stmt) {
+                $msg_stmt->bind_param("sisssss", 
+                    $conversation_id,
+                    $user_id,
+                    $username,
+                    $user_email,
+                    $subject,
+                    $message,
+                    $attachment_path
+                );
+                $msg_stmt->execute();
+                $msg_stmt->close();
+            }
+        } catch (Exception $msg_error) {
+            // Log error but don't fail the ticket submission
+            error_log("Conversation creation error (non-critical): " . $msg_error->getMessage());
+        }
+        
         // Try to log the support ticket creation in audit logs (optional)
         try {
             $audit_stmt = $conn->prepare("

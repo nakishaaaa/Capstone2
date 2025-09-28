@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once '../config/database.php';
 require_once '../includes/csrf.php';
+require_once '../includes/email_notifications.php';
 
 session_start();
 
@@ -264,6 +265,10 @@ function handleSendMessage($pdo) {
     
     $messageId = $pdo->lastInsertId();
     
+    // Create notification for admins and send email immediately
+    createAdminNotification($pdo, $user_name, $user_email, $subject, $message, $conversationId);
+    sendAdminEmailNotification($user_name, $user_email, $subject, $message, $conversationId);
+    
     // Log the message for admin notification
     $attachmentCount = count($attachmentPaths);
     $attachmentInfo = $attachmentCount > 0 ? " (with $attachmentCount image" . ($attachmentCount > 1 ? 's' : '') . ")" : "";
@@ -335,5 +340,88 @@ function timeAgo($datetime) {
     if ($time < 2592000) return floor($time/86400) . ' days ago';
     if ($time < 31536000) return floor($time/2592000) . ' months ago';
     return floor($time/31536000) . ' years ago';
+}
+
+/**
+ * Create notification in admin notifications table
+ */
+function createAdminNotification($pdo, $userName, $userEmail, $subject, $message, $conversationId) {
+    try {
+        // Create notifications table if it doesn't exist
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                type ENUM('info', 'warning', 'error', 'success') DEFAULT 'info',
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                conversation_id VARCHAR(50) NULL,
+                user_email VARCHAR(255) NULL,
+                INDEX idx_created_at (created_at),
+                INDEX idx_is_read (is_read),
+                INDEX idx_conversation_id (conversation_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+        
+        // Check if conversation_id column exists
+        $stmt = $pdo->query("SHOW COLUMNS FROM notifications LIKE 'conversation_id'");
+        if ($stmt->rowCount() == 0) {
+            $pdo->exec("ALTER TABLE notifications ADD COLUMN conversation_id VARCHAR(50) NULL AFTER created_at");
+        }
+        
+        // Check if user_email column exists
+        $stmt = $pdo->query("SHOW COLUMNS FROM notifications LIKE 'user_email'");
+        if ($stmt->rowCount() == 0) {
+            $pdo->exec("ALTER TABLE notifications ADD COLUMN user_email VARCHAR(255) NULL AFTER conversation_id");
+        }
+        
+        $notificationTitle = "New Customer Support Message";
+        $notificationMessage = "New message from $userName ($userEmail)" . 
+                              ($subject ? " - Subject: $subject" : "") . 
+                              " - " . substr($message, 0, 100) . 
+                              (strlen($message) > 100 ? "..." : "");
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO notifications (title, message, type, conversation_id, user_email) 
+            VALUES (?, ?, 'info', ?, ?)
+        ");
+        $stmt->execute([$notificationTitle, $notificationMessage, $conversationId, $userEmail]);
+        
+        error_log("Created admin notification for customer support message from $userEmail");
+        
+    } catch (Exception $e) {
+        error_log("Error creating admin notification: " . $e->getMessage());
+    }
+}
+
+/**
+ * Send email notification to all admin users
+ */
+function sendAdminEmailNotification($userName, $userEmail, $subject, $message, $conversationId) {
+    try {
+        $notificationTitle = "New Customer Support Message Received";
+        $notificationMessage = "Customer: $userName ($userEmail)\n" .
+                              "Conversation ID: $conversationId\n" .
+                              ($subject ? "Subject: $subject\n" : "") .
+                              "Message: " . substr($message, 0, 200) . 
+                              (strlen($message) > 200 ? "..." : "") . "\n\n" .
+                              "Please check your admin dashboard to respond to this message.";
+        
+        $success = EmailNotifications::sendAdminNotification(
+            $notificationTitle,
+            $notificationMessage,
+            'info'
+        );
+        
+        if ($success) {
+            error_log("Successfully sent email notifications to admins for customer support message from $userEmail");
+        } else {
+            error_log("Failed to send email notifications to admins for customer support message from $userEmail");
+        }
+        
+    } catch (Exception $e) {
+        error_log("Error sending admin email notification: " . $e->getMessage());
+    }
 }
 ?>

@@ -8,16 +8,25 @@ export class ProductManagementModule {
     this.toast = toastManager
     this.modal = modalManager
     this.products = []
+    this.currentView = 'active' // 'active' or 'trash'
   }
 
-  async loadProducts() {
+  async loadProducts(viewType = 'active') {
     try {
-      console.log("Loading product management data from database...")
-      const result = await this.api.getAllProducts()
+      console.log(`Loading product management data from database (${viewType} view)...`)
+      
+      let endpoint = 'inventory.php'
+      if (viewType === 'trash') {
+        endpoint += '?only_deleted=true'
+      }
+      
+      const result = await this.api.request(endpoint)
 
       if (result.success) {
         this.products = result.data
+        this.currentView = viewType
         this.displayProductsTable(result.data)
+        this.updateViewToggle()
         console.log("Product management data loaded successfully:", result.data.length, "items")
       } else {
         console.error("Error loading product management:", result.error)
@@ -29,6 +38,27 @@ export class ProductManagementModule {
       this.toast.error("Error connecting to database for product management")
       this.displayProductsTable([])
     }
+  }
+
+  updateViewToggle() {
+    const activeBtn = document.getElementById('activeProductsBtn')
+    const trashBtn = document.getElementById('trashProductsBtn')
+    
+    if (activeBtn && trashBtn) {
+      if (this.currentView === 'active') {
+        activeBtn.classList.add('active')
+        trashBtn.classList.remove('active')
+      } else {
+        activeBtn.classList.remove('active')
+        trashBtn.classList.add('active')
+      }
+    }
+  }
+
+  getExistingCategories() {
+    // Extract unique categories from loaded products
+    const categories = [...new Set(this.products.map(product => product.category).filter(cat => cat && cat.trim()))]
+    return categories.sort()
   }
 
   displayProductsTable(data) {
@@ -69,21 +99,33 @@ export class ProductManagementModule {
             </span>
           </td>
           <td>
-            <button class="action-btn edit" 
-                    onclick="window.productManagementModule.editProduct(${item.id})" 
-                    title="Edit Product">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="action-btn view" 
-                    onclick="window.productManagementModule.viewProduct(${item.id})" 
-                    title="View Details">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button class="action-btn delete" 
-                    onclick="window.productManagementModule.deleteProduct(${item.id}, '${item.name.replace(/'/g, "\\'")}')" 
-                    title="Delete Product">
-              <i class="fas fa-trash"></i>
-            </button>
+            ${this.currentView === 'trash' ? 
+              `<button class="action-btn restore" 
+                      onclick="window.productManagementModule.restoreProduct(${item.id})" 
+                      title="Restore Product">
+                <i class="fas fa-undo"></i>
+              </button>
+              <button class="action-btn delete-permanent" 
+                      onclick="window.productManagementModule.permanentDeleteProduct(${item.id})" 
+                      title="Delete Permanently">
+                <i class="fas fa-trash-alt"></i>
+              </button>` :
+              `<button class="action-btn edit" 
+                      onclick="window.productManagementModule.editProduct(${item.id})" 
+                      title="Edit Product">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="action-btn view" 
+                      onclick="window.productManagementModule.viewProduct(${item.id})" 
+                      title="View Details">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="action-btn delete" 
+                      onclick="window.productManagementModule.deleteProduct(${item.id}, '${item.name.replace(/'/g, "\\'")}')" 
+                      title="Move to Trash">
+                <i class="fas fa-trash"></i>
+              </button>`
+            }
           </td>
         </tr>
       `
@@ -104,13 +146,38 @@ export class ProductManagementModule {
             </div>
             <div class="form-group">
               <label for="newProductCategory"><strong>Category: <span style="color: red;">*</span></strong></label>
-              <input type="text" id="newProductCategory" required placeholder="Enter category"
-                     style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+              <select id="newProductCategorySelect" onchange="window.productManagementModule.handleCategoryChange()"
+                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                <option value="" disabled selected>Select existing category</option>
+                ${this.getExistingCategories().map(category => 
+                  `<option value="${category}">${category}</option>`
+                ).join('')}
+                <option value="__custom__">+ Add New Category</option>
+              </select>
+              <div id="customCategoryContainer" style="display: none;">
+                <input type="text" id="newProductCategory" required placeholder="Enter new category name" 
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                <button type="button" onclick="window.productManagementModule.showCategoryDropdown()" 
+                        style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                  <i class="fas fa-arrow-left"></i> Back to Categories
+                </button>
+              </div>
+              <small style="color: #666; font-size: 0.8rem; margin-top: 0.25rem; display: block;">
+                Choose from existing categories or create a new one
+              </small>
             </div>
             <div class="form-group">
               <label for="newProductPrice"><strong>Price (₱): <span style="color: red;">*</span></strong></label>
               <input type="number" id="newProductPrice" step="0.01" min="0" required placeholder="0.00"
                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+              <div class="price-preview" style="margin-top: 0.5rem; padding: 0.75rem; background: #e3f2fd; border-radius: 5px; border: 1px solid #bbdefb;">
+                <div style="font-size: 0.8rem; color:rgb(0, 0, 0); margin-bottom: 0.25rem;">
+                  <i class="fas fa-calculator"></i> Price with VAT (12%)
+                </div>
+                <div id="priceWithVatPreview" style="font-size: 1rem; font-weight: bold; color:rgb(0, 0, 0);">
+                  ₱0.00
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label for="newProductMinStock"><strong>Minimum Stock:</strong></label>
@@ -178,6 +245,37 @@ export class ProductManagementModule {
     this.setupProductPreview()
   }
 
+  handleCategoryChange() {
+    const categorySelect = document.getElementById("newProductCategorySelect")
+    const categoryInput = document.getElementById("newProductCategory")
+    const customContainer = document.getElementById("customCategoryContainer")
+    
+    if (categorySelect.value === "__custom__") {
+      // Show custom input, hide dropdown
+      categorySelect.style.display = "none"
+      customContainer.style.display = "block"
+      categoryInput.focus()
+      categoryInput.value = ""
+    } else if (categorySelect.value) {
+      // Set the hidden input value to selected category
+      categoryInput.value = categorySelect.value
+    } else {
+      // Clear the hidden input if no selection
+      categoryInput.value = ""
+    }
+  }
+
+  showCategoryDropdown() {
+    const categorySelect = document.getElementById("newProductCategorySelect")
+    const customContainer = document.getElementById("customCategoryContainer")
+    
+    // Show dropdown, hide custom input
+    categorySelect.style.display = "block"
+    customContainer.style.display = "none"
+    categorySelect.value = ""
+    document.getElementById("newProductCategory").value = ""
+  }
+
   setupProductPreview() {
     const inputs = {
       name: document.getElementById("newProductName"),
@@ -187,9 +285,11 @@ export class ProductManagementModule {
       minStock: document.getElementById("newProductMinStock"),
     }
 
-    const preview = document.getElementById("newStockPreview")
+    const stockPreview = document.getElementById("newStockPreview")
+    const priceWithVatPreview = document.getElementById("priceWithVatPreview")
 
     const updatePreview = () => {
+      // Update stock preview
       const stock = Number.parseInt(inputs.stock.value) || 0
       const minStock = Number.parseInt(inputs.minStock.value) || 10
 
@@ -205,8 +305,17 @@ export class ProductManagementModule {
         stockColor = "#28a745"
       }
 
-      preview.textContent = `${stock} units - ${stockStatus}`
-      preview.style.color = stockColor
+      stockPreview.textContent = `${stock} units - ${stockStatus}`
+      stockPreview.style.color = stockColor
+
+      // Update price with VAT preview
+      const basePrice = Number.parseFloat(inputs.price.value) || 0
+      const vatRate = 0.12 // 12% VAT
+      const priceWithVat = basePrice * (1 + vatRate)
+      
+      if (priceWithVatPreview) {
+        priceWithVatPreview.textContent = `₱${priceWithVat.toFixed(2)}`
+      }
     }
 
     // Add event listeners
@@ -339,6 +448,14 @@ export class ProductManagementModule {
               <label for="editProductPrice"><strong>Price (₱):</strong></label>
               <input type="number" id="editProductPrice" value="${product.price}" step="0.01" min="0" required
                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+              <div class="price-preview" style="margin-top: 0.5rem; padding: 0.75rem; background: #e3f2fd; border-radius: 5px; border: 1px solid #bbdefb;">
+                <div style="font-size: 0.8rem; color:rgb(0, 0, 0); margin-bottom: 0.25rem;">
+                  <i class="fas fa-calculator"></i> Price with VAT (12%)
+                </div>
+                <div id="editPriceWithVatPreview" style="font-size: 1rem; font-weight: bold; color:rgb(0, 0, 0);">
+                  ₱${(product.price * 1.12).toFixed(2)}
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label for="editProductMinStock"><strong>Minimum Stock:</strong></label>
@@ -417,6 +534,7 @@ export class ProductManagementModule {
 
     this.modal.open("Edit Product", content, { preventOutsideClick: true })
     this.setupEditStockPreview(product.stock, product.min_stock)
+    this.setupEditVatPreview()
   }
 
   setupEditStockPreview(currentStock, minStock) {
@@ -445,6 +563,27 @@ export class ProductManagementModule {
 
     restockInput.addEventListener("input", updatePreview)
     setStockInput.addEventListener("input", updatePreview)
+  }
+
+  setupEditVatPreview() {
+    const priceInput = document.getElementById("editProductPrice")
+    const vatPreview = document.getElementById("editPriceWithVatPreview")
+
+    const updateVatPreview = () => {
+      const basePrice = parseFloat(priceInput.value) || 0
+      const vatRate = 0.12 // 12% VAT
+      const priceWithVat = basePrice * (1 + vatRate)
+      
+      if (vatPreview) {
+        vatPreview.textContent = `₱${priceWithVat.toFixed(2)}`
+      }
+    }
+
+    if (priceInput) {
+      priceInput.addEventListener("input", updateVatPreview)
+      // Update immediately with current value
+      updateVatPreview()
+    }
   }
 
   async saveProductChanges(event, productId) {
@@ -564,6 +703,12 @@ export class ProductManagementModule {
             <div class="info-row"><strong>Category:</strong> ${Utils.escapeHtml(product.category)}</div>
             <div class="info-row"><strong>Price:</strong> ${Utils.formatCurrency(product.price)}</div>
             <div class="info-row">
+              <strong>Price with VAT (12%):</strong> 
+              <span style="color: rgb(0, 0, 0); font-weight: bold; background: #e3f2fd; padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid #bbdefb;">
+                <i class="fas fa-calculator" style="margin-right: 0.25rem;"></i>${Utils.formatCurrency(product.price * 1.12)}
+              </span>
+            </div>
+            <div class="info-row">
               <strong>Current Stock:</strong> 
               <span style="color: ${this.getStockColor(product.stock, product.min_stock)}; font-weight: bold;">
                 ${product.stock}
@@ -604,24 +749,83 @@ export class ProductManagementModule {
   }
 
   async deleteProduct(id, name) {
-    if (!confirm(`Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`)) {
-      return
-    }
-
     try {
-      this.toast.info("Deleting product...")
-      const result = await this.api.deleteProduct(id)
-
-      if (result.success) {
-        this.toast.success(`"${name}" deleted successfully!`)
-        await this.loadProducts()
-      } else {
-        this.toast.error("Error deleting product: " + result.error)
+      const confirmed = await this.modal.confirm(
+        'Move to Trash',
+        `Are you sure you want to move "${name}" to trash? You can restore it later.`,
+        'Move to Trash',
+        'Cancel'
+      )
+      
+      if (confirmed) {
+        const result = await this.api.request(`inventory.php?id=${id}`, { method: 'DELETE' })
+        
+        if (result.success) {
+          this.toast.success(result.message || 'Product moved to trash successfully')
+          this.loadProducts(this.currentView)
+        } else {
+          this.toast.error(result.error || 'Failed to delete product')
+        }
       }
     } catch (error) {
-      console.error("Error deleting product:", error)
-      this.toast.error("Error deleting product: " + error.message)
+      console.error('Error deleting product:', error)
+      this.toast.error('Error deleting product: ' + error.message)
     }
+  }
+
+  async restoreProduct(id) {
+    try {
+      const confirmed = await this.modal.confirm(
+        'Restore Product',
+        'Are you sure you want to restore this product? It will be moved back to active products.',
+        'Restore',
+        'Cancel'
+      )
+      
+      if (confirmed) {
+        const result = await this.api.request(`inventory.php?id=${id}&action=restore`, { method: 'DELETE' })
+        
+        if (result.success) {
+          this.toast.success(result.message || 'Product restored successfully')
+          this.loadProducts(this.currentView)
+        } else {
+          this.toast.error(result.error || 'Failed to restore product')
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring product:', error)
+      this.toast.error('Error restoring product: ' + error.message)
+    }
+  }
+
+  async permanentDeleteProduct(id) {
+    try {
+      const confirmed = await this.modal.confirm(
+        'Permanent Delete',
+        'Are you sure you want to permanently delete this product? This action cannot be undone and will also delete associated image files.',
+        'Delete Permanently',
+        'Cancel',
+        'danger'
+      )
+      
+      if (confirmed) {
+        const result = await this.api.request(`inventory.php?id=${id}&action=permanent`, { method: 'DELETE' })
+        
+        if (result.success) {
+          this.toast.success(result.message || 'Product permanently deleted')
+          this.loadProducts(this.currentView)
+        } else {
+          this.toast.error(result.error || 'Failed to permanently delete product')
+        }
+      }
+    } catch (error) {
+      console.error('Error permanently deleting product:', error)
+      this.toast.error('Error permanently deleting product: ' + error.message)
+    }
+  }
+
+  switchView(viewType) {
+    this.loadProducts(viewType)
   }
 
   getStockColor(stock, minStock = 10) {

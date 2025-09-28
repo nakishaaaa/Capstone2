@@ -205,7 +205,7 @@ unset($_SESSION['super_admin_error']);
 <body>
     <div class="developer-container">
         <div class="developer-header">
-            <h1 class="developer-title">Super Admin Portal</h1>
+            <h1 class="developer-title">Developer Portal</h1>
         </div>
 
         <?php if (!empty($error)): ?>

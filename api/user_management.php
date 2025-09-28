@@ -22,11 +22,11 @@ function isValidCsrf($token) {
     return false;
 }
 
-// Check if user is admin - only admins can manage users
+// Check if user is admin or super admin - only admins can manage users
 $is_authorized = false;
 $user_role = $_SESSION['role'] ?? $_SESSION['admin_role'] ?? null;
 
-if ($user_role === 'admin') {
+if ($user_role === 'admin' || $user_role === 'super_admin') {
     $is_authorized = true;
 }
 
@@ -67,7 +67,13 @@ switch ($action) {
         editUser($pdo);
         break;
     case 'delete_user':
-        deleteUser($pdo);
+        softDeleteUser($pdo);
+        break;
+    case 'restore_user':
+        restoreUser($pdo);
+        break;
+    case 'permanent_delete':
+        permanentDeleteUser($pdo);
         break;
     case 'toggle_status':
         toggleUserStatus($pdo);
@@ -85,28 +91,47 @@ function getUsersList($pdo) {
         $search = $_GET['search'] ?? '';
         $role_filter = $_GET['role'] ?? 'all';
         $status_filter = $_GET['status'] ?? 'all';
+        $include_deleted = $_GET['include_deleted'] ?? 'false';
+        $include_customers = $_GET['include_customers'] ?? 'false';
         
-        $sql = "SELECT id, username, email, role, status, created_at, last_login FROM users WHERE role != 'user' AND role != 'super_admin'";
+        $sql = "SELECT u.id, u.username, u.email, u.role, u.status, u.created_at, u.last_login, 
+                       u.deleted_at, u.deletion_reason, du.username as deleted_by_username
+                FROM users u 
+                LEFT JOIN users du ON u.deleted_by = du.id 
+                WHERE u.role != 'super_admin'";
+        
+        // Exclude customer accounts for regular admin access
+        if ($include_customers !== 'true') {
+            $sql .= " AND u.role != 'user'";
+        }
         $params = [];
         
+        // Handle soft delete filter
+        if ($include_deleted === 'only') {
+            $sql .= " AND u.deleted_at IS NOT NULL";
+        } elseif ($include_deleted === 'false') {
+            $sql .= " AND u.deleted_at IS NULL";
+        }
+        // If include_deleted === 'true', show all users (active and deleted)
+        
         if (!empty($search)) {
-            $sql .= " AND (username LIKE ? OR email LIKE ?)";
+            $sql .= " AND (u.username LIKE ? OR u.email LIKE ?)";
             $searchTerm = "%$search%";
             $params[] = $searchTerm;
             $params[] = $searchTerm;
         }
         
         if ($role_filter !== 'all') {
-            $sql .= " AND role = ?";
+            $sql .= " AND u.role = ?";
             $params[] = $role_filter;
         }
         
         if ($status_filter !== 'all') {
-            $sql .= " AND status = ?";
+            $sql .= " AND u.status = ?";
             $params[] = $status_filter;
         }
         
-        $sql .= " ORDER BY created_at DESC";
+        $sql .= " ORDER BY u.deleted_at ASC, u.created_at DESC";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -238,9 +263,10 @@ function editUser($pdo) {
     }
 }
 
-function deleteUser($pdo) {
+function softDeleteUser($pdo) {
     try {
         $user_id = $_POST['user_id'] ?? '';
+        $reason = $_POST['reason'] ?? 'Deleted by administrator';
         
         if (empty($user_id)) {
             http_response_code(400);
@@ -256,19 +282,136 @@ function deleteUser($pdo) {
             return;
         }
         
-        // Delete user
+        // Check if user exists and is not already deleted
+        $stmt = $pdo->prepare("SELECT username, deleted_at FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['error' => 'User not found']);
+            return;
+        }
+        
+        if ($user['deleted_at']) {
+            http_response_code(400);
+            echo json_encode(['error' => 'User is already deleted']);
+            return;
+        }
+        
+        // Soft delete user
+        $stmt = $pdo->prepare("UPDATE users SET deleted_at = NOW(), deleted_by = ?, deletion_reason = ? WHERE id = ?");
+        $stmt->execute([$current_user_id, $reason, $user_id]);
+        
+        if ($stmt->rowCount() > 0) {
+            echo json_encode([
+                'success' => true, 
+                'message' => 'User account deactivated successfully',
+                'username' => $user['username']
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to deactivate user account']);
+        }
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to deactivate user: ' . $e->getMessage()]);
+    }
+}
+
+function restoreUser($pdo) {
+    try {
+        $user_id = $_POST['user_id'] ?? '';
+        
+        if (empty($user_id)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'User ID is required']);
+            return;
+        }
+        
+        // Check if user exists and is deleted
+        $stmt = $pdo->prepare("SELECT username, deleted_at FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['error' => 'User not found']);
+            return;
+        }
+        
+        if (!$user['deleted_at']) {
+            http_response_code(400);
+            echo json_encode(['error' => 'User is not deleted']);
+            return;
+        }
+        
+        // Restore user
+        $stmt = $pdo->prepare("UPDATE users SET deleted_at = NULL, deleted_by = NULL, deletion_reason = NULL WHERE id = ?");
+        $stmt->execute([$user_id]);
+        
+        if ($stmt->rowCount() > 0) {
+            echo json_encode([
+                'success' => true, 
+                'message' => 'User account restored successfully',
+                'username' => $user['username']
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to restore user account']);
+        }
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to restore user: ' . $e->getMessage()]);
+    }
+}
+
+function permanentDeleteUser($pdo) {
+    try {
+        $user_id = $_POST['user_id'] ?? '';
+        
+        if (empty($user_id)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'User ID is required']);
+            return;
+        }
+        
+        // Prevent self-deletion
+        $current_user_id = $_SESSION['admin_user_id'] ?? $_SESSION['user_id'] ?? null;
+        if ($user_id == $current_user_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Cannot permanently delete your own account']);
+            return;
+        }
+        
+        // Check if user exists
+        $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['error' => 'User not found']);
+            return;
+        }
+        
+        // Permanently delete user
         $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         
         if ($stmt->rowCount() > 0) {
-            echo json_encode(['success' => true, 'message' => 'User deleted successfully']);
+            echo json_encode([
+                'success' => true, 
+                'message' => 'User permanently deleted',
+                'username' => $user['username']
+            ]);
         } else {
-            http_response_code(404);
-            echo json_encode(['error' => 'User not found']);
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to permanently delete user']);
         }
     } catch (Exception $e) {
         http_response_code(500);
-        echo json_encode(['error' => 'Failed to delete user: ' . $e->getMessage()]);
+        echo json_encode(['error' => 'Failed to permanently delete user: ' . $e->getMessage()]);
     }
 }
 

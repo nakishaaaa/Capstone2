@@ -110,6 +110,35 @@ export class ApiClient {
     })
   }
 
+  // Raw Materials API methods
+  async getAllRawMaterials() {
+    return this.request("raw_materials.php")
+  }
+
+  async getRawMaterial(id) {
+    return this.request(`raw_materials.php?id=${id}`)
+  }
+
+  async createRawMaterial(materialData) {
+    return this.request("raw_materials.php", {
+      method: "POST",
+      body: JSON.stringify(materialData),
+    })
+  }
+
+  async updateRawMaterial(id, materialData) {
+    return this.request(`raw_materials.php?id=${id}`, {
+      method: "PUT",
+      body: JSON.stringify(materialData),
+    })
+  }
+
+  async deleteRawMaterial(id) {
+    return this.request(`raw_materials.php?id=${id}`, {
+      method: "DELETE",
+    })
+  }
+
   // Notifications API methods
   async getAllNotifications() {
     return this.request("notifications.php")

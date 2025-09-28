@@ -44,6 +44,229 @@ try {
             echo json_encode(['success' => true, 'message' => 'Maintenance mode updated']);
             break;
 
+        case 'get_support_conversations':
+            // Get conversations from support_tickets_messages table (same as admin support)
+            $query = "
+                SELECT 
+                    sm.conversation_id as ticket_id,
+                    sm.user_name as username,
+                    sm.user_email as customer_email,
+                    MAX(sm.created_at) AS last_updated,
+                    (SELECT COALESCE(NULLIF(TRIM(s2.subject), ''), 'General') FROM support_tickets_messages s2 
+                     WHERE s2.conversation_id = sm.conversation_id AND s2.is_admin = 0
+                     ORDER BY s2.created_at ASC LIMIT 1) AS subject,
+                    (SELECT s3.message FROM support_tickets_messages s3 
+                     WHERE s3.conversation_id = sm.conversation_id
+                     ORDER BY s3.created_at DESC LIMIT 1) AS last_message,
+                    (SELECT s4.is_admin FROM support_tickets_messages s4 
+                     WHERE s4.conversation_id = sm.conversation_id
+                     ORDER BY s4.created_at DESC LIMIT 1) AS last_message_is_admin,
+                    COUNT(*) AS message_count,
+                    SUM(CASE WHEN sm.is_admin = 0 AND sm.is_read = 0 THEN 1 ELSE 0 END) AS unread_user_messages,
+                    SUM(CASE WHEN sm.is_admin = 1 THEN 1 ELSE 0 END) AS admin_replies
+                FROM support_tickets_messages sm
+                GROUP BY sm.conversation_id, sm.user_name, sm.user_email
+                ORDER BY last_updated DESC
+            ";
+            
+            $result = $conn->query($query);
+            $conversations = [];
+            
+            if ($result) {
+                while ($row = $result->fetch_assoc()) {
+                    $conversations[] = [
+                        'ticket_id' => $row['ticket_id'],
+                        'username' => $row['username'],
+                        'subject' => $row['subject'],
+                        'status' => 'open',
+                        'priority' => 'medium',
+                        'created_at' => $row['last_updated'],
+                        'last_message_at' => $row['last_updated'],
+                        'last_message_by' => $row['last_message_is_admin'] ? 'admin' : 'customer',
+                        'unread_count' => (int)$row['unread_user_messages'],
+                        'customer_email' => $row['customer_email'],
+                        'last_message' => $row['last_message'],
+                        'message_count' => $row['message_count'],
+                        'admin_replies' => $row['admin_replies']
+                    ];
+                }
+            }
+            
+            // Stats - same as admin support
+            $totalStmt = $conn->query("SELECT COUNT(DISTINCT conversation_id) as total FROM support_tickets_messages");
+            $total = $totalStmt ? $totalStmt->fetch_assoc()['total'] : 0;
+            
+            $unreadStmt = $conn->query("SELECT COUNT(DISTINCT conversation_id) as unread FROM support_tickets_messages WHERE is_admin = 0 AND is_read = 0");
+            $unread = $unreadStmt ? $unreadStmt->fetch_assoc()['unread'] : 0;
+            
+            $repliedStmt = $conn->query("SELECT COUNT(DISTINCT conversation_id) as replied FROM support_tickets_messages WHERE is_admin = 1");
+            $replied = $repliedStmt ? $repliedStmt->fetch_assoc()['replied'] : 0;
+            
+            $stats = [
+                'total' => $total,
+                'unread' => $unread,
+                'replied' => $replied,
+                'active' => $total
+            ];
+            
+            echo json_encode([
+                'success' => true,
+                'data' => [
+                    'conversations' => $conversations,
+                    'stats' => $stats
+                ]
+            ]);
+            break;
+            
+        case 'get_conversation_messages':
+            $conversationId = $_GET['ticket_id'] ?? '';
+            
+            if (empty($conversationId)) {
+                echo json_encode(['success' => false, 'message' => 'Conversation ID is required']);
+                break;
+            }
+            
+            // Get messages from support_tickets_messages table (same as admin support)
+            $query = "
+                SELECT 
+                    id, conversation_id, user_name, user_email, admin_name, 
+                    subject, message, attachment_paths, is_admin, created_at, is_read
+                FROM support_tickets_messages 
+                WHERE conversation_id = ?
+                ORDER BY created_at ASC
+            ";
+            
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("s", $conversationId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $messages = [];
+            $ticket = null;
+            
+            while ($row = $result->fetch_assoc()) {
+                // Set ticket info from first message
+                if (!$ticket) {
+                    $ticket = [
+                        'conversation_id' => $row['conversation_id'],
+                        'username' => $row['user_name'],
+                        'customer_email' => $row['user_email'],
+                        'subject' => $row['subject']
+                    ];
+                }
+                
+                $messages[] = [
+                    'id' => $row['id'],
+                    'sender_type' => $row['is_admin'] ? 'admin' : 'customer',
+                    'sender_name' => $row['is_admin'] ? ($row['admin_name'] ?: 'Super Admin') : $row['user_name'],
+                    'message' => $row['message'],
+                    'attachment_path' => $row['attachment_paths'],
+                    'created_at' => $row['created_at'],
+                    'is_read' => $row['is_read']
+                ];
+            }
+            
+            if (empty($messages)) {
+                echo json_encode(['success' => false, 'message' => 'Conversation not found']);
+                break;
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'data' => [
+                    'ticket' => $ticket,
+                    'messages' => $messages
+                ]
+            ]);
+            break;
+            
+        case 'send_conversation_reply':
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            if (!$input) {
+                echo json_encode(['success' => false, 'message' => 'Invalid JSON input']);
+                break;
+            }
+            
+            $conversationId = $input['ticket_id'] ?? '';
+            $message = trim($input['message'] ?? '');
+            
+            if (empty($conversationId) || empty($message)) {
+                echo json_encode(['success' => false, 'message' => 'Conversation ID and message are required']);
+                break;
+            }
+            
+            if (strlen($message) > 2000) {
+                echo json_encode(['success' => false, 'message' => 'Message must be less than 2000 characters']);
+                break;
+            }
+            
+            $adminName = $_SESSION['username'] ?? 'Super Admin';
+            
+            // Get conversation details to get user info
+            $stmt = $conn->prepare("SELECT user_name, user_email, subject FROM support_tickets_messages WHERE conversation_id = ? LIMIT 1");
+            $stmt->bind_param("s", $conversationId);
+            $stmt->execute();
+            $conversation = $stmt->get_result()->fetch_assoc();
+            
+            if (!$conversation) {
+                echo json_encode(['success' => false, 'message' => 'Conversation not found']);
+                break;
+            }
+            
+            // Insert admin reply as a new message (same as admin support)
+            $stmt = $conn->prepare("
+                INSERT INTO support_tickets_messages 
+                (conversation_id, user_name, user_email, admin_name, subject, message, is_admin, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, TRUE, NOW())
+            ");
+            $stmt->bind_param("ssssss", 
+                $conversationId,
+                $conversation['user_name'],
+                $conversation['user_email'],
+                $adminName,
+                $conversation['subject'],
+                $message
+            );
+            
+            if ($stmt->execute()) {
+                // Mark all unread messages in this conversation as read
+                $markReadStmt = $conn->prepare("UPDATE support_tickets_messages SET is_read = TRUE WHERE conversation_id = ? AND is_admin = 0");
+                $markReadStmt->bind_param("s", $conversationId);
+                $markReadStmt->execute();
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Reply sent successfully'
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to send reply']);
+            }
+            break;
+            
+        case 'mark_conversation_read':
+            $input = json_decode(file_get_contents('php://input'), true);
+            $conversationId = $input['ticket_id'] ?? '';
+            
+            if (empty($conversationId)) {
+                echo json_encode(['success' => false, 'message' => 'Conversation ID is required']);
+                break;
+            }
+            
+            // Mark all unread customer messages in this conversation as read (same as admin support)
+            $stmt = $conn->prepare("UPDATE support_tickets_messages SET is_read = TRUE WHERE conversation_id = ? AND is_admin = 0");
+            $stmt->bind_param("s", $conversationId);
+            
+            if ($stmt->execute()) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Conversation marked as read'
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to mark conversation as read']);
+            }
+            break;
+
         case 'recent_activity':
             $stmt = $conn->prepare("
                 SELECT al.*, u.username 
@@ -433,23 +656,73 @@ try {
                 $conn->query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
                 $conn->query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE");
                 
-                // System errors from audit logs (last 24 hours) - technical issues only
+                // Enhanced system errors from audit logs (last 24 hours) - comprehensive error tracking
                 $errorQuery = "
                     SELECT 
                         al.id,
-                        'System Error Detected' as title,
+                        CASE 
+                            WHEN al.action LIKE '%javascript_error%' THEN 'JavaScript Error'
+                            WHEN al.action LIKE '%api_failure%' THEN 'API Failure'
+                            WHEN al.action LIKE '%file_%_error%' THEN 'File Operation Error'
+                            WHEN al.action LIKE '%db_%_warning%' THEN 'Database Warning'
+                            WHEN al.action LIKE '%payment_error%' THEN 'Payment Processing Error'
+                            WHEN al.action LIKE '%email_failure%' THEN 'Email Delivery Failure'
+                            WHEN al.action LIKE '%performance_warning%' THEN 'Performance Issue'
+                            WHEN al.action LIKE '%business_logic_error%' THEN 'Business Logic Error'
+                            WHEN al.action LIKE '%validation_failure%' THEN 'Validation Error'
+                            WHEN al.action LIKE '%resource_error%' THEN 'Resource Loading Error'
+                            WHEN al.action LIKE '%network_error%' THEN 'Network Connectivity Issue'
+                            WHEN al.action LIKE '%promise_rejection%' THEN 'Unhandled Promise Error'
+                            WHEN al.action LIKE '%session_%' THEN 'Session Management Issue'
+                            ELSE 'System Error Detected'
+                        END as title,
                         CONCAT('Action: ', al.action, ' - ', al.description) as message,
-                        'error' as type,
+                        CASE 
+                            WHEN al.action LIKE '%javascript_error%' OR al.action LIKE '%promise_rejection%' THEN 'warning'
+                            WHEN al.action LIKE '%performance_warning%' OR al.action LIKE '%db_%_warning%' THEN 'info'
+                            WHEN al.action LIKE '%payment_error%' OR al.action LIKE '%api_failure%' THEN 'error'
+                            ELSE 'error'
+                        END as type,
                         COALESCE(al.is_read, FALSE) as is_read,
                         al.created_at,
                         'system' as notification_source,
-                        'system_error' as system_type
+                        CASE 
+                            WHEN al.action LIKE '%javascript_error%' OR al.action LIKE '%promise_rejection%' OR al.action LIKE '%resource_error%' THEN 'client_error'
+                            WHEN al.action LIKE '%api_failure%' OR al.action LIKE '%network_error%' THEN 'api_error'
+                            WHEN al.action LIKE '%file_%_error%' THEN 'file_error'
+                            WHEN al.action LIKE '%db_%' THEN 'database_error'
+                            WHEN al.action LIKE '%payment_error%' THEN 'payment_error'
+                            WHEN al.action LIKE '%email_failure%' THEN 'email_error'
+                            WHEN al.action LIKE '%performance_warning%' THEN 'performance_issue'
+                            WHEN al.action LIKE '%business_logic_error%' THEN 'business_error'
+                            WHEN al.action LIKE '%validation_failure%' THEN 'validation_error'
+                            WHEN al.action LIKE '%session_%' THEN 'session_error'
+                            ELSE 'system_error'
+                        END as system_type
                     FROM audit_logs al
-                    WHERE (al.action LIKE '%error%' OR (al.action LIKE '%fail%' AND al.action NOT LIKE '%login_failed%'))
+                    WHERE (
+                        al.action LIKE '%error%' OR 
+                        al.action LIKE '%failure%' OR 
+                        al.action LIKE '%warning%' OR
+                        (al.action LIKE '%fail%' AND al.action NOT LIKE '%login_failed%') OR
+                        al.action LIKE '%javascript_error%' OR
+                        al.action LIKE '%promise_rejection%' OR
+                        al.action LIKE '%resource_error%' OR
+                        al.action LIKE '%network_error%' OR
+                        al.action LIKE '%api_failure%' OR
+                        al.action LIKE '%file_%_error%' OR
+                        al.action LIKE '%db_%_warning%' OR
+                        al.action LIKE '%payment_error%' OR
+                        al.action LIKE '%email_failure%' OR
+                        al.action LIKE '%performance_warning%' OR
+                        al.action LIKE '%business_logic_error%' OR
+                        al.action LIKE '%validation_failure%' OR
+                        al.action LIKE '%session_%'
+                    )
                     AND al.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                     AND COALESCE(al.deleted, FALSE) = FALSE
                     ORDER BY al.created_at DESC 
-                    LIMIT 10
+                    LIMIT 25
                 ";
                 
                 $stmt = $conn->prepare($errorQuery);

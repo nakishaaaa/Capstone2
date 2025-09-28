@@ -179,13 +179,16 @@ function isActiveForm($formName, $activeForm) {
         <div id="loginOverlay" class="login-overlay">
           <div class="login-content">
             <div class="login-card <?= isActiveForm('login', $activeForm); ?>" id="login-form">
+              <button type="button" class="close-btn" onclick="hideLoginOverlay()" title="Close">
+                <i class="fas fa-times"></i>
+              </button>
               <form action="login_register.php" method="post">
                 <div class="form-title">Login</div>
                 <?php showError($errors['login']); ?>
                 <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                 <input type="text" name="username" placeholder="Username" required>
                 <div class="input-container">
-                  <input type="password" name="password" id="login-password" placeholder="Password" required>
+                  <input type="password" name="password" id="login-password" placeholder="Password" style="padding-right: 50px;" required>
                   <button type="button" id="toggle-login-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
                     <img id="login-eye-icon" src="images/svg/eye.svg" alt="Show Password" width="20" height="20">
                   </button>
@@ -200,6 +203,9 @@ function isActiveForm($formName, $activeForm) {
 
             <!-- Forgot Password Card -->
             <div class="login-card forgot-card" id="forgot-form">
+              <button type="button" class="close-btn" onclick="hideLoginOverlay()" title="Close">
+                <i class="fas fa-times"></i>
+              </button>
               <div class="form-title">Forgot Password</div>
               
               <p style="text-align:center; color:#888; margin-bottom:2rem; font-size: 14px;">
@@ -219,6 +225,9 @@ function isActiveForm($formName, $activeForm) {
 
 
             <div class="login-card <?= isActiveForm('register', $activeForm); ?>" id="register-form">
+              <button type="button" class="close-btn" onclick="hideLoginOverlay()" title="Close">
+                <i class="fas fa-times"></i>
+              </button>
               <form action="login_register.php" method="post">
                 <h2>Register <span style="color: #4facfe;">•</span></h2>
                 <?php showError($errors['register']); ?>
@@ -226,39 +235,77 @@ function isActiveForm($formName, $activeForm) {
                 <div class="form-row">
                   <div class="form-group half-width">
                     <label for="first_name">First Name <span style="color: #4facfe;">*</span></label>
-                    <input type="text" name="first_name" id="first_name" placeholder="First Name" required>
+                    <input type="text" name="first_name" id="first_name" placeholder="First Name" minlength="2" maxlength="50" required>
                   </div>
                   <div class="form-group half-width">
                     <label for="last_name">Last Name <span style="color: #4facfe;">*</span></label>
-                    <input type="text" name="last_name" id="last_name" placeholder="Last Name" required>
+                    <input type="text" name="last_name" id="last_name" placeholder="Last Name" minlength="2" maxlength="50" required>
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group half-width">
                     <label for="username">Username <span style="color: #4facfe;">*</span></label>
-                    <input type="text" name="username" id="username" placeholder="Username" required>
+                    <input type="text" name="username" id="username" placeholder="Username (3-20 characters)" minlength="3" maxlength="20" pattern="[a-zA-Z0-9]{3,20}" title="Username must be 3-20 characters long and contain only letters and numbers" required>
                   </div>
                   <div class="form-group half-width">
                     <label for="contact_number">Contact Number <span style="color: #4facfe;">*</span></label>
                     <div class="contact-input-container">
                       <span class="country-code">+63</span>
-                      <input type="tel" name="contact_number" id="contact_number" placeholder="9123456789" maxlength="10" pattern="[0-9]{10}" required>
+                      <input type="tel" name="contact_number" id="contact_number" placeholder="9123456789" maxlength="10" pattern="[1-9][0-9]{9}" required>
                     </div>
                   </div>
                 </div>
                 <div class="form-group">
                   <label for="email">Email <span style="color: #4facfe;">*</span></label>
-                  <input type="email" name="email" id="email" placeholder="Email" required>
+                  <div class="email-requirement" id="email-requirement">
+                    <i class="fas fa-times requirement-icon"></i>
+                    <span>Email required</span>
+                  </div>
+                  <input type="email" name="email" id="email" placeholder="Use Gmail, Outlook, Yahoo, etc." required>
                 </div>
                 <div class="form-group">
                   <label for="register-password">Password <span style="color: #4facfe;">*</span></label>
-                  <div style="position:relative;">
-                    <input type="password" name="password" id="register-password" placeholder="Password" required>
-                    <button type="button" id="toggle-register-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
-                      <img id="register-eye-icon" src="images/svg/eye.svg" alt="Show Password" width="20" height="20">
-                    </button>
+                  <div class="password-input-row">
+                    <div class="password-input-container">
+                      <div style="position:relative;">
+                        <input type="password" name="password" id="register-password" placeholder="Password" minlength="8" maxlength="64" style="padding-right: 50px;" required>
+                        <button type="button" id="toggle-register-password" style="position:absolute;right:15px;top:43%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:0;">
+                          <img id="register-eye-icon" src="images/svg/eye.svg" alt="Show Password" width="20" height="20">
+                        </button>
+                      </div>
+                    </div>
+                    <div class="password-requirements-container">
+                      <div class="password-requirement" id="length-requirement">
+                        <i class="fas fa-times requirement-icon"></i>
+                        <span>Minimum 8 characters</span>
+                      </div>
+                      <div class="password-requirement" id="lowercase-requirement">
+                        <i class="fas fa-times requirement-icon"></i>
+                        <span>A lowercase letter</span>
+                      </div>
+                      <div class="password-requirement" id="uppercase-requirement">
+                        <i class="fas fa-times requirement-icon"></i>
+                        <span>A capital (uppercase) letter</span>
+                      </div>
+                      <div class="password-requirement" id="number-requirement">
+                        <i class="fas fa-times requirement-icon"></i>
+                        <span>A number</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
+                
+                <!-- Terms & Conditions Checkbox -->
+                <div class="form-group terms-checkbox-group">
+                  <label class="checkbox-container">
+                    <input type="checkbox" name="terms_agreement" id="terms_agreement" required>
+                    <span class="checkmark"></span>
+                    <span class="checkbox-text">
+                      I agree to the <a href="#" onclick="openTermsModal(); return false;" class="terms-link">Terms & Conditions</a> of this website
+                    </span>
+                  </label>
+                </div>
+                
                 <button type="submit" name="register">Register</button>
 
                 <p>Already have an account? <a href="#" onclick="showForm('login-form'); return false;">Login</a></p>
@@ -267,7 +314,7 @@ function isActiveForm($formName, $activeForm) {
           </div>
         </div>
       </div>
-      <div class="social-section">
+      <div class="social-section">p
         <div class="social-text">
           <span>Visit Our Socials</span>
           <i class="fas fa-arrow-down"></i>
@@ -293,7 +340,6 @@ function isActiveForm($formName, $activeForm) {
           <span class="ai-banner-title">NEW: AI Design Tools</span>
           <span class="ai-banner-subtitle">Generate & enhance images with AI • Powered by DeepAI</span>
         </div>
-        <span class="ai-banner-badge">TRY NOW</span>
       </div>
     </div>
 
@@ -512,6 +558,18 @@ function isActiveForm($formName, $activeForm) {
     if (forgotCard) {
       forgotCard.classList.add('active');
     }
+  }
+
+  function hideLoginOverlay() {
+    var overlay = document.getElementById('loginOverlay');
+    var heroLogo = document.getElementById('heroLogo');
+    
+    // Hide overlay and center logo
+    if (overlay) overlay.classList.remove('active');
+    if (heroLogo) heroLogo.classList.remove('slide-right');
+    
+    // Hide all cards
+    document.querySelectorAll(".login-card").forEach(form => form.classList.remove("active"));
   }
 
   function hideForgotForm() {
@@ -813,6 +871,300 @@ function isActiveForm($formName, $activeForm) {
       });
     }
     
+    // Contact number validation - prevent starting with 0
+    const contactNumberInput = document.getElementById('contact_number');
+    if (contactNumberInput) {
+      contactNumberInput.addEventListener('input', function(e) {
+        let value = e.target.value;
+        
+        // Remove any non-digit characters
+        value = value.replace(/\D/g, '');
+        
+        // If first digit is 0, remove it
+        if (value.startsWith('0')) {
+          value = value.substring(1);
+        }
+        
+        // Update the input value
+        e.target.value = value;
+      });
+      
+      contactNumberInput.addEventListener('keydown', function(e) {
+        // If input is empty and user tries to type 0, prevent it
+        if (e.target.value === '' && e.key === '0') {
+          e.preventDefault();
+          // Show a brief visual feedback
+          e.target.style.borderColor = '#ff4757';
+          setTimeout(() => {
+            e.target.style.borderColor = '';
+          }, 1000);
+        }
+      });
+      
+      contactNumberInput.addEventListener('paste', function(e) {
+        setTimeout(() => {
+          let value = e.target.value;
+          // Remove any non-digit characters
+          value = value.replace(/\D/g, '');
+          // If first digit is 0, remove it
+          if (value.startsWith('0')) {
+            value = value.substring(1);
+          }
+          e.target.value = value;
+        }, 0);
+      });
+    }
+    
+    // Username validation - 3-20 characters, letters and numbers only
+    const usernameInput = document.getElementById('username');
+    if (usernameInput) {
+      usernameInput.addEventListener('input', function(e) {
+        let value = e.target.value;
+        
+        // Remove invalid characters (keep only letters and numbers)
+        value = value.replace(/[^a-zA-Z0-9]/g, '');
+        
+        // Trim to 20 characters if longer
+        if (value.length > 20) {
+          value = value.substring(0, 20);
+        }
+        
+        // Update the input value
+        e.target.value = value;
+      });
+      
+      usernameInput.addEventListener('keydown', function(e) {
+        // Prevent invalid characters from being typed
+        const invalidChars = /[^a-zA-Z0-9]/;
+        if (invalidChars.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+          e.preventDefault();
+        }
+      });
+    }
+    
+    // First Name and Last Name validation - 2-50 characters, letters only
+    const firstNameInput = document.getElementById('first_name');
+    const lastNameInput = document.getElementById('last_name');
+    
+    function setupNameValidation(input) {
+      if (input) {
+        input.addEventListener('input', function(e) {
+          let value = e.target.value;
+          
+          // Remove invalid characters (keep only letters and spaces)
+          value = value.replace(/[^a-zA-Z\s]/g, '');
+          
+          // Trim to 50 characters if longer
+          if (value.length > 50) {
+            value = value.substring(0, 50);
+          }
+          
+          // Update the input value
+          e.target.value = value;
+        });
+        
+        input.addEventListener('keydown', function(e) {
+          // Prevent invalid characters from being typed
+          const invalidChars = /[^a-zA-Z\s]/;
+          if (invalidChars.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+            e.preventDefault();
+          }
+        });
+      }
+    }
+    
+    setupNameValidation(firstNameInput);
+    setupNameValidation(lastNameInput);
+    
+    // Email validation - legitimate providers only
+    const emailInput = document.getElementById('email');
+    const emailRequirement = document.getElementById('email-requirement');
+    
+    if (emailInput && emailRequirement) {
+      // List of allowed legitimate email domains
+      const allowedDomains = [
+        // Gmail
+        'gmail.com',
+        // Outlook / Hotmail / Live / MSN
+        'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+        // Yahoo Mail
+        'yahoo.com', 'ymail.com', 'rocketmail.com',
+        // iCloud Mail
+        'icloud.com', 'me.com', 'mac.com',
+        // AOL Mail
+        'aol.com',
+        // Zoho Mail
+        'zoho.com',
+        // Proton Mail
+        'protonmail.com', 'proton.me',
+        // GMX Mail
+        'gmx.com', 'gmx.net',
+        // Mail.com
+        'mail.com'
+      ];
+      
+      // List of disposable/temporary email domains to block
+      const disposableDomains = [
+        '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
+        'yopmail.com', 'temp-mail.org', 'throwaway.email', 'getnada.com',
+        'maildrop.cc', 'sharklasers.com', 'guerrillamailblock.com', 'tempail.com',
+        'dispostable.com', 'fakeinbox.com', 'spamgourmet.com', 'trashmail.com',
+        'emailondeck.com', 'mohmal.com', 'anonymbox.com', 'deadaddress.com'
+      ];
+      
+      function updateEmailRequirements() {
+        const email = emailInput.value.trim();
+        
+        // Basic email format validation
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        const isValidFormat = emailRegex.test(email);
+        
+        let isValidProvider = false;
+        let isDisposable = false;
+        
+        if (email.includes('@')) {
+          const domain = email.split('@')[1].toLowerCase();
+          isValidProvider = allowedDomains.includes(domain);
+          isDisposable = disposableDomains.includes(domain);
+        }
+        
+        // Update requirement indicator
+        if (email.length === 0) {
+          // Empty field - show neutral state
+          emailRequirement.classList.remove('valid', 'invalid');
+          emailRequirement.classList.add('invalid');
+        } else if (isValidFormat && isValidProvider && !isDisposable) {
+          // Valid email with legitimate provider
+          emailRequirement.classList.remove('invalid');
+          emailRequirement.classList.add('valid');
+        } else {
+          // Invalid email or not allowed provider
+          emailRequirement.classList.remove('valid');
+          emailRequirement.classList.add('invalid');
+        }
+      }
+      
+      emailInput.addEventListener('input', updateEmailRequirements);
+      emailInput.addEventListener('blur', updateEmailRequirements);
+      
+      // Initial check
+      updateEmailRequirements();
+    }
+    
+    // Password validation - comprehensive requirements
+    const passwordInput = document.getElementById('register-password');
+    const lengthRequirement = document.getElementById('length-requirement');
+    const lowercaseRequirement = document.getElementById('lowercase-requirement');
+    const uppercaseRequirement = document.getElementById('uppercase-requirement');
+    const numberRequirement = document.getElementById('number-requirement');
+    
+    if (passwordInput && lengthRequirement && lowercaseRequirement && uppercaseRequirement && numberRequirement) {
+      function updatePasswordRequirements() {
+        const password = passwordInput.value;
+        
+        // Check all requirements
+        const isValidLength = password.length >= 8 && password.length <= 64;
+        const hasLowercase = /[a-z]/.test(password);
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        
+        // Update length requirement
+        if (isValidLength) {
+          lengthRequirement.classList.remove('invalid');
+          lengthRequirement.classList.add('valid');
+        } else {
+          lengthRequirement.classList.remove('valid');
+          lengthRequirement.classList.add('invalid');
+        }
+        
+        // Update lowercase requirement
+        if (hasLowercase) {
+          lowercaseRequirement.classList.remove('invalid');
+          lowercaseRequirement.classList.add('valid');
+        } else {
+          lowercaseRequirement.classList.remove('valid');
+          lowercaseRequirement.classList.add('invalid');
+        }
+        
+        // Update uppercase requirement
+        if (hasUppercase) {
+          uppercaseRequirement.classList.remove('invalid');
+          uppercaseRequirement.classList.add('valid');
+        } else {
+          uppercaseRequirement.classList.remove('valid');
+          uppercaseRequirement.classList.add('invalid');
+        }
+        
+        // Update number requirement
+        if (hasNumber) {
+          numberRequirement.classList.remove('invalid');
+          numberRequirement.classList.add('valid');
+        } else {
+          numberRequirement.classList.remove('valid');
+          numberRequirement.classList.add('invalid');
+        }
+      }
+      
+      passwordInput.addEventListener('input', function(e) {
+        let value = e.target.value;
+        
+        // Trim to 64 characters if longer
+        if (value.length > 64) {
+          e.target.value = value.substring(0, 64);
+        }
+        
+        // Update visual indicators
+        updatePasswordRequirements();
+      });
+      
+      // Initial check
+      updatePasswordRequirements();
+    }
+    
+    // Add form validation to prevent submission with invalid password
+    const registerForm = document.querySelector('#register-form form');
+    if (registerForm) {
+      registerForm.addEventListener('submit', function(e) {
+        const password = passwordInput ? passwordInput.value : '';
+        const termsCheckbox = document.getElementById('terms_agreement');
+        
+        // Check all password requirements
+        const isValidLength = password.length >= 8 && password.length <= 64;
+        const hasLowercase = /[a-z]/.test(password);
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        
+        // Check if terms and conditions are agreed to
+        const termsAgreed = termsCheckbox ? termsCheckbox.checked : false;
+        
+        // If any requirement is not met, prevent submission
+        if (!isValidLength || !hasLowercase || !hasUppercase || !hasNumber) {
+          e.preventDefault();
+          
+          // Focus on password field to draw attention to the visual indicators
+          if (passwordInput) {
+            passwordInput.focus();
+          }
+          
+          return false;
+        }
+        
+        // Check terms and conditions
+        if (!termsAgreed) {
+          e.preventDefault();
+          alert('Please agree to the Terms & Conditions to continue.');
+          
+          // Focus on terms checkbox
+          if (termsCheckbox) {
+            termsCheckbox.focus();
+          }
+          
+          return false;
+        }
+      });
+    }
+
+    // Password toggle functionality
     function setupPasswordToggle(inputId, buttonId, iconId) {
       var input = document.getElementById(inputId);
       var button = document.getElementById(buttonId);
@@ -838,63 +1190,6 @@ function isActiveForm($formName, $activeForm) {
     }
     setupPasswordToggle('login-password', 'toggle-login-password', 'login-eye-icon');
     setupPasswordToggle('register-password', 'toggle-register-password', 'register-eye-icon');
-
-    // First name validation (only letters and spaces)
-    const firstNameInput = document.getElementById('first_name');
-    if (firstNameInput) {
-      firstNameInput.addEventListener('input', function(e) {
-        // Remove any non-letter and non-space characters
-        let value = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-        e.target.value = value;
-      });
-
-      firstNameInput.addEventListener('keypress', function(e) {
-        // Only allow letters and spaces
-        if (!/[a-zA-Z\s]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
-          e.preventDefault();
-        }
-      });
-    }
-
-    // Last name validation (only letters and spaces)
-    const lastNameInput = document.getElementById('last_name');
-    if (lastNameInput) {
-      lastNameInput.addEventListener('input', function(e) {
-        // Remove any non-letter and non-space characters
-        let value = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-        e.target.value = value;
-      });
-
-      lastNameInput.addEventListener('keypress', function(e) {
-        // Only allow letters and spaces
-        if (!/[a-zA-Z\s]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
-          e.preventDefault();
-        }
-      });
-    }
-
-    // Contact number validation
-    const contactInput = document.getElementById('contact_number');
-    if (contactInput) {
-      contactInput.addEventListener('input', function(e) {
-        // Remove any non-digit characters
-        let value = e.target.value.replace(/\D/g, '');
-        
-        // Limit to 10 digits
-        if (value.length > 10) {
-          value = value.slice(0, 10);
-        }
-        
-        e.target.value = value;
-      });
-
-      contactInput.addEventListener('keypress', function(e) {
-        // Only allow digits
-        if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
-          e.preventDefault();
-        }
-      });
-    }
 
     // Gallery Lightbox
     (function(){
@@ -1000,7 +1295,152 @@ function isActiveForm($formName, $activeForm) {
           }
         });
       });
+
+      // Highlight active navigation link based on scroll position
+      function updateActiveNavLink() {
+        const sections = document.querySelectorAll('section[id]');
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        let currentSection = '';
+        const scrollPosition = window.scrollY + window.innerHeight / 2; // Use middle of viewport
+        const documentHeight = document.documentElement.scrollHeight;
+        const windowHeight = window.innerHeight;
+        
+        // Check if we're at the bottom of the page
+        if (window.scrollY + windowHeight >= documentHeight - 50) {
+          // If at bottom, highlight the last section
+          const lastSection = sections[sections.length - 1];
+          if (lastSection) {
+            currentSection = lastSection.getAttribute('id');
+          }
+        } else {
+          // Normal section detection
+          sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.offsetHeight;
+            const sectionCenter = sectionTop + (sectionHeight / 2);
+            
+            if (scrollPosition >= sectionTop - 200 && scrollPosition <= sectionTop + sectionHeight + 200) {
+              currentSection = section.getAttribute('id');
+            }
+          });
+        }
+        
+        // Remove active class from all nav links
+        navLinks.forEach(link => {
+          link.classList.remove('active');
+        });
+        
+        // Add active class to current section's nav link
+        if (currentSection) {
+          const activeLink = document.querySelector(`.nav-link[href="#${currentSection}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+          }
+        }
+      }
+      
+      // Update active nav link on scroll
+      window.addEventListener('scroll', updateActiveNavLink);
+      
+      // Update active nav link on page load
+      updateActiveNavLink();
+    });
+
+    // Terms & Conditions Modal Functions
+    function openTermsModal() {
+      document.getElementById('termsModal').style.display = 'block';
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+
+    function closeTermsModal() {
+      document.getElementById('termsModal').style.display = 'none';
+      document.body.style.overflow = 'auto'; // Restore scrolling
+    }
+
+    // Close modal when clicking outside of it
+    window.onclick = function(event) {
+      const modal = document.getElementById('termsModal');
+      if (event.target == modal) {
+        closeTermsModal();
+      }
+    }
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        closeTermsModal();
+      }
     });
   </script>
+
+  <!-- Terms & Conditions Modal -->
+  <div id="termsModal" class="terms-modal">
+    <div class="terms-modal-content">
+      <div class="terms-modal-header">
+        <h2>Terms & Conditions</h2>
+        <span class="terms-close" onclick="closeTermsModal()">&times;</span>
+      </div>
+      <div class="terms-modal-body">
+        <div class="terms-text-content">
+          <h3>1. Information We Collect</h3>
+          <p>We collect personal information from you to provide and improve our services. The types of information we may collect include:</p>
+          
+          <h4>• Information You Provide Directly:</h4>
+          <ul>
+            <li><strong>Contact Information:</strong> Your name, email address, phone number, and physical address for order processing, shipping, and communication.</li>
+            <li><strong>Account Information:</strong> Your login credentials, user profile information, and order history.</li>
+            <li><strong>Custom Design Information:</strong> Any text, images, or data you upload or input into the AI-powered design generator to create your customized clothing designs.</li>
+            <li><strong>Payment Information:</strong> Details required to process payments, such as credit card numbers and billing addresses.</li>
+          </ul>
+
+          <h4>• Information Collected Automatically:</h4>
+          <ul>
+            <li><strong>Usage Data:</strong> We collect information about how you interact with the System, including the pages you visit, the features you use, and the time and duration of your use.</li>
+            <li><strong>Device Information:</strong> We may collect information about the device you use to access the System, such as your IP address, browser type, operating system, and unique device identifiers.</li>
+            <li><strong>Cookies and Tracking Technologies:</strong> We use cookies and similar technologies to enhance your experience, remember your preferences, and track your activity within the System.</li>
+          </ul>
+
+          <h3>2. How We Use Your Information</h3>
+          <p>We use the information we collect for the following purposes:</p>
+          <ul>
+            <li><strong>To Provide and Manage Our Services:</strong> To process your orders, manage your account, and provide customer support.</li>
+            <li><strong>To Personalize Your Experience:</strong> To enable the AI-powered design generator to create and save your customized designs.</li>
+            <li><strong>For Communication:</strong> To send you updates about your order, promotional materials (with your consent), and to respond to your inquiries.</li>
+            <li><strong>To Improve the System:</strong> To analyze usage patterns, troubleshoot issues, and enhance the functionality and performance of our services, including the AI design generator.</li>
+            <li><strong>For Security:</strong> To protect the integrity and security of the System and to detect and prevent fraud and unauthorized access.</li>
+            <li><strong>To Comply with Legal Obligations:</strong> To meet our legal and regulatory requirements.</li>
+          </ul>
+
+          <h3>3. Sharing and Disclosure of Information</h3>
+          <p>We do not sell or rent your personal information to third parties. We may share your information with trusted third parties in the following circumstances:</p>
+          <ul>
+            <li><strong>Service Providers:</strong> We may share your information with third-party vendors and service providers who perform functions on our behalf, such as payment processing, shipping, and data analysis. These parties are obligated to handle your information securely and confidentially.</li>
+            <li><strong>Legal Requirements:</strong> We may disclose your information if required by law, subpoena, or other legal process or if we have a good faith belief that disclosure is necessary to protect our rights, your safety, or the safety of others.</li>
+          </ul>
+
+          <h3>4. Data Security</h3>
+          <p>We are committed to protecting your personal information. We implement reasonable and appropriate technical and organizational measures to secure your data against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet or electronic storage is 100% secure.</p>
+
+          <h3>5. Your Rights and Choices</h3>
+          <p>Depending on your location and applicable law, you may have the following rights regarding your personal data:</p>
+          <ul>
+            <li><strong>Access and Correction:</strong> You have the right to request access to the personal information we hold about you and to request corrections to any inaccuracies.</li>
+            <li><strong>Deletion:</strong> You may request the deletion of your personal information, subject to certain legal obligations.</li>
+            <li><strong>Opt-out:</strong> You can opt-out of receiving promotional communications from us by following the unsubscribe instructions in the emails we send.</li>
+            <li><strong>Consent Withdrawal:</strong> You can withdraw your consent for the processing of your personal data at any time.</li>
+          </ul>
+
+          <h3>6. Contact Us</h3>
+          <p>If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at:</p>
+          <div class="contact-info">
+            <p><strong>Email:</strong> 053printsaturservice@gmail.com</p>
+            <p><strong>Phone:</strong> +63 966 530 4122</p>
+            <p><strong>Address:</strong> 53 San Ignacio St. Poblacion 1, San Jose del Monte, Philippines</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

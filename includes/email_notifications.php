@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../PHPMailer/PHPMailer.php';
 require_once __DIR__ . '/../PHPMailer/SMTP.php';
 require_once __DIR__ . '/../PHPMailer/Exception.php';
+require_once __DIR__ . '/enhanced_audit.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -31,13 +32,13 @@ class EmailNotifications {
             $mail->Host = "smtp.gmail.com";
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port = 587;
-            $mail->Username = "shaunyaaaa2044@gmail.com";
-            $mail->Password = "rpch syct umot fjjn";
+            $mail->Username = "053printsaturservice@gmail.com";
+            $mail->Password = "ipwy mhmi isoe musc"; // ipwy mhmi isoe musc //
             
             // Email settings
             $mail->isHTML(true);
-            $mail->setFrom("shaunyaaaa2044@gmail.com", "053 PRINTS");
-            $mail->addReplyTo("shaunyaaaa2044@gmail.com", "053 PRINTS Support");
+            $mail->setFrom("053printsaturservice@gmail.com", "053 PRINTS");
+            $mail->addReplyTo("053printsaturservice@gmail.com", "053 PRINTS Support");
             $mail->addAddress($to);
             
             $mail->Subject = $subject;
@@ -50,6 +51,7 @@ class EmailNotifications {
             
         } catch (Exception $e) {
             error_log("Email sending error: " . $e->getMessage());
+            logEmailError($to, $subject, $e->getMessage());
             return false;
         }
     }

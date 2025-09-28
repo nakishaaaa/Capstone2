@@ -11,7 +11,7 @@ function sendVerificationEmail($email, $username, $token) {
     try {
         $mail = require __DIR__ . "/mailer.php";
         
-        $mail->setFrom("noreply@053prints.com", "053 Prints");
+        $mail->setFrom("053printsaturservice@gmail.com", "053 Prints");
         $mail->addAddress($email, $username);
         $mail->Subject = "Verify Your Email Address - 053 Prints";
         

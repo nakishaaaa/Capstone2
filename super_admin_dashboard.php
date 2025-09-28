@@ -51,6 +51,7 @@ $unreadCount = 0;
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="css/super_admin.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/core/error-tracker.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -441,6 +442,12 @@ $unreadCount = 0;
             loadAuditTrails();
         }
 
+        // Make CSRF token available globally for soft delete functions
+        window.csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
+
     </script>
+    
+    <!-- Soft Delete Functions -->
+    <script src="js/soft-delete-functions.js"></script>
 </body>
 </html>

@@ -364,7 +364,8 @@ export class POSModule {
             <span>${Utils.formatCurrency(transactionData.total_amount - transactionData.tax_amount)}</span>
           </div>
           <div class="item">
-
+            <span>VAT (12%):</span>
+            <span>${Utils.formatCurrency(transactionData.tax_amount)}</span>
           </div>
           <div class="item">
             <strong>Total: ${Utils.formatCurrency(transactionData.total_amount)}</strong>
@@ -425,6 +426,14 @@ export class POSModule {
           `).join('')}
         </div>
         <div style="border-top: 1px solid #000; padding-top: 10px;">
+          <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+            <span>Subtotal:</span>
+            <span>₱${(transactionData.total_amount - transactionData.tax_amount).toFixed(2)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+            <span>VAT (12%):</span>
+            <span>₱${transactionData.tax_amount.toFixed(2)}</span>
+          </div>
           <div style="display: flex; justify-content: space-between; margin: 5px 0;">
             <span><strong>Total:</strong></span>
             <span><strong>₱${transactionData.total_amount.toFixed(2)}</strong></span>

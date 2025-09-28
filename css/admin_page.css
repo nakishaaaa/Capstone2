@@ -292,13 +292,173 @@
     color: #333;
   }
   
-  .inventory-table-container {
+  /* Inventory Tabs */
+  .inventory-tabs {
+    display: flex;
     background: white;
-    border-radius: 10px;
+    border-radius: 10px 10px 0 0;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 0;
     overflow: hidden;
   }
-  
+
+  .inventory-tab-btn {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+  }
+
+  .inventory-tab-btn:hover {
+    background: #e9ecef;
+    color: #333;
+  }
+
+  .inventory-tab-btn.active {
+    background: white;
+    color: #007bff;
+    border-bottom-color: #007bff;
+  }
+
+  .inventory-tab-btn i {
+    margin-right: 0.5rem;
+  }
+  .inventory-tab-content {
+    display: none;
+  }
+
+  .inventory-tab-content.active {
+    display: block;
+  }
+
+  /* Soft Delete View Toggle Buttons */
+  .inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .view-toggle-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .view-toggle-btn {
+    padding: 0.5rem 1rem;
+    border: 2px solid #dee2e6;
+    background-color: white;
+    color: #6c757d;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .view-toggle-btn:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    color: #495057;
+  }
+
+  .view-toggle-btn.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+  }
+
+  .view-toggle-btn.active:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+  }
+
+  /* Trash view specific styling */
+  #trashViewBtn.active {
+    background-color: #dc3545;
+    border-color: #dc3545;
+  }
+
+  #trashViewBtn.active:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+  }
+
+  /* Action button styling for soft delete */
+  .action-btn.restore {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .action-btn.restore:hover {
+    background-color: #218838;
+  }
+
+  .action-btn.delete-permanent {
+    background-color: #dc3545;
+    color: white;
+  }
+
+  .action-btn.delete-permanent:hover {
+    background-color: #c82333;
+  }
+
+  .action-btn.delete {
+    background-color: #ffc107;
+    color: #212529;
+  }
+
+  .action-btn.delete:hover {
+    background-color: #e0a800;
+  }
+
+  .action-btn.restock {
+    background-color: #17a2b8;
+    color: white;
+  }
+
+  .action-btn.restock:hover {
+    background-color: #138496;
+  }
+
+  /* Responsive design for view toggle */
+  @media (max-width: 768px) {
+    .inventory-header {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .view-toggle-buttons {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .view-toggle-btn {
+      flex: 1;
+      justify-content: center;
+    }
+  }
+
+  .inventory-table-container {
+    background: white;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-top: 0;
+  }
+
   .inventory-table {
     width: 100%;
     border-collapse: collapse;

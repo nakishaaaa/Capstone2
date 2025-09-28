@@ -55,9 +55,12 @@ export class NotificationsModule {
                         <div class="notification-icon">
                             <i class="fas fa-${this.getNotificationIcon(notification)}"></i>
                         </div>
-                        <div class="notification-content">
+                        <div class="notification-content" onclick="toggleNotificationText(${notification.id})">
                             <h4>${notification.title}</h4>
-                            <p>${notification.message.length > 80 ? notification.message.substring(0, 80) + '...' : notification.message}</p>
+                            <p class="notification-text" data-full-text="${notification.message.replace(/"/g, '&quot;')}" data-truncated="true">
+                                ${notification.message.length > 80 ? notification.message.substring(0, 80) + '...' : notification.message}
+                                ${notification.message.length > 80 ? '<span class="expand-hint"> (click to expand)</span>' : ''}
+                            </p>
                             <span class="notification-time">${new Date(notification.created_at).toLocaleString()}</span>
                             ${this.getNotificationBadge(notification)}
                         </div>
@@ -73,6 +76,9 @@ export class NotificationsModule {
                         </div>
                     </div>
                 `).join('');
+                
+                // Add the toggle function to window for global access
+                window.toggleNotificationText = this.toggleNotificationText;
             } else {
                 container.innerHTML = '<div class="no-notifications">No notifications found</div>';
             }
@@ -90,6 +96,27 @@ export class NotificationsModule {
         }
     }
 
+    toggleNotificationText(notificationId) {
+        const notificationItem = document.querySelector(`[data-notification-id="${notificationId}"]`);
+        if (!notificationItem) return;
+        
+        const textElement = notificationItem.querySelector('.notification-text');
+        const fullText = textElement.getAttribute('data-full-text');
+        const isTruncated = textElement.getAttribute('data-truncated') === 'true';
+        
+        if (isTruncated) {
+            // Expand to show full text
+            textElement.innerHTML = fullText + '<span class="expand-hint"> (click to collapse)</span>';
+            textElement.setAttribute('data-truncated', 'false');
+            notificationItem.classList.add('expanded');
+        } else {
+            // Collapse to show truncated text
+            const truncatedText = fullText.length > 80 ? fullText.substring(0, 80) + '...' : fullText;
+            textElement.innerHTML = truncatedText + (fullText.length > 80 ? '<span class="expand-hint"> (click to expand)</span>' : '');
+            textElement.setAttribute('data-truncated', 'true');
+            notificationItem.classList.remove('expanded');
+        }
+    }
 
     getNotificationIcon(notification) {
         // Handle customer support notifications

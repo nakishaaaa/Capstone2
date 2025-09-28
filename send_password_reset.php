@@ -29,7 +29,7 @@ if ($conn->affected_rows) {
 
     $mail = require __DIR__ . "/includes/mailer.php";
 
-    $mail->setFrom("noreply@example.com");
+    $mail->setFrom("053printsaturservice@gmail.com", "053 Prints");
     $mail->addAddress($email);
     $mail->Subject  = "Password Reset";
     $mail->Body = <<<END

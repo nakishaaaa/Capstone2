@@ -347,6 +347,15 @@ export class RequestsModule {
             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">Quantity</div>
             <div style="font-weight: 500; color: #2d3748;">${request.quantity || 'N/A'}</div>
           </div>
+          
+          ${request.category === 't-shirt-print' && request.size_breakdown ? `
+            <div class="info-item" style="grid-column: span 2;">
+              <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.5rem;">Size Breakdown</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem;">
+                ${this.renderSizeBreakdown(request.size_breakdown)}
+              </div>
+            </div>
+          ` : ''}
           <!-- Notes section consolidated below (with Show more/less) -->
 
           <div class="info-item">
@@ -1307,5 +1316,39 @@ export class RequestsModule {
     `;
     
     return html;
+  }
+  
+  renderSizeBreakdown(sizeBreakdownJson) {
+    try {
+      const sizeBreakdown = JSON.parse(sizeBreakdownJson);
+      
+      if (!Array.isArray(sizeBreakdown) || sizeBreakdown.length === 0) {
+        return '<span style="color: #718096; font-style: italic;">No size breakdown available</span>';
+      }
+      
+      const total = sizeBreakdown.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      
+      return `
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+          ${sizeBreakdown.map(item => `
+            <div style="
+              display: flex; 
+              align-items: center; 
+              background: #ffffff; 
+              border: 1px solid #cbd5e1; 
+              border-radius: 6px; 
+              padding: 0.25rem 0.5rem;
+              font-size: 0.8rem;
+            ">
+              <span style="font-weight: 600; color: #374151; margin-right: 0.25rem;">${this.escapeHtml(item.size)}</span>
+              <span style="color: #6b7280;">×${item.quantity}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } catch (error) {
+      console.error('Error parsing size breakdown:', error);
+      return '<span style="color: #ef4444; font-style: italic;">Error displaying size breakdown</span>';
+    }
   }
 }

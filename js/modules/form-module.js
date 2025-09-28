@@ -45,6 +45,12 @@ export class FormManager {
         this.backImageInput = document.getElementById('backImage');
         this.tagImageInput = document.getElementById('tagImage');
         this.tagLocationSelect = document.getElementById('tagLocation');
+        
+        // Size breakdown elements
+        this.sizeBreakdownGroup = document.getElementById('sizeBreakdownGroup');
+        this.sizeBreakdownGrid = document.getElementById('sizeBreakdownGrid');
+        this.sizeBreakdownTotal = document.getElementById('sizeBreakdownTotal');
+        this.quantityInput = document.getElementById('quantity');
     }
     
     setupEventListeners() {
@@ -56,6 +62,11 @@ export class FormManager {
         // Size change event (for custom size handling)
         if (this.sizeSelect) {
             this.sizeSelect.addEventListener('change', () => this.handleSizeChange());
+        }
+        
+        // Quantity change event (for size breakdown)
+        if (this.quantityInput) {
+            this.quantityInput.addEventListener('input', () => this.handleQuantityChange());
         }
         
         // Design option change event (for T-shirt customization choice)
@@ -120,17 +131,12 @@ export class FormManager {
     
     handleCategoryChange() {
         const selectedCategory = this.categorySelect.value;
-        console.log('Category changed to:', selectedCategory);
         
         // Clear all uploaded files when category changes
         this.clearAllUploadedFiles();
         
-        // Always hide custom size field when category changes
-        const customSizeGroup = document.getElementById('customSizeGroup');
+        // Clear custom size field when category changes
         const customSizeInput = document.getElementById('customSize');
-        if (customSizeGroup) {
-            customSizeGroup.style.display = 'none';
-        }
         if (customSizeInput) {
             customSizeInput.required = false;
             customSizeInput.value = '';
@@ -141,12 +147,14 @@ export class FormManager {
             this.enableSizeSelect();
             this.toggleTshirtFields(selectedCategory);
             this.toggleCardFields(selectedCategory);
+            this.toggleSizeBreakdown(selectedCategory);
             this.updateFileRequirements(selectedCategory);
         } else {
             this.clearSizeOptions();
             this.disableSizeSelect();
             this.toggleTshirtFields('');
             this.toggleCardFields('');
+            this.toggleSizeBreakdown('');
             this.updateFileRequirements('');
         }
     }
@@ -308,10 +316,44 @@ export class FormManager {
             // Prepare form data
             const formData = new FormData(this.requestForm);
             
+            // Debug: Log all files being sent
+            const frontImage = document.getElementById('frontImage');
+            const backImage = document.getElementById('backImage');
+            const tagImage = document.getElementById('tagImage');
+            const regularImage = document.getElementById('image');
+            
+            console.log('Files being sent:');
+            console.log('Front image files:', frontImage?.files?.length || 0);
+            console.log('Back image files:', backImage?.files?.length || 0);
+            console.log('Tag image files:', tagImage?.files?.length || 0);
+            console.log('Regular image files:', regularImage?.files?.length || 0);
+            
+            // Log FormData contents
+            console.log('FormData contents:');
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    console.log(`${key}: File - ${value.name} (${value.size} bytes)`);
+                } else {
+                    console.log(`${key}: ${value}`);
+                }
+            }
+            
+            // Add size breakdown data for T-shirt orders
+            const sizeBreakdownData = this.getSizeBreakdownData();
+            if (sizeBreakdownData) {
+                formData.append('size_breakdown', JSON.stringify(sizeBreakdownData));
+                console.log('Size breakdown data:', sizeBreakdownData);
+            }
+            
             // Add CSRF token
             const token = csrfService.getToken();
+            console.log('CSRF token:', token ? 'Present' : 'Missing');
             if (token) {
                 formData.append('csrf_token', token);
+            } else {
+                console.error('No CSRF token available');
+                window.showModal('error', 'Security token missing. Please refresh the page and try again.');
+                return;
             }
             
             // Submit request
@@ -321,7 +363,24 @@ export class FormManager {
                 credentials: 'include'
             });
             
+            console.log('Response status:', response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Response error:', errorText);
+                
+                if (response.status === 403) {
+                    // CSRF token issue - reload token and show specific error
+                    await csrfService.load();
+                    window.showModal('error', 'Security token expired. Please try submitting again.');
+                } else {
+                    window.showModal('error', `Server error (${response.status}): Please try again.`);
+                }
+                return;
+            }
+            
             const result = await response.json();
+            console.log('Response result:', result);
             
             if (result.success) {
                 window.showModal('success', result.message);
@@ -330,10 +389,6 @@ export class FormManager {
                 await csrfService.load();
             } else {
                 window.showModal('error', result.message || 'Failed to submit request');
-                // If CSRF error, reload token
-                if (response.status === 403) {
-                    await csrfService.load();
-                }
             }
             
         } catch (error) {
@@ -391,15 +446,15 @@ export class FormManager {
                 // Check if tag file is uploaded
                 const hasTagFile = tagImageInput && tagImageInput.files && tagImageInput.files.length > 0;
                 
-                // If tag file is uploaded, tag location is required
-                if (hasTagFile && tagLocationSelect && !tagLocationSelect.value) {
-                    window.showModal('error', 'Please select a tag location since you uploaded a tag design.');
+                // Tag is now required for T-shirt customization
+                if (!hasTagFile) {
+                    window.showModal('error', 'Tag design is required for T-shirt customization. Please upload a tag design.');
                     return false;
                 }
                 
-                // If tag location is selected but no tag file, show warning
-                if (!hasTagFile && tagLocationSelect && tagLocationSelect.value) {
-                    window.showModal('error', 'Please upload a tag design file or remove the tag location selection.');
+                // If tag file is uploaded, tag location is required
+                if (hasTagFile && tagLocationSelect && !tagLocationSelect.value) {
+                    window.showModal('error', 'Please select a tag location for your tag design.');
                     return false;
                 }
             }
@@ -461,6 +516,14 @@ export class FormManager {
                     window.showModal('error', 'File upload is required for this service. Please select at least one image or document file.');
                     return false;
                 }
+            }
+        }
+        
+        // Validate size breakdown for T-shirt orders
+        if (category === 't-shirt-print') {
+            if (!this.validateSizeBreakdown()) {
+                window.showModal('error', 'Size breakdown total must match the quantity and be greater than 0. Please adjust the size quantities.');
+                return false;
             }
         }
         
@@ -652,6 +715,24 @@ export class FormManager {
                 }
                 if (regularImageGroup) {
                     regularImageGroup.style.display = 'block';
+                }
+                
+                // Clear tag-related fields since they're not needed for ready designs
+                const tagImageInput = document.getElementById('tagImage');
+                const tagLocationSelect = document.getElementById('tagLocation');
+                if (tagImageInput) {
+                    tagImageInput.value = '';
+                    tagImageInput.required = false;
+                    // Clear file name display
+                    const fileNameSpan = tagImageInput.parentElement?.querySelector('.file-name');
+                    if (fileNameSpan) {
+                        fileNameSpan.textContent = 'No file chosen';
+                    }
+                }
+                if (tagLocationSelect) {
+                    tagLocationSelect.value = '';
+                    tagLocationSelect.required = false;
+                    tagLocationSelect.style.borderColor = ''; // Reset border styling
                 }
             } else {
                 // No design option selected yet, hide both upload sections
@@ -1047,6 +1128,168 @@ export class FormManager {
                 backImageLabel.innerHTML = 'Back Design';
             }
         }
+    }
+    
+    // Size breakdown methods
+    toggleSizeBreakdown(category) {
+        if (!this.sizeBreakdownGroup) return;
+        
+        if (category === 't-shirt-print') {
+            this.sizeBreakdownGroup.style.display = 'block';
+            this.generateSizeBreakdownInputs();
+        } else {
+            this.sizeBreakdownGroup.style.display = 'none';
+            this.clearSizeBreakdown();
+        }
+    }
+    
+    generateSizeBreakdownInputs() {
+        if (!this.sizeBreakdownGrid) return;
+        
+        // T-shirt sizes
+        const tshirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+        
+        this.sizeBreakdownGrid.innerHTML = '';
+        
+        tshirtSizes.forEach(size => {
+            const inputGroup = document.createElement('div');
+            inputGroup.className = 'size-input-group';
+            
+            const label = document.createElement('label');
+            label.textContent = size;
+            label.setAttribute('for', `size_${size}`);
+            
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.id = `size_${size}`;
+            input.name = `size_${size}`;
+            input.min = '0';
+            input.value = '0';
+            input.addEventListener('input', () => this.updateSizeBreakdownTotal());
+            
+            inputGroup.appendChild(label);
+            inputGroup.appendChild(input);
+            this.sizeBreakdownGrid.appendChild(inputGroup);
+        });
+        
+        this.updateSizeBreakdownTotal();
+    }
+    
+    handleQuantityChange() {
+        if (this.categorySelect.value === 't-shirt-print') {
+            this.updateSizeBreakdownTotal();
+        }
+    }
+    
+    updateSizeBreakdownTotal() {
+        if (!this.sizeBreakdownTotal || !this.quantityInput) return;
+        
+        const sizeInputs = this.sizeBreakdownGrid.querySelectorAll('input[type="number"]');
+        let total = 0;
+        
+        sizeInputs.forEach(input => {
+            total += parseInt(input.value) || 0;
+        });
+        
+        const targetQuantity = parseInt(this.quantityInput.value) || 0;
+        
+        this.sizeBreakdownTotal.textContent = total;
+        
+        // Update styling based on match
+        this.sizeBreakdownTotal.parentElement.classList.remove('error', 'success');
+        
+        if (targetQuantity > 0) {
+            if (total === targetQuantity) {
+                this.sizeBreakdownTotal.parentElement.classList.add('success');
+            } else if (total !== targetQuantity) {
+                this.sizeBreakdownTotal.parentElement.classList.add('error');
+            }
+        }
+    }
+    
+    clearSizeBreakdown() {
+        if (this.sizeBreakdownGrid) {
+            this.sizeBreakdownGrid.innerHTML = '';
+        }
+        if (this.sizeBreakdownTotal) {
+            this.sizeBreakdownTotal.textContent = '0';
+            this.sizeBreakdownTotal.parentElement.classList.remove('error', 'success');
+        }
+    }
+    
+    getSizeBreakdownData() {
+        if (this.categorySelect.value !== 't-shirt-print') {
+            return null;
+        }
+        
+        const sizeInputs = this.sizeBreakdownGrid.querySelectorAll('input[type="number"]');
+        const breakdown = [];
+        
+        sizeInputs.forEach(input => {
+            const quantity = parseInt(input.value) || 0;
+            if (quantity > 0) {
+                const size = input.id.replace('size_', '');
+                breakdown.push({ size, quantity });
+            }
+        });
+        
+        return breakdown.length > 0 ? breakdown : null;
+    }
+    
+    validateSizeBreakdown() {
+        if (this.categorySelect.value !== 't-shirt-print') {
+            return true; // No validation needed for non-T-shirt orders
+        }
+        
+        const targetQuantity = parseInt(this.quantityInput.value) || 0;
+        const sizeInputs = this.sizeBreakdownGrid.querySelectorAll('input[type="number"]');
+        let total = 0;
+        
+        sizeInputs.forEach(input => {
+            total += parseInt(input.value) || 0;
+        });
+        
+        return total === targetQuantity && total > 0;
+    }
+    
+    clearAllUploadedFiles() {
+        // List of all file input IDs
+        const fileInputs = [
+            'image',           // Regular image uploads
+            'frontImage',      // T-shirt front design
+            'backImage',       // T-shirt back design
+            'tagImage',        // T-shirt tag design
+            'cardFrontImage',  // Card front design
+            'cardBackImage'    // Card back design
+        ];
+        
+        fileInputs.forEach(inputId => {
+            const input = document.getElementById(inputId);
+            if (input) {
+                // Clear the file input
+                input.value = '';
+                
+                // Clear the file name display
+                const fileNameSpan = input.parentElement?.querySelector('.file-name');
+                if (fileNameSpan) {
+                    fileNameSpan.textContent = 'No file chosen';
+                }
+                
+                // Clear any file preview displays
+                const previewContainer = input.parentElement?.querySelector('.file-preview');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '';
+                }
+            }
+        });
+        
+        // Clear the regular image file display area
+        const fileDisplay = document.getElementById('fileDisplay');
+        if (fileDisplay) {
+            fileDisplay.innerHTML = '';
+        }
+        
+        console.log('All uploaded files cleared due to category change');
     }
 }
 

@@ -24,13 +24,13 @@ export class UserManagementModule {
                         <select id="roleFilter">
                             <option value="">All Roles</option>
                             <option value="admin">Admin</option>
-                            <option value="user">User</option>
                             <option value="cashier">Cashier</option>
+                            <option value="user">Customer</option>
                         </select>
-                        <select id="statusFilter">
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
+                        <select id="deletedFilter">
+                            <option value="false">Active Users</option>
+                            <option value="true">All Users</option>
+                            <option value="only">Deleted Users Only</option>
                         </select>
                     </div>
                 </div>
@@ -76,16 +76,8 @@ export class UserManagementModule {
                             <div class="form-group">
                                 <label for="role">Role</label>
                                 <select id="role" name="role" required>
-                                    <option value="user">User</option>
                                     <option value="admin">Admin</option>
                                     <option value="cashier">Cashier</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="status">Status</label>
-                                <select id="status" name="status" required>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
                                 </select>
                             </div>
                             <div class="form-group" id="passwordGroup">
@@ -100,6 +92,111 @@ export class UserManagementModule {
                         </form>
                     </div>
                 </div>
+
+                <!-- Soft Delete Confirmation Modal -->
+                <div id="deleteConfirmModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4>Deactivate User Account</h4>
+                            <span class="close" onclick="closeDeleteConfirmModal()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="delete-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <p>This will deactivate the user account but preserve all data.</p>
+                            </div>
+                            <div class="user-info">
+                                <p><strong>User:</strong> <span id="deleteUserName"></span></p>
+                                <p><strong>Email:</strong> <span id="deleteUserEmail"></span></p>
+                                <p><strong>Role:</strong> <span id="deleteUserRole"></span></p>
+                            </div>
+                            <div class="form-group">
+                                <label for="deletionReason">Reason for deactivation:</label>
+                                <textarea id="deletionReason" placeholder="Enter reason for deactivating this account..." rows="3"></textarea>
+                            </div>
+                            <div class="delete-options">
+                                <p><strong>What happens when you deactivate:</strong></p>
+                                <ul>
+                                    <li>✓ User cannot log in</li>
+                                    <li>✓ All data is preserved</li>
+                                    <li>✓ Account can be restored later</li>
+                                    <li>✓ Audit trail is maintained</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-danger" onclick="confirmSoftDelete()">
+                                <i class="fas fa-user-slash"></i> Deactivate Account
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="closeDeleteConfirmModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restore User Modal -->
+                <div id="restoreConfirmModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4>Restore User Account</h4>
+                            <span class="close" onclick="closeRestoreConfirmModal()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="restore-info">
+                                <i class="fas fa-user-check"></i>
+                                <p>This will restore the user account and allow them to log in again.</p>
+                            </div>
+                            <div class="user-info">
+                                <p><strong>User:</strong> <span id="restoreUserName"></span></p>
+                                <p><strong>Email:</strong> <span id="restoreUserEmail"></span></p>
+                                <p><strong>Deleted:</strong> <span id="restoreDeletedDate"></span></p>
+                                <p><strong>Reason:</strong> <span id="restoreDeletionReason"></span></p>
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-success" onclick="confirmRestore()">
+                                <i class="fas fa-undo"></i> Restore Account
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="closeRestoreConfirmModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Permanent Delete Confirmation Modal -->
+                <div id="permanentDeleteModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4>Permanent Delete Confirmation</h4>
+                            <span class="close" onclick="closePermanentDeleteModal()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="warning-message">
+                                <i class="fas fa-exclamation-triangle warning-icon"></i>
+                                <div>
+                                    <p><strong>This will permanently delete the user account and cannot be undone.</strong></p>
+                                    <p>User: <strong id="permanentDeleteUserName"></strong></p>
+                                </div>
+                            </div>
+                            
+                            <div class="user-details">
+                                <p><strong>Email:</strong> <span id="permanentDeleteUserEmail"></span></p>
+                                <p><strong>Deleted:</strong> <span id="permanentDeleteDate"></span></p>
+                                <p><strong>Reason:</strong> <span id="permanentDeleteReason"></span></p>
+                            </div>
+
+                            <div class="confirmation-section">
+                                <p>Type <strong>DELETE</strong> to confirm:</p>
+                                <input type="text" id="permanentDeleteConfirmation" placeholder="Type DELETE to confirm" class="confirmation-input">
+                                <div class="confirmation-status" id="confirmationStatus"></div>
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-danger" id="confirmPermanentDeleteBtn" onclick="executePermanentDelete()" disabled>
+                                <i class="fas fa-trash"></i> Delete Permanently
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="closePermanentDeleteModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
             </section>
         `;
         this.loadUsers();
@@ -109,7 +206,6 @@ export class UserManagementModule {
     setupUserFormHandlers() {
         const searchInput = document.getElementById('userSearch');
         const roleFilter = document.getElementById('roleFilter');
-        const statusFilter = document.getElementById('statusFilter');
 
         if (searchInput) {
             searchInput.addEventListener('input', () => {
@@ -124,9 +220,89 @@ export class UserManagementModule {
             roleFilter.addEventListener('change', () => this.loadUsers());
         }
 
-        if (statusFilter) {
-            statusFilter.addEventListener('change', () => this.loadUsers());
+        const deletedFilter = document.getElementById('deletedFilter');
+        if (deletedFilter) {
+            deletedFilter.addEventListener('change', () => this.loadUsers());
         }
+    }
+
+    async loadUsers() {
+        try {
+            const searchInput = document.getElementById('userSearch');
+            const roleFilter = document.getElementById('roleFilter');
+            const deletedFilter = document.getElementById('deletedFilter');
+            
+            const params = new URLSearchParams({
+                action: 'get_users',
+                search: searchInput?.value || '',
+                role: roleFilter?.value || 'all',
+                include_deleted: deletedFilter?.value || 'false',
+                include_customers: 'true'
+            });
+
+            const response = await fetch(`api/user_management.php?${params}`);
+            const data = await response.json();
+            if (data.success) {
+                this.renderUsersTable(data.users);
+            } else {
+                console.error('Error loading users:', data.error);
+                document.getElementById('usersTableBody').innerHTML = 
+                    '<tr><td colspan="7" class="error-loading">Error loading users: ' + data.error + '</td></tr>';
+            }
+        } catch (error) {
+            console.error('Error loading users:', error);
+            document.getElementById('usersTableBody').innerHTML = 
+                '<tr><td colspan="7" class="error-loading">Network error: ' + error.message + '</td></tr>';
+        }
+    }
+
+    renderUsersTable(users) {
+        const tbody = document.getElementById('usersTableBody');
+        
+        if (!users || users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="no-users">No users found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = users.map(user => {
+            const isDeleted = user.deleted_at !== null;
+            const rowClass = isDeleted ? 'deleted-user' : '';
+            
+            const statusBadge = isDeleted 
+                ? '<span class="status-badge deleted">Deleted</span>'
+                : `<span class="status-badge ${user.status}">${user.status.charAt(0).toUpperCase() + user.status.slice(1)}</span>`;
+            
+            const actions = isDeleted 
+                ? `<button class="action-btn restore-btn" onclick="showRestoreModal(${user.id}, '${user.username}', '${user.email}', '${user.deleted_at}', '${user.deletion_reason || ''}')" title="Restore User">
+                     <i class="fas fa-undo"></i>
+                   </button>
+                   <button class="action-btn permanent-delete-btn" onclick="permanentDeleteUser(${user.id}, '${user.username}', '${user.email}', '${user.deleted_at}', '${user.deletion_reason || ''}')" title="Permanent Delete">
+                     <i class="fas fa-trash-alt"></i>
+                   </button>`
+                : `<button class="action-btn edit-btn" onclick="editUser(${user.id})" title="Edit User">
+                     <i class="fas fa-edit"></i>
+                   </button>
+                   <button class="action-btn delete-btn" onclick="showSoftDeleteModal(${user.id}, '${user.username}', '${user.email}', '${user.role}')" title="Deactivate User">
+                     <i class="fas fa-user-slash"></i>
+                   </button>`;
+            
+            return `
+                <tr class="${rowClass}">
+                    <td>${user.id}</td>
+                    <td>
+                        <div class="user-info">
+                            <span class="username">${user.username}</span>
+                            ${isDeleted ? '<i class="fas fa-user-slash deleted-icon" title="Deleted User"></i>' : ''}
+                        </div>
+                    </td>
+                    <td>${user.email}</td>
+                    <td><span class="role-badge ${user.role}">${user.role === 'user' ? 'Customer' : user.role.charAt(0).toUpperCase() + user.role.slice(1)}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
+                    <td class="actions-cell">${actions}</td>
+                </tr>
+            `;
+        }).join('');
     }
 
     async saveUser() {
@@ -140,7 +316,6 @@ export class UserManagementModule {
             username: formData.get('username'),
             email: formData.get('email'),
             role: formData.get('role'),
-            status: formData.get('status'),
             password: formData.get('password') || ''
         };
 
@@ -199,34 +374,7 @@ export class UserManagementModule {
         }
     }
 
-    async deleteUser(userId) {
-        if (!confirm('Are you sure you want to delete this user account? This action cannot be undone.')) {
-            return;
-        }
-
-        try {
-            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'delete_user',
-                    user_id: userId
-                })
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                this.dashboard.showNotification(data.message, 'success');
-                this.loadUsers();
-            } else {
-                this.dashboard.showNotification(data.message, 'error');
-            }
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            this.dashboard.showNotification('Error deleting user', 'error');
-        }
-    }
+    // Soft delete functionality is now handled by global functions in soft-delete-functions.js
 
     showAddUserModal() {
         const modal = document.getElementById('userModal');
@@ -265,7 +413,6 @@ export class UserManagementModule {
                 document.getElementById('username').value = user.username || '';
                 document.getElementById('email').value = user.email || '';
                 document.getElementById('role').value = user.role || 'user';
-                document.getElementById('status').value = user.status || 'active';
                 
                 if (passwordGroup) {
                     passwordGroup.querySelector('input').required = false;
@@ -291,66 +438,5 @@ export class UserManagementModule {
         modal.style.opacity = '0';
     }
 
-    async loadUsers() {
-        try {
-            const searchInput = document.getElementById('userSearch');
-            const roleFilter = document.getElementById('roleFilter');
-            const statusFilter = document.getElementById('statusFilter');
-            
-            const searchTerm = searchInput ? searchInput.value : '';
-            const roleValue = roleFilter ? roleFilter.value : '';
-            const statusValue = statusFilter ? statusFilter.value : '';
-            
-            let url = 'api/superadmin_api/super_admin_actions.php?action=get_users';
-            
-            if (searchTerm) {
-                url += `&search=${encodeURIComponent(searchTerm)}`;
-            }
-            if (roleValue && roleValue !== 'all') {
-                url += `&role=${encodeURIComponent(roleValue)}`;
-            }
-            if (statusValue && statusValue !== 'all') {
-                url += `&status=${encodeURIComponent(statusValue)}`;
-            }
-            
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            const tbody = document.getElementById('usersTableBody');
-            
-            if (data.success && data.users) {
-                tbody.innerHTML = data.users.map(user => `
-                    <tr>
-                        <td>${user.id}</td>
-                        <td>
-                            <div class="user-info">
-                                <div class="user-details">
-                                    <h4>${user.username || 'Unknown User'}</h4>
-                                </div>
-                            </div>
-                        </td>
-                        <td>${user.email}</td>
-                        <td><span class="role-badge ${user.role}">${user.role.toUpperCase()}</span></td>
-                        <td><span class="status-badge ${user.status}">${user.status.toUpperCase()}</span></td>
-                        <td>${user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
-                        <td>
-                            <div class="action-buttons">
-                                <button onclick="editUser(${user.id})" class="action-btn edit-btn" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button onclick="deleteUser(${user.id})" class="action-btn delete-btn" title="Delete">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `).join('');
-            } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="no-data">No users found</td></tr>';
-            }
-        } catch (error) {
-            console.error('Error loading users:', error);
-            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="error-row">Error loading users</td></tr>';
-        }
-    }
+    // Old loadUsers method removed - using the new soft delete enabled version above
 }

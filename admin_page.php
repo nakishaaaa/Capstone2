@@ -41,6 +41,7 @@ if (!$isStaffLoggedIn) {
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/core/error-tracker.js"></script>
     <link rel="stylesheet" href="css/admin_page.css">
     
     
@@ -202,36 +203,100 @@ if (!$isStaffLoggedIn) {
             <section id="inventory" class="content-section">
                 <div class="section-header">
                     <h1>Inventory Management</h1>
-                    <div class="section-description">
-                        <p style="color: #666; font-size: 0.9rem; margin: 0;">Manage stock levels and restock products</p>
+                    <div class="section-actions">
+                        <button class="btn btn-success" id="addRawMaterialBtn" onclick="openAddRawMaterialModal()" style="display: none;">
+                            <i class="fas fa-plus"></i> Add Raw Material
+                        </button>
+                        <button class="btn btn-primary" onclick="refreshInventory()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
                     </div>
-                    <button class="btn btn-primary" onclick="refreshInventory()">
-                        <i class="fas fa-sync"></i> Refresh
+                </div>
+
+                <!-- Inventory Tabs -->
+                <div class="inventory-tabs">
+                    <button class="inventory-tab-btn active" data-tab="products" onclick="switchInventoryTab('products')">
+                        <i class="fas fa-box"></i> Products
+                    </button>
+                    <button class="inventory-tab-btn" data-tab="raw-materials" onclick="switchInventoryTab('raw-materials')">
+                        <i class="fas fa-industry"></i> Raw Materials
                     </button>
                 </div>
 
-                <div class="inventory-table-container">
-                    <h3 style="padding: 1rem;">Current Inventory Status</h3>
-                    <table class="inventory-table" id="inventoryTable">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Image</th>
-                                <th>Product Name</th>
-                                <th>Category</th>
-                                <th>Current Stock</th>
-                                <th>Minimum Stock</th>
-                                <th>Price (₱)</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventoryTableBody">
-                            <tr>
-                                <td colspan="9" style="text-align: center; padding: 2rem;">Loading inventory data...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Products Tab Content -->
+                <div id="products-tab-content" class="inventory-tab-content active">
+                    <div class="inventory-table-container">
+                        <div class="inventory-header">
+                            <h3 style="padding: 1rem; margin: 0;">Product Inventory</h3>
+                            <div class="view-toggle-buttons">
+                                <button class="view-toggle-btn active" id="activeViewBtn" onclick="window.inventoryModule?.switchView('active')">
+                                    <i class="fas fa-box"></i> Active Products
+                                </button>
+                                <button class="view-toggle-btn" id="trashViewBtn" onclick="window.inventoryModule?.switchView('trash')">
+                                    <i class="fas fa-trash"></i> Trash
+                                </button>
+                            </div>
+                        </div>
+                        <table class="inventory-table" id="inventoryTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Image</th>
+                                    <th>Product Name</th>
+                                    <th>Category</th>
+                                    <th>Current Stock</th>
+                                    <th>Minimum Stock</th>
+                                    <th>Price (₱)</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryTableBody">
+                                <tr>
+                                    <td colspan="9" style="text-align: center; padding: 2rem;">Loading inventory data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Raw Materials Tab Content -->
+                <div id="raw-materials-tab-content" class="inventory-tab-content">
+                    <div class="inventory-table-container">
+                        <div class="inventory-header">
+                            <h3 style="padding: 1rem; margin: 0;">Raw Materials Inventory</h3>
+                            <div class="view-toggle-buttons">
+                                <button class="view-toggle-btn active" id="activeRawMaterialsBtn" onclick="window.rawMaterialsModule?.switchView('active')">
+                                    <i class="fas fa-industry"></i> Active Materials
+                                </button>
+                                <button class="view-toggle-btn" id="trashRawMaterialsBtn" onclick="window.rawMaterialsModule?.switchView('trash')">
+                                    <i class="fas fa-trash"></i> Trash
+                                </button>
+                            </div>
+                        </div>
+                        <table class="inventory-table" id="rawMaterialsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Image</th>
+                                    <th>Material Name</th>
+                                    <th>Category</th>
+                                    <th>Supplier</th>
+                                    <th>Current Stock</th>
+                                    <th>Min Stock</th>
+                                    <th>Unit Cost (₱)</th>
+                                    <th>Unit Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rawMaterialsTableBody">
+                                <tr>
+                                    <td colspan="11" style="text-align: center; padding: 2rem;">Loading raw materials data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -312,6 +377,17 @@ if (!$isStaffLoggedIn) {
                 </div>
 
                 <div class="inventory-table-container">
+                    <div class="inventory-header">
+                        <h3 style="padding: 1rem; margin: 0;">Product Management</h3>
+                        <div class="view-toggle-buttons">
+                            <button class="view-toggle-btn active" id="activeProductsBtn" onclick="window.productManagementModule?.switchView('active')">
+                                <i class="fas fa-box"></i> Active Products
+                            </button>
+                            <button class="view-toggle-btn" id="trashProductsBtn" onclick="window.productManagementModule?.switchView('trash')">
+                                <i class="fas fa-trash"></i> Trash
+                            </button>
+                        </div>
+                    </div>
                     <table class="inventory-table" id="productsTable">
                         <thead>
                             <tr>
@@ -761,7 +837,6 @@ if (!$isStaffLoggedIn) {
                             <option value="all">All Roles</option>
                             <option value="admin">Admin</option>
                             <option value="cashier">Cashier</option>
-                            <option value="user">User</option>
                         </select>
                         <select id="statusFilter" onchange="filterUsers()" style="
                             padding: 0.5rem;
@@ -1161,6 +1236,52 @@ if (!$isStaffLoggedIn) {
         ?>
         window.csrfToken = '<?php echo $csrfToken; ?>';
         window.currentAdminId = <?php echo $_SESSION['admin_user_id'] ?? 'null'; ?>;
+
+        // Global functions for inventory management
+        function switchInventoryTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.inventory-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab-content`).classList.add('active');
+
+            // Show/hide add raw material button
+            const addRawMaterialBtn = document.getElementById('addRawMaterialBtn');
+            if (addRawMaterialBtn) {
+                addRawMaterialBtn.style.display = tabName === 'raw-materials' ? 'inline-flex' : 'none';
+            }
+
+            // Load appropriate data
+            if (tabName === 'products' && window.inventoryModule) {
+                window.inventoryModule.loadInventoryData();
+            } else if (tabName === 'raw-materials' && window.rawMaterialsModule) {
+                window.rawMaterialsModule.loadRawMaterials();
+            }
+        }
+
+        function openAddRawMaterialModal() {
+            if (window.rawMaterialsModule && window.rawMaterialsModule.openAddMaterialModal) {
+                window.rawMaterialsModule.openAddMaterialModal();
+            } else {
+                alert('Raw materials functionality is loading...');
+            }
+        }
+
+        // Update refresh inventory function to handle both tabs
+        function refreshInventory() {
+            const activeTab = document.querySelector('.inventory-tab-btn.active')?.dataset.tab;
+            if (activeTab === 'raw-materials' && window.rawMaterialsModule) {
+                window.rawMaterialsModule.loadRawMaterials();
+            } else if (window.inventoryModule) {
+                window.inventoryModule.refresh();
+            }
+        }
     </script>
     <script type="module" src="js/admin-dashboard.js"></script>
 </body>

@@ -8,6 +8,14 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/csrf.php';
 
+// Include PhpSpreadsheet
+require_once '../vendor/autoload.php';
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Font;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+
 header('Content-Type: application/json');
 
 // Check if user is logged in and has appropriate role (admin or cashier)
@@ -96,16 +104,14 @@ function generateSalesReport($pdo, $startDate, $endDate, $category, $paymentMeth
     
     $whereClause = implode(' AND ', $whereConditions);
     
-    // Get summary data
+    // Get summary data - Fixed to avoid JOIN multiplication issues
     $summaryQuery = "
         SELECT 
-            COUNT(DISTINCT s.id) as total_transactions,
-            COALESCE(SUM(DISTINCT s.total_amount), 0) as total_sales,
-            COALESCE(AVG(DISTINCT s.total_amount), 0) as avg_transaction
+            COUNT(*) as total_transactions,
+            COALESCE(SUM(total_amount), 0) as total_sales,
+            COALESCE(AVG(total_amount), 0) as avg_transaction
         FROM sales s
-        LEFT JOIN sales_items si ON s.id = si.sale_id
-        LEFT JOIN inventory i ON si.product_id = i.id
-        WHERE $whereClause
+        WHERE " . str_replace(['i.category = ?'], ['s.id IN (SELECT DISTINCT si.sale_id FROM sales_items si JOIN inventory i ON si.product_id = i.id WHERE i.category = ?)'], $whereClause) . "
     ";
     
     $stmt = $pdo->prepare($summaryQuery);
@@ -422,21 +428,20 @@ function getDetailedTransactions($pdo, $startDate, $endDate, $category, $payment
         error_log("WHERE clause: $whereClause");
         error_log("Parameters: " . json_encode($params));
     
-        // Updated query to include cashier information
+        // Updated query to avoid JOIN multiplication issues
+        $detailWhereClause = str_replace(['i.category = ?'], ['s.id IN (SELECT DISTINCT si.sale_id FROM sales_items si JOIN inventory i ON si.product_id = i.id WHERE i.category = ?)'], $whereClause);
+        
         $query = "
-            SELECT DISTINCT
+            SELECT 
                 s.transaction_id,
                 s.created_at,
                 s.payment_method,
                 s.total_amount,
-                COUNT(si.id) as items_count,
+                (SELECT COUNT(*) FROM sales_items si WHERE si.sale_id = s.id) as items_count,
                 COALESCE(u.username, 'System User') as cashier_name
             FROM sales s
-            LEFT JOIN sales_items si ON s.id = si.sale_id
-            LEFT JOIN inventory i ON si.product_id = i.id
             LEFT JOIN users u ON s.cashier_id = u.id
-            WHERE $whereClause
-            GROUP BY s.id, s.transaction_id, s.created_at, s.payment_method, s.total_amount, u.username
+            WHERE $detailWhereClause
             ORDER BY s.created_at DESC
             LIMIT 100
         ";
@@ -482,37 +487,86 @@ function getDetailedTransactions($pdo, $startDate, $endDate, $category, $payment
 function exportSalesReport($pdo, $startDate, $endDate, $category, $paymentMethod) {
     $reportData = generateSalesReport($pdo, $startDate, $endDate, $category, $paymentMethod);
     
-    // Create CSV content
-    $csvContent = "Sales Report - " . $startDate . " to " . $endDate . "\n\n";
+    // Create new Spreadsheet object
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Sales Report');
     
-    // Summary
-    $csvContent .= "SUMMARY\n";
-    $csvContent .= "Total Sales,₱" . number_format($reportData['summary']['totalSales'], 2) . "\n";
-    $csvContent .= "Total Transactions," . $reportData['summary']['totalTransactions'] . "\n";
-    $csvContent .= "Average Transaction,₱" . number_format($reportData['summary']['avgTransaction'], 2) . "\n";
-    $csvContent .= "Top Product," . $reportData['summary']['topProduct']['name'] . "\n\n";
+    $row = 1;
     
-    // Detailed transactions
-    $csvContent .= "DETAILED TRANSACTIONS\n";
-    $csvContent .= "Transaction ID,Date,Time,Payment Method,Amount,Items Count,Cashier\n";
+    // Title
+    $sheet->setCellValue('A' . $row, 'Sales Report - ' . $startDate . ' to ' . $endDate);
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(16);
+    $sheet->mergeCells('A' . $row . ':G' . $row);
+    $row += 2;
     
+    // Summary section
+    $sheet->setCellValue('A' . $row, 'SUMMARY');
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+    $sheet->getStyle('A' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('CCCCCC');
+    $sheet->mergeCells('A' . $row . ':G' . $row);
+    $row++;
+    
+    $sheet->setCellValue('A' . $row, 'Total Sales');
+    $sheet->setCellValue('B' . $row, '₱' . number_format($reportData['summary']['totalSales'], 2));
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+    $row++;
+    
+    $sheet->setCellValue('A' . $row, 'Total Transactions');
+    $sheet->setCellValue('B' . $row, $reportData['summary']['totalTransactions']);
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+    $row++;
+    
+    $sheet->setCellValue('A' . $row, 'Average Transaction');
+    $sheet->setCellValue('B' . $row, '₱' . number_format($reportData['summary']['avgTransaction'], 2));
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+    $row++;
+    
+    $sheet->setCellValue('A' . $row, 'Top Product');
+    $sheet->setCellValue('B' . $row, $reportData['summary']['topProduct']['name']);
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+    $row += 3;
+    
+    // Detailed transactions header
+    $sheet->setCellValue('A' . $row, 'DETAILED TRANSACTIONS');
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+    $sheet->getStyle('A' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('CCCCCC');
+    $sheet->mergeCells('A' . $row . ':G' . $row);
+    $row++;
+    
+    // Table headers
+    $headers = ['Transaction ID', 'Date', 'Time', 'Payment Method', 'Amount', 'Items Count', 'Cashier'];
+    $col = 'A';
+    foreach ($headers as $header) {
+        $sheet->setCellValue($col . $row, $header);
+        $sheet->getStyle($col . $row)->getFont()->setBold(true);
+        $sheet->getStyle($col . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
+        $col++;
+    }
+    $row++;
+    
+    // Transaction data
     foreach ($reportData['transactions'] as $transaction) {
         $date = date('Y-m-d', strtotime($transaction['created_at']));
         $time = date('H:i:s', strtotime($transaction['created_at']));
-        $csvContent .= sprintf(
-            "%s,%s,%s,%s,₱%s,%s,%s\n",
-            $transaction['transaction_id'],
-            $date,
-            $time,
-            strtoupper($transaction['payment_method']),
-            number_format($transaction['total_amount'], 2),
-            $transaction['items_count'],
-            $transaction['cashier_name'] ?? 'N/A'
-        );
+        
+        $sheet->setCellValue('A' . $row, $transaction['transaction_id']);
+        $sheet->setCellValue('B' . $row, $date);
+        $sheet->setCellValue('C' . $row, $time);
+        $sheet->setCellValue('D' . $row, strtoupper($transaction['payment_method']));
+        $sheet->setCellValue('E' . $row, '₱' . number_format($transaction['total_amount'], 2));
+        $sheet->setCellValue('F' . $row, $transaction['items_count']);
+        $sheet->setCellValue('G' . $row, $transaction['cashier_name'] ?? 'N/A');
+        $row++;
     }
     
-    // Save to file
-    $filename = 'sales_report_' . $startDate . '_to_' . $endDate . '_' . date('Y-m-d_H-i-s') . '.csv';
+    // Auto-size columns
+    foreach (range('A', 'G') as $col) {
+        $sheet->getColumnDimension($col)->setAutoSize(true);
+    }
+    
+    // Save as XLSX
+    $filename = 'sales_report_' . $startDate . '_to_' . $endDate . '_' . date('Y-m-d_H-i-s') . '.xlsx';
     $filepath = '../exports/' . $filename;
     
     // Create exports directory if it doesn't exist
@@ -520,7 +574,8 @@ function exportSalesReport($pdo, $startDate, $endDate, $category, $paymentMethod
         mkdir('../exports/', 0755, true);
     }
     
-    file_put_contents($filepath, $csvContent);
+    $writer = new Xlsx($spreadsheet);
+    $writer->save($filepath);
     
     return [
         'filename' => $filename,

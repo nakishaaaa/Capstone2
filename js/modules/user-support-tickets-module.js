@@ -158,7 +158,7 @@ export default class UserSupportTicketsModule {
         }
 
         const ticketsHTML = this.tickets.map(ticket => `
-            <div class="ticket-card" onclick="viewTicketDetails(${ticket.id})">
+            <div class="ticket-card" onclick="viewTicketDetails('${ticket.id}')">"
                 <div class="ticket-header">
                     <div class="ticket-id">#${ticket.id}</div>
                     <div class="ticket-status">
@@ -188,6 +188,8 @@ export default class UserSupportTicketsModule {
 
             if (data.success) {
                 this.currentTicket = data.ticket;
+                this.currentMessages = data.messages || [];
+                this.hasConversation = data.has_conversation || false;
                 this.renderTicketDetails();
                 
                 // Close tickets list modal and open details modal
@@ -206,18 +208,10 @@ export default class UserSupportTicketsModule {
         const contentEl = document.getElementById('ticketDetailsContent');
         const ticket = this.currentTicket;
 
-        const adminResponseHTML = ticket.admin_response ? `
-            <div class="admin-response-section">
-                <h4>Admin Response</h4>
-                <div class="admin-response">
-                    <div class="response-header">
-                        <strong>${ticket.admin_username || 'Admin'}</strong>
-                        <span class="response-date">${new Date(ticket.updated_at).toLocaleString()}</span>
-                    </div>
-                    <div class="response-message">${ticket.admin_response}</div>
-                </div>
-            </div>
-        ` : '<div class="no-response">No admin response yet.</div>';
+        // Render conversation or fallback to old format
+        const conversationHTML = this.hasConversation && this.currentMessages.length > 0 
+            ? this.renderConversation() 
+            : this.renderLegacyResponse();
 
         contentEl.innerHTML = `
             <div class="ticket-details">
@@ -250,21 +244,132 @@ export default class UserSupportTicketsModule {
                     ` : ''}
                 </div>
                 
-                <div class="ticket-message-section">
-                    <h4>Your Message</h4>
-                    <div class="original-message">${ticket.message}</div>
-                    ${ticket.attachment_path ? `
-                        <div class="attachment-section" style="text-align: left; margin-top: 10px;">
-                            <a href="${this.getAttachmentUrl(ticket.attachment_path)}" target="_blank" style="color: #007bff; text-decoration: underline;">
-                                ${ticket.original_filename || ticket.attachment_path.split('/').pop()}
-                            </a>
-                        </div>
-                    ` : ''}
-                </div>
+                ${this.hasConversation ? '' : `
+                    <div class="ticket-message-section">
+                        <h4>Your Message</h4>
+                        <div class="original-message">${this.getOriginalMessage()}</div>
+                        ${ticket.attachment_path ? `
+                            <div class="attachment-section" style="text-align: left; margin-top: 10px;">
+                                <a href="${this.getAttachmentUrl(ticket.attachment_path)}" target="_blank" style="color: #007bff; text-decoration: underline;">
+                                    ${ticket.original_filename || ticket.attachment_path.split('/').pop()}
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+                `}
                 
-                ${adminResponseHTML}
+                ${conversationHTML}
             </div>
         `;
+    }
+
+    renderConversation() {
+        if (!this.currentMessages || this.currentMessages.length === 0) {
+            return `
+                <div class="chat-container">
+                    <div class="chat-messages-area">
+                        <div class="no-messages">
+                            <i class="fas fa-comments"></i>
+                            <p>No messages in this conversation yet.</p>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <div class="chat-input-container">
+                            <textarea id="customerReplyInput" placeholder="Write a reply..." rows="3"></textarea>
+                            <button id="sendCustomerReplyBtn" class="send-btn" onclick="userSupportTickets.sendReply()">
+                                <i class="fas fa-paper-plane"></i> Send reply
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const messagesHTML = this.currentMessages.map(message => {
+            const isAdmin = message.sender_type === 'admin';
+            const messageClass = isAdmin ? 'message-left' : 'message-right';
+            const bubbleClass = isAdmin ? 'bubble-support' : 'bubble-customer';
+            
+            return `
+                <div class="chat-message ${messageClass}">
+                    <div class="message-bubble ${bubbleClass}">
+                        <div class="message-text">${message.message.replace(/\n/g, '<br>')}</div>
+                        ${message.attachment_path ? `
+                            <div class="message-attachment">
+                                <i class="fas fa-paperclip"></i>
+                                <a href="${this.getAttachmentUrl(message.attachment_path)}" target="_blank">View Attachment</a>
+                            </div>
+                        ` : ''}
+                        <div class="message-time">${message.time_ago}</div>
+                    </div>
+                    <div class="message-sender">${isAdmin ? '🛡️ Support Team' : '👤 You'}</div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="chat-container">
+                <div class="chat-messages-area" id="chatMessagesArea">
+                    ${messagesHTML}
+                </div>
+                <div class="chat-input-area">
+                    <div class="chat-input-container">
+                        <textarea id="customerReplyInput" placeholder="Write a reply..." rows="3"></textarea>
+                        <button id="sendCustomerReplyBtn" class="send-btn" onclick="userSupportTickets.sendReply()">
+                            <i class="fas fa-paper-plane"></i> Send reply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderLegacyResponse() {
+        const ticket = this.currentTicket;
+        
+        // Show original message first
+        let html = `
+            <div class="ticket-message-section">
+                <h4>Your Message</h4>
+                <div class="original-message">${ticket.message}</div>
+                ${ticket.attachment_path ? `
+                    <div class="attachment-section" style="text-align: left; margin-top: 10px;">
+                        <a href="${this.getAttachmentUrl(ticket.attachment_path)}" target="_blank" style="color: #007bff; text-decoration: underline;">
+                            ${ticket.original_filename || ticket.attachment_path.split('/').pop()}
+                        </a>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        // Show admin response if exists
+        if (ticket.admin_response) {
+            html += `
+                <div class="admin-response-section">
+                    <h4>Support Team Response</h4>
+                    <div class="admin-response">
+                        <div class="response-header">
+                            <strong>${ticket.admin_username || 'Support Team'}</strong>
+                            <span class="response-date">${new Date(ticket.updated_at).toLocaleString()}</span>
+                        </div>
+                        <div class="response-message">${ticket.admin_response}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            html += '<div class="no-response">No response from support team yet.</div>';
+        }
+
+        return html;
+    }
+
+    getOriginalMessage() {
+        // Get the first customer message from the conversation
+        if (this.currentMessages && this.currentMessages.length > 0) {
+            const firstCustomerMessage = this.currentMessages.find(msg => msg.sender_type === 'customer');
+            return firstCustomerMessage ? firstCustomerMessage.message : 'No message found';
+        }
+        return this.currentTicket?.message || 'No message found';
     }
 
     getAttachmentUrl(attachmentPath) {
@@ -279,9 +384,60 @@ export default class UserSupportTicketsModule {
         return attachmentPath;
     }
 
+    async sendReply() {
+        const replyInput = document.getElementById('customerReplyInput');
+        const message = replyInput.value.trim();
+        
+        if (!message) {
+            this.showError('Please enter a message');
+            return;
+        }
+        
+        if (!this.currentTicket || !this.currentTicket.id) {
+            this.showError('No ticket selected');
+            return;
+        }
+        
+        try {
+            const response = await fetch('api/customer_reply.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    conversation_id: this.currentTicket.id,
+                    message: message
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                replyInput.value = '';
+                // Refresh the conversation
+                await this.viewTicketDetails(this.currentTicket.id);
+                // Scroll to bottom
+                const messagesArea = document.getElementById('chatMessagesArea');
+                if (messagesArea) {
+                    messagesArea.scrollTop = messagesArea.scrollHeight;
+                }
+            } else {
+                this.showError('Failed to send message: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error sending reply:', error);
+            this.showError('Error sending message');
+        }
+    }
+
     showError(message) {
         // You can implement a toast notification here
         console.error(message);
         alert(message); // Temporary fallback
+    }
+
+    showSuccess(message) {
+        console.log(message);
+        // You can implement a toast notification here
     }
 }

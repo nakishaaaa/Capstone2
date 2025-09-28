@@ -517,6 +517,16 @@ export class OrderManagementModule {
                     </div>
                 </div>
 
+                ${order.category === 't-shirt-print' && order.size_breakdown ? `
+                    <!-- Size Breakdown -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: #6b7280; font-size: 0.875rem; font-weight: 500;">Size Breakdown</h4>
+                        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem;">
+                            ${this.renderSizeBreakdown(order.size_breakdown)}
+                        </div>
+                    </div>
+                ` : ''}
+
                 <!-- Total Price -->
                 <div style="margin-bottom: 1.5rem;">
                     <h4 style="margin: 0 0 0.5rem 0; color: #6b7280; font-size: 0.875rem; font-weight: 500;">Total Price</h4>
@@ -1180,6 +1190,38 @@ export class OrderManagementModule {
         `
         document.body.appendChild(toast)
         setTimeout(() => toast.remove(), type === 'success' ? 3000 : 5000)
+    }
+
+    renderSizeBreakdown(sizeBreakdownJson) {
+        try {
+            const sizeBreakdown = JSON.parse(sizeBreakdownJson);
+            
+            if (!Array.isArray(sizeBreakdown) || sizeBreakdown.length === 0) {
+                return '<span style="color: #6b7280; font-style: italic;">No size breakdown available</span>';
+            }
+            
+            return `
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                    ${sizeBreakdown.map(item => `
+                        <div style="
+                            display: flex; 
+                            align-items: center; 
+                            background: #ffffff; 
+                            border: 1px solid #d1d5db; 
+                            border-radius: 6px; 
+                            padding: 0.25rem 0.5rem;
+                            font-size: 0.8rem;
+                        ">
+                            <span style="font-weight: 600; color: #374151; margin-right: 0.25rem;">${this.escapeHtml(item.size)}</span>
+                            <span style="color: #6b7280;">×${item.quantity}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error parsing size breakdown:', error);
+            return '<span style="color: #ef4444; font-style: italic;">Error displaying size breakdown</span>';
+        }
     }
 }
 

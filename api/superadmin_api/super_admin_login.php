@@ -20,7 +20,7 @@ if (empty($username) || empty($password)) {
 
 try {
     // Check for super admin user
-    $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ? AND role = 'super_admin'");
+    $stmt = $conn->prepare("SELECT id, username, password, role, deleted_at FROM users WHERE username = ? AND role = 'super_admin'");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -30,6 +30,13 @@ try {
         
         // Verify password
         if (password_verify($password, $user['password'])) {
+            // Check if account is soft deleted (deactivated)
+            if (isset($user['deleted_at']) && $user['deleted_at'] !== null) {
+                $_SESSION['super_admin_error'] = 'Your account has been deactivated. Please contact the system administrator.';
+                header('Location: ../../superadminlog.php');
+                exit();
+            }
+            
             // Log successful login using audit helper
             logLoginEvent($user['id'], $user['username'], 'super_admin');
             

@@ -50,13 +50,30 @@ try {
 function getAllProducts() {
     global $pdo;
     try {
+        // Check if we want to include deleted items (for admin trash view)
+        $includeDeleted = isset($_GET['include_deleted']) && $_GET['include_deleted'] === 'true';
+        $onlyDeleted = isset($_GET['only_deleted']) && $_GET['only_deleted'] === 'true';
+        
+        $whereClause = '';
+        if ($onlyDeleted) {
+            $whereClause = "WHERE deleted_at IS NOT NULL";
+        } elseif (!$includeDeleted) {
+            $whereClause = "WHERE deleted_at IS NULL AND status = 'active'";
+        } else {
+            $whereClause = "WHERE status = 'active'";
+        }
+        
         $stmt = $pdo->query("SELECT *, 
             CASE 
                 WHEN stock <= 0 THEN 'Out of Stock'
                 WHEN stock <= min_stock THEN 'Low Stock'
                 ELSE 'In Stock'
-            END as stock_status
-            FROM inventory WHERE status = 'active' ORDER BY stock DESC, name");
+            END as stock_status,
+            CASE 
+                WHEN deleted_at IS NOT NULL THEN 'deleted'
+                ELSE 'active'
+            END as delete_status
+            FROM inventory $whereClause ORDER BY deleted_at ASC, stock DESC, name");
         $products = $stmt->fetchAll();
         
         // Add image URLs if missing and ensure stock is integer
@@ -79,13 +96,21 @@ function getAllProducts() {
 function getProduct($id) {
     global $pdo;
     try {
+        // Allow viewing deleted products if explicitly requested (for admin restore functionality)
+        $includeDeleted = isset($_GET['include_deleted']) && $_GET['include_deleted'] === 'true';
+        $whereClause = $includeDeleted ? "WHERE id = ?" : "WHERE id = ? AND deleted_at IS NULL AND status = 'active'";
+        
         $stmt = $pdo->prepare("SELECT *, 
             CASE 
                 WHEN stock = 0 THEN 'Out of Stock'
                 WHEN stock <= min_stock THEN 'Low Stock'
                 ELSE 'In Stock'
-            END as stock_status
-            FROM inventory WHERE id = ? AND status = 'active'");
+            END as stock_status,
+            CASE 
+                WHEN deleted_at IS NOT NULL THEN 'deleted'
+                ELSE 'active'
+            END as delete_status
+            FROM inventory $whereClause");
         $stmt->execute([$id]);
         $product = $stmt->fetch();
         
@@ -133,11 +158,11 @@ function createProduct($data) {
 function updateProduct($id, $data) {
     global $pdo;
     try {
-        // Check if product exists
-        $stmt = $pdo->prepare("SELECT id FROM inventory WHERE id = ? AND status = 'active'");
+        // Check if product exists and is not soft deleted
+        $stmt = $pdo->prepare("SELECT id FROM inventory WHERE id = ? AND deleted_at IS NULL AND status = 'active'");
         $stmt->execute([$id]);
         if (!$stmt->fetch()) {
-            echo json_encode(['success' => false, 'error' => 'Product not found']);
+            echo json_encode(['success' => false, 'error' => 'Product not found or has been deleted']);
             return;
         }
         
@@ -202,17 +227,75 @@ function updateProduct($id, $data) {
 function deleteProduct($id) {
     global $pdo;
     try {
-        // Soft delete 
-        $stmt = $pdo->prepare("UPDATE inventory SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        // Check if this is a restore operation
+        $action = $_GET['action'] ?? 'delete';
+        
+        if ($action === 'restore') {
+            return restoreProduct($id);
+        } elseif ($action === 'permanent') {
+            return permanentDeleteProduct($id);
+        }
+        
+        // Regular soft delete
+        $stmt = $pdo->prepare("UPDATE inventory SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL");
         $stmt->execute([$id]);
         
         if ($stmt->rowCount() > 0) {
-            echo json_encode(['success' => true, 'message' => 'Product deleted successfully']);
+            echo json_encode(['success' => true, 'message' => 'Product moved to trash successfully']);
         } else {
-            echo json_encode(['success' => false, 'error' => 'Product not found']);
+            echo json_encode(['success' => false, 'error' => 'Product not found or already deleted']);
         }
     } catch(PDOException $e) {
         error_log("Database error in deleteProduct: " . $e->getMessage());
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+}
+
+function restoreProduct($id) {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("UPDATE inventory SET deleted_at = NULL, status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NOT NULL");
+        $stmt->execute([$id]);
+        
+        if ($stmt->rowCount() > 0) {
+            echo json_encode(['success' => true, 'message' => 'Product restored successfully']);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Product not found in trash']);
+        }
+    } catch(PDOException $e) {
+        error_log("Database error in restoreProduct: " . $e->getMessage());
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+}
+
+function permanentDeleteProduct($id) {
+    global $pdo;
+    try {
+        // First check if the product is soft deleted
+        $stmt = $pdo->prepare("SELECT id, image_url FROM inventory WHERE id = ? AND deleted_at IS NOT NULL");
+        $stmt->execute([$id]);
+        $product = $stmt->fetch();
+        
+        if (!$product) {
+            echo json_encode(['success' => false, 'error' => 'Product not found in trash']);
+            return;
+        }
+        
+        // Delete the product permanently
+        $stmt = $pdo->prepare("DELETE FROM inventory WHERE id = ?");
+        $stmt->execute([$id]);
+        
+        // Optionally delete associated image file
+        if (!empty($product['image_url']) && $product['image_url'] !== 'images/placeholder.jpg') {
+            $imagePath = '../' . $product['image_url'];
+            if (file_exists($imagePath)) {
+                unlink($imagePath);
+            }
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Product permanently deleted']);
+    } catch(PDOException $e) {
+        error_log("Database error in permanentDeleteProduct: " . $e->getMessage());
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
 }

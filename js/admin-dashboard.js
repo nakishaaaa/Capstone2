@@ -2,6 +2,7 @@ import { ToastManager } from "./components/toast-manager.js"
 import { ModalManager } from "./components/modal-manager.js"
 import { DashboardModule } from "./modules/dashboard-module.js"
 import { InventoryModule } from "./modules/inventory-module.js"
+import { RawMaterialsModule } from "./modules/raw-materials-module.js"
 import { POSModule } from "./modules/pos-module.js"
 import { ProductManagementModule } from "./modules/product-management-module.js"
 import { NotificationsModule } from "./modules/notifications-module.js"
@@ -66,6 +67,7 @@ class AdminDashboard {
       // Initialize modules
       this.modules.dashboard = new DashboardModule(this.toast)
       this.modules.inventory = new InventoryModule(this.toast, this.modal)
+      this.modules.rawMaterials = new RawMaterialsModule(this.toast, this.modal)
       this.modules.pos = new POSModule(this.toast)
       this.modules.productManagement = new ProductManagementModule(this.toast, this.modal)
       this.modules.notifications = new NotificationsModule(this.toast)
@@ -84,6 +86,7 @@ class AdminDashboard {
       // Make modules globally accessible for onclick handlers
       window.modalManager = this.modal
       window.inventoryModule = this.modules.inventory
+      window.rawMaterialsModule = this.modules.rawMaterials
       window.posModule = this.modules.pos
       window.productManagementModule = this.modules.productManagement
       window.notificationsModule = this.modules.notifications
@@ -190,6 +193,11 @@ class AdminDashboard {
           break
         case "inventory":
           await this.modules.inventory.loadInventoryData()
+          // Load raw materials if on raw materials tab
+          const activeTab = document.querySelector('.inventory-tab-btn.active')?.dataset.tab
+          if (activeTab === 'raw-materials') {
+            await this.modules.rawMaterials.loadRawMaterials()
+          }
           break
         case "pos":
           await this.modules.pos.loadProducts()

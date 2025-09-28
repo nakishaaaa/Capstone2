@@ -309,7 +309,14 @@ class UserManagementModule {
     }
 
     async deleteUser(userId) {
-        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        const confirmed = await this.showConfirmModal(
+            'Delete User', 
+            'Are you sure you want to delete this user? This action cannot be undone.',
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) {
             return;
         }
 
@@ -420,7 +427,7 @@ class UserManagementModule {
         if (window.toastManager) {
             window.toastManager.show(message, 'success');
         } else {
-            alert(message);
+            this.showCustomModal(message, 'success');
         }
     }
 
@@ -429,8 +436,222 @@ class UserManagementModule {
         if (window.toastManager) {
             window.toastManager.show(message, 'error');
         } else {
-            alert('Error: ' + message);
+            this.showCustomModal(message, 'error');
         }
+    }
+
+    showCustomModal(message, type) {
+        // Remove any existing custom modal
+        const existingModal = document.getElementById('customMessageModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create modal HTML
+        const modal = document.createElement('div');
+        modal.id = 'customMessageModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+
+        const iconColor = type === 'success' ? '#10b981' : '#ef4444';
+        const icon = type === 'success' ? 
+            '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' :
+            '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                border-radius: 12px;
+                padding: 2rem;
+                max-width: 400px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            ">
+                <div style="
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    background: ${iconColor}20;
+                    color: ${iconColor};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 1rem auto;
+                ">
+                    ${icon}
+                </div>
+                <h3 style="
+                    margin: 0 0 0.5rem 0;
+                    color: #1f2937;
+                    font-size: 1.125rem;
+                    font-weight: 600;
+                ">
+                    ${type === 'success' ? 'Success' : 'Error'}
+                </h3>
+                <p style="
+                    margin: 0 0 1.5rem 0;
+                    color: #6b7280;
+                    font-size: 0.875rem;
+                    line-height: 1.5;
+                ">
+                    ${message}
+                </p>
+                <button onclick="document.getElementById('customMessageModal').remove()" style="
+                    background: ${iconColor};
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 0.5rem 1.5rem;
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    OK
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Auto-remove after 5 seconds for success messages
+        if (type === 'success') {
+            setTimeout(() => {
+                if (document.getElementById('customMessageModal')) {
+                    modal.remove();
+                }
+            }, 5000);
+        }
+    }
+
+    showConfirmModal(title, message, confirmText = 'OK', cancelText = 'Cancel') {
+        return new Promise((resolve) => {
+            // Remove any existing confirm modal
+            const existingModal = document.getElementById('customConfirmModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Create modal HTML
+            const modal = document.createElement('div');
+            modal.id = 'customConfirmModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+
+            modal.innerHTML = `
+                <div style="
+                    background: white;
+                    border-radius: 12px;
+                    padding: 2rem;
+                    max-width: 400px;
+                    width: 90%;
+                    text-align: center;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                ">
+                    <div style="
+                        width: 48px;
+                        height: 48px;
+                        border-radius: 50%;
+                        background: #fef3c7;
+                        color: #f59e0b;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin: 0 auto 1rem auto;
+                    ">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                        </svg>
+                    </div>
+                    <h3 style="
+                        margin: 0 0 0.5rem 0;
+                        color: #1f2937;
+                        font-size: 1.125rem;
+                        font-weight: 600;
+                    ">
+                        ${title}
+                    </h3>
+                    <p style="
+                        margin: 0 0 1.5rem 0;
+                        color: #6b7280;
+                        font-size: 0.875rem;
+                        line-height: 1.5;
+                    ">
+                        ${message}
+                    </p>
+                    <div style="display: flex; gap: 0.75rem; justify-content: center;">
+                        <button id="confirmCancel" style="
+                            background: #f3f4f6;
+                            color: #374151;
+                            border: 1px solid #d1d5db;
+                            border-radius: 6px;
+                            padding: 0.5rem 1.5rem;
+                            font-size: 0.875rem;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        " onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
+                            ${cancelText}
+                        </button>
+                        <button id="confirmOk" style="
+                            background: #ef4444;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            padding: 0.5rem 1.5rem;
+                            font-size: 0.875rem;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                            ${confirmText}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Add event listeners
+            document.getElementById('confirmOk').onclick = () => {
+                modal.remove();
+                resolve(true);
+            };
+
+            document.getElementById('confirmCancel').onclick = () => {
+                modal.remove();
+                resolve(false);
+            };
+
+            // Close on backdrop click
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    resolve(false);
+                }
+            };
+        });
     }
 }
 

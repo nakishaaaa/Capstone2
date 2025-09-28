@@ -27,7 +27,6 @@ if (!$isUserLoggedIn) {
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="dns-prefetch" href="//fonts.googleapis.com">
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" rel="stylesheet">
@@ -35,11 +34,119 @@ if (!$isUserLoggedIn) {
     <title>053 PRINTS - User Dashboard</title>
     <link rel="stylesheet" href="css/user_page.css">
     <link rel="stylesheet" href="css/user-support-tickets.css">
+    
+    <style>
+        /* Account form styling - inline to ensure it loads */
+        #updateAccountForm .info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        #updateAccountForm .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #updateAccountForm .info-item label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #updateAccountForm .input-container {
+            position: relative;
+        }
+
+        #updateAccountForm .input-container input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: #fff;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        #updateAccountForm .input-container input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        #updateAccountForm .input-container input:hover {
+            border-color: #c3c8cd;
+        }
+
+        #updateAccountForm .readonly-field {
+            padding: 12px 16px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            color: #6c757d;
+            font-size: 16px;
+            display: block;
+        }
+
+        #updateAccountForm .form-help {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        /* Button styling */
+        #updateAccountForm .btn-success {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #updateAccountForm .btn-success:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+            /* Removed box-shadow to eliminate green shadow */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #updateAccountForm .info-grid {
+                gap: 15px;
+            }
+            
+            #updateAccountForm .input-container input,
+            #updateAccountForm .readonly-field {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
+    <div class="header-container">
         <header class="header">
-            <div class="home-icon">
+            <div class="header-left">
+                <div class="menu-toggle" id="menuToggle">
+                    <div class="hamburger">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
                 <button class="home-btn" id="homeBtn" title="Back to Top">
                     <i class="fas fa-home"></i>
                 </button>
@@ -209,6 +316,22 @@ if (!$isUserLoggedIn) {
                                     </select>
                                 </div>
                             </div>
+                            
+                            <!-- Size Breakdown for T-shirt Print - Full Width -->
+                            <div class="form-group full-width" id="sizeBreakdownGroup" style="display: none;">
+                                <label>Size Breakdown</label>
+                                <div class="size-breakdown-container">
+                                    <div class="size-breakdown-header">
+                                        <small>Specify quantity for each size (total must match quantity above)</small>
+                                    </div>
+                                    <div class="size-breakdown-grid" id="sizeBreakdownGrid">
+                                        <!-- Size breakdown inputs will be generated here -->
+                                    </div>
+                                    <div class="size-breakdown-total">
+                                        <span>Total: <span id="sizeBreakdownTotal">0</span> pieces</span>
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- T-shirt Print Specific Fields -->
                             <div id="tshirtFields" class="tshirt-customization-fields" style="display: none;">
@@ -240,7 +363,7 @@ if (!$isUserLoggedIn) {
                                 
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label for="tagImage">Tag (if applicable)</label>
+                                        <label for="tagImage">Tag <span style="color:#ff0000;">*</span></label>
                                         <div class="file-upload">
                                             <input type="file" id="tagImage" name="tag_image" accept="image/*,.pdf">
                                             <label for="tagImage" class="file-upload-label">
@@ -277,7 +400,7 @@ if (!$isUserLoggedIn) {
                                     <div class="form-group">
                                         <label for="cardFrontImage">Front Design <span class="required">*</span></label>
                                         <div class="file-upload">
-                                            <input type="file" id="cardFrontImage" name="front_image" accept="image/*,.pdf">
+                                            <input type="file" id="cardFrontImage" name="card_front_image" accept="image/*,.pdf">
                                             <label for="cardFrontImage" class="file-upload-label">
                                                 <i class="fas fa-download"></i>
                                                 <span>Choose Front Design</span>
@@ -289,7 +412,7 @@ if (!$isUserLoggedIn) {
                                     <div class="form-group">
                                         <label for="cardBackImage">Back Design</label>
                                         <div class="file-upload">
-                                            <input type="file" id="cardBackImage" name="back_image" accept="image/*,.pdf">
+                                            <input type="file" id="cardBackImage" name="card_back_image" accept="image/*,.pdf">
                                             <label for="cardBackImage" class="file-upload-label">
                                                 <i class="fas fa-download"></i>
                                                 <span>Choose Back Design</span>
@@ -387,7 +510,6 @@ if (!$isUserLoggedIn) {
                         <span class="ai-banner-title">NEW: AI Design Tools</span>
                         <span class="ai-banner-subtitle">Generate & enhance images with AI • Powered by DeepAI</span>
                     </div>
-                    <span class="ai-banner-badge">TRY NOW</span>
                 </div>
             </div>
             
@@ -614,27 +736,89 @@ if (!$isUserLoggedIn) {
                 <div id="infoTab" class="tab-panel active">
                     <div class="info-section">
                         <h3>Account Information</h3>
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <label>Username</label>
-                                <span id="accountUsername">Loading...</span>
+                        
+                        <!-- Read-only view -->
+                        <div id="accountViewMode">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Username</label>
+                                    <span id="accountUsername">Loading...</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Full Name</label>
+                                    <span id="accountName">Loading...</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Email Address</label>
+                                    <span id="accountEmail">Loading...</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Contact Number</label>
+                                    <span id="accountContact">Loading...</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Member Since</label>
+                                    <span id="accountCreated">Loading...</span>
+                                </div>
                             </div>
-                            <div class="info-item">
-                                <label>Full Name</label>
-                                <span id="accountName">Loading...</span>
+                            
+                            <div class="form-actions">
+                                <button type="button" id="editProfileBtn" class="btn btn-primary">
+                                    <i class="fas fa-edit"></i>
+                                    Edit Profile
+                                </button>
                             </div>
-                            <div class="info-item">
-                                <label>Email Address</label>
-                                <span id="accountEmail">Loading...</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Contact Number</label>
-                                <span id="accountContact">Loading...</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Member Since</label>
-                                <span id="accountCreated">Loading...</span>
-                            </div>
+                        </div>
+                        
+                        <!-- Edit form -->
+                        <div id="accountEditMode" style="display: none;">
+                            <form id="updateAccountForm" class="account-form">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <label for="editUsername">Username</label>
+                                        <div class="input-container">
+                                            <input type="text" id="editUsername" name="username" required>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <label for="editFirstName">First Name</label>
+                                        <div class="input-container">
+                                            <input type="text" id="editFirstName" name="firstname" required>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <label for="editLastName">Last Name</label>
+                                        <div class="input-container">
+                                            <input type="text" id="editLastName" name="lastname" required>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Email Address</label>
+                                        <span id="accountEmailReadonly" class="readonly-field">Loading...</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label for="editContact">Contact Number</label>
+                                        <div class="input-container">
+                                            <input type="tel" id="editContact" name="contact">
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Member Since</label>
+                                        <span id="accountCreatedReadonly" class="readonly-field">Loading...</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save"></i>
+                                        Save Changes
+                                    </button>
+                                    <button type="button" id="cancelEditBtn" class="btn btn-secondary">
+                                        <i class="fas fa-times"></i>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -642,50 +826,93 @@ if (!$isUserLoggedIn) {
                 <!-- Security Tab -->
                 <div id="securityTab" class="tab-panel">
                     <div class="security-section">
-                        <h3>Change Password</h3>
-                        <form id="changePasswordForm" class="password-form">
-                            <div class="form-group">
-                                <label for="currentPassword">Current Password</label>
-                                <div class="password-input-group">
-                                    <input type="password" id="currentPassword" name="current_password" required>
-                                    <button type="button" class="password-toggle" data-target="currentPassword">
-                                        <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="newPassword">New Password</label>
-                                <div class="password-input-group">
-                                    <input type="password" id="newPassword" name="new_password" required minlength="6">
-                                    <button type="button" class="password-toggle" data-target="newPassword">
-                                        <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
-                                    </button>
-                                </div>
-                                <small class="form-help">Password must be at least 6 characters long</small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="confirmPassword">Confirm New Password</label>
-                                <div class="password-input-group">
-                                    <input type="password" id="confirmPassword" name="confirm_password" required minlength="6">
-                                    <button type="button" class="password-toggle" data-target="confirmPassword">
-                                        <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
-                                    </button>
-                                </div>
+                        <!-- Initial Reset Request -->
+                        <div id="passwordResetRequest" class="reset-request-section">
+                            <div class="security-info">
+                                <i class="fas fa-shield-alt"></i>
+                                <h4>Secure Password Reset</h4>
+                                <p>For your security, we'll send a verification email before allowing you to change your password.</p>
                             </div>
                             
                             <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save"></i>
-                                    Update Password
-                                </button>
-                                <button type="button" class="btn btn-secondary" onclick="resetPasswordForm()">
-                                    <i class="fas fa-undo"></i>
-                                    Reset
+                                <button type="button" id="requestPasswordResetBtn" class="btn btn-primary">
+                                    <i class="fas fa-envelope"></i>
+                                    Reset Password
                                 </button>
                             </div>
-                        </form>
+                        </div>
+                        
+                        <!-- Email Sent Confirmation -->
+                        <div id="emailSentConfirmation" class="email-sent-section" style="display: none;">
+                            <div class="email-info">
+                                <i class="fas fa-mail-bulk"></i>
+                                <h4>Check Your Email</h4>
+                                <p>We've sent a verification link to your email address. Please click the link to verify your identity and proceed with changing your password.</p>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" id="resendEmailBtn" class="btn btn-secondary">
+                                    <i class="fas fa-redo"></i>
+                                    Resend Email
+                                </button>
+                                <button type="button" id="backToRequestBtn" class="btn btn-link">
+                                    Back
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Password Change Form (shown after email verification) -->
+                        <div id="passwordChangeForm" class="password-form-section" style="display: none;">
+                            <div class="verified-info">
+                                <i class="fas fa-check-circle"></i>
+                                <h4>Email Verified</h4>
+                                <p>Your email has been verified. You can now change your password.</p>
+                            </div>
+                            
+                            <form id="changePasswordForm" class="password-form">
+                                <div class="form-group">
+                                    <label for="currentPassword">Current Password</label>
+                                    <div class="password-input-group">
+                                        <input type="password" id="currentPassword" name="current_password" required>
+                                        <button type="button" class="password-toggle" data-target="currentPassword">
+                                            <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="newPassword">New Password</label>
+                                    <div class="password-input-group">
+                                        <input type="password" id="newPassword" name="new_password" required minlength="6">
+                                        <button type="button" class="password-toggle" data-target="newPassword">
+                                            <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
+                                        </button>
+                                    </div>
+                                    <small class="form-help">Password must be at least 6 characters long</small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="confirmPassword">Confirm New Password</label>
+                                    <div class="password-input-group">
+                                        <input type="password" id="confirmPassword" name="confirm_password" required minlength="6">
+                                        <button type="button" class="password-toggle" data-target="confirmPassword">
+                                            <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save"></i>
+                                        Update Password
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="resetPasswordForm()">
+                                        <i class="fas fa-times"></i>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -972,6 +1199,7 @@ if (!$isUserLoggedIn) {
         </div>
     </div>
 
+    <script src="js/core/error-tracker.js"></script>
     <script src="js/slideshow.js"></script>
     <script type="module" src="js/user_page.main.js"></script>
     <script>
@@ -1072,6 +1300,56 @@ if (!$isUserLoggedIn) {
                 }
             });
         });
+
+        // Highlight active navigation link based on scroll position
+        function updateActiveNavLink() {
+            const sections = document.querySelectorAll('section[id]');
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            let currentSection = '';
+            const scrollPosition = window.scrollY + window.innerHeight / 2; // Use middle of viewport
+            const documentHeight = document.documentElement.scrollHeight;
+            const windowHeight = window.innerHeight;
+            
+            // Check if we're at the bottom of the page
+            if (window.scrollY + windowHeight >= documentHeight - 50) {
+                // If at bottom, highlight the last section
+                const lastSection = sections[sections.length - 1];
+                if (lastSection) {
+                    currentSection = lastSection.getAttribute('id');
+                }
+            } else {
+                // Normal section detection
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    const sectionHeight = section.offsetHeight;
+                    const sectionCenter = sectionTop + (sectionHeight / 2);
+                    
+                    if (scrollPosition >= sectionTop - 200 && scrollPosition <= sectionTop + sectionHeight + 200) {
+                        currentSection = section.getAttribute('id');
+                    }
+                });
+            }
+            
+            // Remove active class from all nav links
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Add active class to current section's nav link
+            if (currentSection) {
+                const activeLink = document.querySelector(`.nav-link[href="#${currentSection}"]`);
+                if (activeLink) {
+                    activeLink.classList.add('active');
+                }
+            }
+        }
+        
+        // Update active nav link on scroll
+        window.addEventListener('scroll', updateActiveNavLink);
+        
+        // Update active nav link on page load
+        updateActiveNavLink();
 
         // Prevent page scrolling when modal is open and cursor is over modal
         const requestFormContainer = document.getElementById('requestFormContainer');

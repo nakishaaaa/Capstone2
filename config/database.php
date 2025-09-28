@@ -1,11 +1,9 @@
 <?php
-// Error reporting: only enable if not explicitly disabled by caller (e.g., JSON API endpoints)
-if (ini_get('display_errors') !== '0') {
-    error_reporting(E_ALL);
-    ini_set('display_errors', '1');
-}
+// Error reporting: disable in production
+error_reporting(0);
+ini_set('display_errors', '0');
 
-// Database configuration
+// Database configuration - PRODUCTION READY
 $servername = "localhost";
 $username = "aenv";
 $password = "springthief044";
@@ -18,18 +16,22 @@ try {
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     
 } catch(PDOException $e) {
-    die("Database Connection failed: " . $e->getMessage());
+    // Log error instead of displaying it in production
+    error_log("Database Connection failed: " . $e->getMessage());
+    die("Database connection error. Please contact support.");
 }
 
 // Legacy mysqli connection for backward compatibility
 try {
     $conn = new mysqli($servername, $username, $password, $dbname);
     if ($conn->connect_error) {
-        die("MySQLi Connection failed: " . $conn->connect_error);
+        error_log("MySQLi Connection failed: " . $conn->connect_error);
+        die("Database connection error. Please contact support.");
     }
     $conn->set_charset("utf8mb4");
 } catch(Exception $e) {
-    die("MySQLi Connection failed: " . $e->getMessage());
+    error_log("MySQLi Connection failed: " . $e->getMessage());
+    die("Database connection error. Please contact support.");
 }
 
 // Lightweight helper to provide a unified access pattern
@@ -47,4 +49,3 @@ if (!class_exists('Database')) {
         }
     }
 }
-?>

@@ -136,16 +136,55 @@ function handleCreateRequest() {
         
         // Check for T-shirt specific files or card-specific files
         if ($category === 't-shirt-print') {
-            $has_files = (isset($_FILES['front_image']) && $_FILES['front_image']['error'] === UPLOAD_ERR_OK) ||
-                        (isset($_FILES['back_image']) && $_FILES['back_image']['error'] === UPLOAD_ERR_OK) ||
-                        (isset($_FILES['image']) && (
-                            (is_array($_FILES['image']['error']) && in_array(UPLOAD_ERR_OK, $_FILES['image']['error'])) ||
-                            (!is_array($_FILES['image']['error']) && $_FILES['image']['error'] === UPLOAD_ERR_OK)
-                        ));
+            // Debug: Log what files are received
+            error_log("T-shirt files received:");
+            error_log("front_image: " . (isset($_FILES['front_image']) ? $_FILES['front_image']['error'] : 'not set'));
+            error_log("back_image: " . (isset($_FILES['back_image']) ? $_FILES['back_image']['error'] : 'not set'));
+            error_log("tag_image: " . (isset($_FILES['tag_image']) ? $_FILES['tag_image']['error'] : 'not set'));
+            error_log("image: " . (isset($_FILES['image']) ? (is_array($_FILES['image']['error']) ? 'array' : $_FILES['image']['error']) : 'not set'));
+            
+            // For T-shirt: require at least one design file (front, back, or regular image)
+            $has_design_files = (isset($_FILES['front_image']) && $_FILES['front_image']['error'] === UPLOAD_ERR_OK) ||
+                               (isset($_FILES['back_image']) && $_FILES['back_image']['error'] === UPLOAD_ERR_OK) ||
+                               (isset($_FILES['image']) && (
+                                   (is_array($_FILES['image']['error']) && in_array(UPLOAD_ERR_OK, $_FILES['image']['error'])) ||
+                                   (!is_array($_FILES['image']['error']) && $_FILES['image']['error'] === UPLOAD_ERR_OK)
+                               ));
+            
+            $design_option = $_POST['design_option'] ?? '';
+            
+            if ($design_option === 'customize') {
+                // For customize option: require both design files AND tag
+                $has_tag_file = isset($_FILES['tag_image']) && $_FILES['tag_image']['error'] === UPLOAD_ERR_OK;
+                $has_files = $has_design_files && $has_tag_file;
+                
+                if (!$has_design_files && !$has_tag_file) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'T-shirt customization requires both design files (front/back) and a tag design.']);
+                    return;
+                } elseif (!$has_design_files) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Please upload at least one design file (front design, back design, or regular image).']);
+                    return;
+                } elseif (!$has_tag_file) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Tag design is required for T-shirt customization.']);
+                    return;
+                }
+            } else {
+                // For ready design option: only require design files, tag is optional
+                $has_files = $has_design_files;
+                
+                if (!$has_design_files) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Please upload at least one design file (front design, back design, or regular image).']);
+                    return;
+                }
+            }
         } elseif ($category === 'card-print' && (isset($_POST['size']) && ($_POST['size'] === 'calling' || $_POST['size'] === 'business'))) {
-            // For calling/business cards, check for front/back designs using the same field names as T-shirts
-            $has_files = (isset($_FILES['front_image']) && $_FILES['front_image']['error'] === UPLOAD_ERR_OK) ||
-                        (isset($_FILES['back_image']) && $_FILES['back_image']['error'] === UPLOAD_ERR_OK) ||
+            // For calling/business cards, check for card-specific front/back designs
+            $has_files = (isset($_FILES['card_front_image']) && $_FILES['card_front_image']['error'] === UPLOAD_ERR_OK) ||
+                        (isset($_FILES['card_back_image']) && $_FILES['card_back_image']['error'] === UPLOAD_ERR_OK) ||
                         (isset($_FILES['image']) && (
                             (is_array($_FILES['image']['error']) && in_array(UPLOAD_ERR_OK, $_FILES['image']['error'])) ||
                             (!is_array($_FILES['image']['error']) && $_FILES['image']['error'] === UPLOAD_ERR_OK)
@@ -210,16 +249,12 @@ function handleCreateRequest() {
         // Convert array to JSON string for database storage
         $image_path = !empty($image_paths) ? json_encode($image_paths) : null;
         
-        // Handle T-shirt and card specific uploads (both use front_image and back_image fields)
-        if ($_POST['category'] === 't-shirt-print' || 
-            ($_POST['category'] === 'card-print' && isset($_POST['size']) && ($_POST['size'] === 'calling' || $_POST['size'] === 'business'))) {
-            // Determine prefix based on category
-            $prefix = ($_POST['category'] === 'card-print') ? 'card' : 'tshirt';
-            
+        // Handle T-shirt specific uploads
+        if ($_POST['category'] === 't-shirt-print') {
             // Front image
             if (isset($_FILES['front_image']) && $_FILES['front_image']['error'] === UPLOAD_ERR_OK) {
                 $file_extension = pathinfo($_FILES['front_image']['name'], PATHINFO_EXTENSION);
-                $file_name = uniqid('req_' . $prefix . '_front_', true) . '.' . $file_extension;
+                $file_name = uniqid('req_tshirt_front_', true) . '.' . $file_extension;
                 $destination = $upload_dir . $file_name;
                 
                 if (!move_uploaded_file($_FILES['front_image']['tmp_name'], $destination)) {
@@ -232,7 +267,7 @@ function handleCreateRequest() {
             // Back image
             if (isset($_FILES['back_image']) && $_FILES['back_image']['error'] === UPLOAD_ERR_OK) {
                 $file_extension = pathinfo($_FILES['back_image']['name'], PATHINFO_EXTENSION);
-                $file_name = uniqid('req_' . $prefix . '_back_', true) . '.' . $file_extension;
+                $file_name = uniqid('req_tshirt_back_', true) . '.' . $file_extension;
                 $destination = $upload_dir . $file_name;
                 
                 if (!move_uploaded_file($_FILES['back_image']['tmp_name'], $destination)) {
@@ -241,6 +276,39 @@ function handleCreateRequest() {
                 
                 $back_image_path = 'uploads/requests/' . $file_name;
             }
+        }
+        
+        // Handle card specific uploads (use same database fields as T-shirts)
+        if ($_POST['category'] === 'card-print' && isset($_POST['size']) && ($_POST['size'] === 'calling' || $_POST['size'] === 'business')) {
+            // Front image (from card_front_image field)
+            if (isset($_FILES['card_front_image']) && $_FILES['card_front_image']['error'] === UPLOAD_ERR_OK) {
+                $file_extension = pathinfo($_FILES['card_front_image']['name'], PATHINFO_EXTENSION);
+                $file_name = uniqid('req_card_front_', true) . '.' . $file_extension;
+                $destination = $upload_dir . $file_name;
+                
+                if (!move_uploaded_file($_FILES['card_front_image']['tmp_name'], $destination)) {
+                    throw new Exception('Failed to upload card front image');
+                }
+                
+                $front_image_path = 'uploads/requests/' . $file_name;
+            }
+            
+            // Back image (from card_back_image field)
+            if (isset($_FILES['card_back_image']) && $_FILES['card_back_image']['error'] === UPLOAD_ERR_OK) {
+                $file_extension = pathinfo($_FILES['card_back_image']['name'], PATHINFO_EXTENSION);
+                $file_name = uniqid('req_card_back_', true) . '.' . $file_extension;
+                $destination = $upload_dir . $file_name;
+                
+                if (!move_uploaded_file($_FILES['card_back_image']['tmp_name'], $destination)) {
+                    throw new Exception('Failed to upload card back image');
+                }
+                
+                $back_image_path = 'uploads/requests/' . $file_name;
+            }
+        }
+        
+        // Handle T-shirt tag image
+        if ($_POST['category'] === 't-shirt-print') {
             
             // Tag image
             if (isset($_FILES['tag_image']) && $_FILES['tag_image']['error'] === UPLOAD_ERR_OK) {
@@ -283,13 +351,26 @@ function handleCreateRequest() {
             // Columns might already exist, continue
         }
         
+        // Handle size breakdown data for T-shirt orders
+        $size_breakdown = null;
+        if ($_POST['category'] === 't-shirt-print' && isset($_POST['size_breakdown'])) {
+            $size_breakdown = $_POST['size_breakdown'];
+            // Validate JSON format
+            $decoded = json_decode($size_breakdown, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid size breakdown format']);
+                return;
+            }
+        }
+        
         // Insert request with T-shirt specific fields
         $sql = "INSERT INTO user_requests (
                     user_id, category, size, quantity, name, contact_number, notes, 
-                    image_path, front_image_path, back_image_path, tag_image_path, tag_location, design_option, custom_size,
+                    image_path, front_image_path, back_image_path, tag_image_path, tag_location, design_option, custom_size, size_breakdown,
                     status, created_at, updated_at
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW()
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW()
                 )";
         
         $stmt = $pdo->prepare($sql);
@@ -307,7 +388,8 @@ function handleCreateRequest() {
             $tag_image_path,
             $_POST['tag_location'] ?? null,
             $_POST['design_option'] ?? null,
-            $_POST['custom_size'] ?? null
+            $_POST['custom_size'] ?? null,
+            $size_breakdown
         ]);
         
         // Get the ID of the newly created request

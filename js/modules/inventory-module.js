@@ -9,17 +9,25 @@ export class InventoryModule {
     this.toast = toastManager
     this.modal = modalManager
     this.products = []
+    this.currentView = 'active' // 'active' or 'trash'
   }
 
-  async loadInventoryData() {
+  async loadInventoryData(viewType = 'active') {
     try {
-      console.log("Loading inventory data from database...")
-      const result = await this.api.getAllProducts()
+      console.log(`Loading inventory data from database (${viewType} view)...`)
+      
+      let endpoint = 'inventory.php'
+      if (viewType === 'trash') {
+        endpoint += '?only_deleted=true'
+      }
+      
+      const result = await this.api.request(endpoint)
 
       if (result.success) {
         console.log("Inventory data loaded successfully:", result.data.length, "items")
-        console.log("Sample item:", result.data[0]) // Debug: log first item to see structure
+        this.currentView = viewType
         this.displayInventoryTable(result.data)
+        this.updateViewToggle()
       } else {
         this.toast.error("Error loading inventory: " + result.error)
         this.displayInventoryTable([])
@@ -28,6 +36,21 @@ export class InventoryModule {
       console.error("Error loading inventory:", error)
       this.toast.error("Error connecting to database for inventory")
       this.displayInventoryTable([])
+    }
+  }
+
+  updateViewToggle() {
+    const activeBtn = document.getElementById('activeViewBtn')
+    const trashBtn = document.getElementById('trashViewBtn')
+    
+    if (activeBtn && trashBtn) {
+      if (this.currentView === 'active') {
+        activeBtn.classList.add('active')
+        trashBtn.classList.remove('active')
+      } else {
+        activeBtn.classList.remove('active')
+        trashBtn.classList.add('active')
+      }
     }
   }
 
@@ -77,16 +100,33 @@ export class InventoryModule {
           </span>
         </td>
         <td>
-          <button class="action-btn restock" 
-                  onclick="window.inventoryModule.restockProduct(${item.id})" 
-                  title="Restock Product">
-            <i class="fas fa-plus"></i>
-          </button>
-          <button class="action-btn view" 
-                  onclick="window.inventoryModule.viewProduct(${item.id})" 
-                  title="View Details">
-            <i class="fas fa-eye"></i>
-          </button>
+          ${this.currentView === 'trash' ? 
+            `<button class="action-btn restore" 
+                    onclick="window.inventoryModule.restoreProduct(${item.id})" 
+                    title="Restore Product">
+              <i class="fas fa-undo"></i>
+            </button>
+            <button class="action-btn delete-permanent" 
+                    onclick="window.inventoryModule.permanentDeleteProduct(${item.id})" 
+                    title="Delete Permanently">
+              <i class="fas fa-trash-alt"></i>
+            </button>` :
+            `<button class="action-btn restock" 
+                    onclick="window.inventoryModule.restockProduct(${item.id})" 
+                    title="Restock Product">
+              <i class="fas fa-plus"></i>
+            </button>
+            <button class="action-btn view" 
+                    onclick="window.inventoryModule.viewProduct(${item.id})" 
+                    title="View Details">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="action-btn delete" 
+                    onclick="window.inventoryModule.deleteProduct(${item.id})" 
+                    title="Move to Trash">
+              <i class="fas fa-trash"></i>
+            </button>`
+          }
         </td>
       </tr>
     `,
@@ -355,19 +395,94 @@ export class InventoryModule {
         ])}
       </div>
     `
-
     this.modal.open("Product Details", content)
     this.toast.success("Product details loaded successfully")
   }
 
-  getStockColor(stock, minStock = 10) {
-    if (stock <= 0) return "#dc3545"
-    if (stock <= minStock) return "#ffc107"
-    return "#28a745"
+  getStockColor(stock, minStock) {
+    if (stock === 0) return "#dc3545" // Red for out of stock
+    if (stock <= minStock) return "#ffc107" // Yellow for low stock
+    return "#28a745" // Green for good stock
   }
 
-  async refresh() {
-    await this.loadInventoryData()
-    this.toast.success("Inventory refreshed")
+  async deleteProduct(id) {
+    try {
+      const confirmed = await this.modal.confirm(
+        'Move to Trash',
+        'Are you sure you want to move this product to trash? You can restore it later.',
+        'Move to Trash',
+        'Cancel'
+      )
+      
+      if (confirmed) {
+        const result = await this.api.request(`inventory.php?id=${id}`, { method: 'DELETE' })
+        
+        if (result.success) {
+          this.toast.success(result.message || 'Product moved to trash successfully')
+          this.loadInventoryData(this.currentView)
+        } else {
+          this.toast.error(result.error || 'Failed to delete product')
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      this.toast.error('Error deleting product: ' + error.message)
+    }
+  }
+
+  async restoreProduct(id) {
+    try {
+      const confirmed = await this.modal.confirm(
+        'Restore Product',
+        'Are you sure you want to restore this product? It will be moved back to active inventory.',
+        'Restore',
+        'Cancel'
+      )
+      
+      if (confirmed) {
+        const result = await this.api.request(`inventory.php?id=${id}&action=restore`, { method: 'DELETE' })
+        
+        if (result.success) {
+          this.toast.success(result.message || 'Product restored successfully')
+          this.loadInventoryData(this.currentView)
+        } else {
+          this.toast.error(result.error || 'Failed to restore product')
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring product:', error)
+      this.toast.error('Error restoring product: ' + error.message)
+    }
+  }
+
+  async permanentDeleteProduct(id) {
+    try {
+      const confirmed = await this.modal.confirm(
+        'Permanent Delete',
+        'Are you sure you want to permanently delete this product? This action cannot be undone and will also delete associated image files.',
+        'Delete Permanently',
+        'Cancel',
+        'danger'
+      )
+      
+      if (confirmed) {
+        const result = await this.api.request(`inventory.php?id=${id}&action=permanent`, { method: 'DELETE' })
+        
+        if (result.success) {
+          this.toast.success(result.message || 'Product permanently deleted')
+          this.loadInventoryData(this.currentView)
+        } else {
+          this.toast.error(result.error || 'Failed to permanently delete product')
+        }
+      }
+    } catch (error) {
+      console.error('Error permanently deleting product:', error)
+      this.toast.error('Error permanently deleting product: ' + error.message)
+    }
+  }
+
+  switchView(viewType) {
+    this.loadInventoryData(viewType)
   }
 }
+
