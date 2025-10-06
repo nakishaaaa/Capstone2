@@ -48,7 +48,7 @@ function handleGetRequests() {
     
     // Also check for admin-specific session variables
     $isAdmin = isset($_SESSION['admin_name']) && isset($_SESSION['admin_email']) && 
-               isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'admin';
+               isset($_SESSION['admin_role']) && ($_SESSION['admin_role'] === 'admin' || $_SESSION['admin_role'] === 'super_admin');
     
     if (!$userData['is_logged_in'] && !$isAdmin) {
         http_response_code(401);
@@ -62,7 +62,7 @@ function handleGetRequests() {
     }
     
     try {
-        if ($userData['role'] === 'admin') {
+        if ($userData['role'] === 'admin' || $userData['role'] === 'super_admin') {
             // Admin sees all requests
             $stmt = $pdo->prepare("
                 SELECT r.*, u.username as user_name, u.email as user_email 
@@ -154,21 +154,13 @@ function handleCreateRequest() {
             $design_option = $_POST['design_option'] ?? '';
             
             if ($design_option === 'customize') {
-                // For customize option: require both design files AND tag
+                // For customize option: require at least one of front, back, or tag
                 $has_tag_file = isset($_FILES['tag_image']) && $_FILES['tag_image']['error'] === UPLOAD_ERR_OK;
-                $has_files = $has_design_files && $has_tag_file;
+                $has_files = $has_design_files || $has_tag_file;
                 
-                if (!$has_design_files && !$has_tag_file) {
+                if (!$has_files) {
                     http_response_code(400);
-                    echo json_encode(['error' => 'T-shirt customization requires both design files (front/back) and a tag design.']);
-                    return;
-                } elseif (!$has_design_files) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Please upload at least one design file (front design, back design, or regular image).']);
-                    return;
-                } elseif (!$has_tag_file) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Tag design is required for T-shirt customization.']);
+                    echo json_encode(['error' => 'Please upload at least one design file (front design, back design, or tag).']);
                     return;
                 }
             } else {
@@ -177,7 +169,7 @@ function handleCreateRequest() {
                 
                 if (!$has_design_files) {
                     http_response_code(400);
-                    echo json_encode(['error' => 'Please upload at least one design file (front design, back design, or regular image).']);
+                    echo json_encode(['error' => 'Please upload your design file.']);
                     return;
                 }
             }

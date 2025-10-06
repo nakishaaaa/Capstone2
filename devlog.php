@@ -1,8 +1,8 @@
 <?php
 session_start();
 
-// Check if already logged in as super admin
-if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'super_admin') {
+// Check if already logged in as developer
+if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'developer') {
     header('Location: super_admin_dashboard.php');
     exit();
 }
@@ -218,12 +218,12 @@ unset($_SESSION['super_admin_error']);
         <form id="superAdminForm" method="POST" action="api/superadmin_api/super_admin_login.php">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" required placeholder="Enter developer username">
+                <input type="text" id="username" name="username" required placeholder="Username">
             </div>
 
             <div class="form-group password-group">
-                <label for="password">Access Key</label>
-                <input type="password" id="password" name="password" required placeholder="Enter access key">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="Password">
                 <button type="button" class="password-toggle" onclick="togglePassword()">
                     <i class="fas fa-eye" id="toggleIcon"></i>
                 </button>

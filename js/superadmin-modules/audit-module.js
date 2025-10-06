@@ -98,9 +98,9 @@ export class AuditModule {
                         </div>
                     </td>
                     <td>
-                        <span class="action-badge ${(log.action || '').toLowerCase().replace(/\s+/g, '_')}">
+                        <span class="action-badge ${this.getActionBadgeClass(log.action)}">
                             <i class="fas fa-${this.getActionIcon(log.action)}"></i>
-                            ${log.action || 'Unknown'}
+                            ${this.getActionDisplayName(log.action)}
                         </span>
                     </td>
                     <td class="audit-description">${log.description || log.resource || '-'}</td>
@@ -131,11 +131,54 @@ export class AuditModule {
             'backup': 'database',
             'restore': 'undo',
             'settings': 'cog',
+            'settings_update': 'tools',
+            'settings_updated': 'tools',
             'user_management': 'users',
             'system': 'server',
+            'resource_error': 'exclamation-triangle',
             'default': 'info-circle'
         };
+        
+        // Handle SETTINGS_UPDATE as maintenance toggle
+        if (action.toUpperCase() === 'SETTINGS_UPDATE') {
+            return 'tools';
+        }
+        
         return iconMap[action.toLowerCase()] || 'info-circle';
+    }
+
+    getActionDisplayName(action) {
+        if (!action) return 'Unknown';
+        
+        // Handle SETTINGS_UPDATE as maintenance toggle
+        if (action.toUpperCase() === 'SETTINGS_UPDATE') {
+            return 'Maintenance Toggle';
+        }
+        
+        const displayMap = {
+            'login': 'Login',
+            'logout': 'Logout',
+            'user_create': 'User Create',
+            'user_update': 'User Update',
+            'maintenance_toggle': 'Maintenance Toggle',
+            'system_check': 'System Check',
+            'settings_update': 'Maintenance Toggle',
+            'settings_updated': 'Maintenance Toggle',
+            'resource_error': 'Resource Error'
+        };
+        
+        return displayMap[action.toLowerCase()] || action;
+    }
+
+    getActionBadgeClass(action) {
+        if (!action) return 'default';
+        
+        // Handle SETTINGS_UPDATE as maintenance toggle
+        if (action.toUpperCase() === 'SETTINGS_UPDATE') {
+            return 'maintenance_toggle';
+        }
+        
+        return action.toLowerCase().replace(/\s+/g, '_');
     }
 
     async loadRecentActivityData() {

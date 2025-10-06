@@ -176,6 +176,19 @@ body {
     display: flex;
     gap: 15px;
     align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
 }
 
 #analyticsTimeRange {
@@ -187,10 +200,80 @@ body {
     color: #333;
     cursor: pointer;
     transition: all 0.2s ease;
+    min-width: 140px;
 }
 
 #analyticsTimeRange:hover {
     border-color: #6366f1;
+}
+
+.custom-date-filter {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    margin-left: 10px;
+}
+
+.date-input-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.date-input-group label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    white-space: nowrap;
+}
+
+.date-input {
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #333;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 130px;
+}
+
+.date-input:hover,
+.date-input:focus {
+    border-color: #6366f1;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.apply-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.apply-filter-btn:hover {
+    background: #5855eb;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+}
+
+.apply-filter-btn i {
+    font-size: 11px;
 }
 
 .refresh-btn {
@@ -588,7 +671,7 @@ body {
     border-radius: 8px;
     padding: 25px;
     margin-bottom: 30px;
-    height: 450px;
+    height: 500px;
     display: flex;
     flex-direction: column;
 }
@@ -3867,6 +3950,18 @@ input:checked + .slider:before {
     background: #ffc107;
 }
 
+/* Error actions - Red */
+.action-badge.resource_error,
+.action-badge.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.action-badge.resource_error::before,
+.action-badge.error::before {
+    background: #dc3545;
+}
+
 /* Default/Other actions - Gray */
 .action-badge.default,
 .action-badge.secondary {
@@ -4959,7 +5054,7 @@ input:checked + .slider:before {
 
 .conversation-item.active {
     background-color: #e3f2fd;
-    border-left: 3px solid #2196f3;
+    border-right: 3px solid #2196f3;
 }
 
 .conversation-avatar {
@@ -5036,6 +5131,7 @@ input:checked + .slider:before {
     justify-content: space-between;
     align-items: center;
     background: #f8f9fa;
+    position: relative;
 }
 
 .chat-user-info {
@@ -5066,6 +5162,28 @@ input:checked + .slider:before {
     color: #666;
 }
 
+.chat-subject-info {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.chat-subject {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    background: #ffffff;
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    white-space: nowrap;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .refresh-btn {
     background: none;
     border: none;
@@ -5089,12 +5207,21 @@ input:checked + .slider:before {
 
 .message-group {
     margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+}
+
+.customer-group {
+    flex-direction: row;
+    justify-content: flex-start;
 }
 
 .admin-group {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: flex-end;
 }
 
 .message-info {
@@ -5163,16 +5290,14 @@ input:checked + .slider:before {
     border: 1px solid #e9ecef;
     border-radius: 8px;
     padding: 12px 16px;
-    margin-left: 42px;
     position: relative;
-    max-width: 70%;
+    width: 600px;
+    max-width: 600px;
 }
 
 .admin-group .message-bubble {
-    margin-left: 0;
-    margin-right: 42px;
     width: 600px;
-    max-width: none;
+    max-width: 600px;
 }
 
 .admin-bubble {
@@ -5199,17 +5324,32 @@ input:checked + .slider:before {
     align-items: center;
     margin-bottom: 8px;
     padding-bottom: 6px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Admin bubble header styles */
+.admin-bubble .bubble-header {
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .bubble-time {
     font-size: 11px;
+    color: #666;
+}
+
+/* Admin bubble time override */
+.admin-bubble .bubble-time {
     color: rgba(255, 255, 255, 0.8);
 }
 
 .bubble-sender {
     font-size: 14px;
     font-weight: 600;
+    color: #333;
+}
+
+/* Admin bubble sender override */
+.admin-bubble .bubble-sender {
     color: white;
 }
 
@@ -5222,7 +5362,20 @@ input:checked + .slider:before {
     align-items: center;
     justify-content: center;
     color: white;
-    margin-left: 12px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.customer-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #4caf50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 8px;
     flex-shrink: 0;
 }
 
@@ -5444,7 +5597,7 @@ input:checked + .slider:before {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #2196f3;
+    background: #4caf50;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5603,4 +5756,69 @@ input:checked + .slider:before {
 
 .send-btn:hover {
     background: #1976d2;
+}
+
+/* Responsive Design for Custom Date Filter */
+@media (max-width: 768px) {
+    .analytics-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .filter-group {
+        justify-content: space-between;
+    }
+    
+    .custom-date-filter {
+        flex-direction: column;
+        gap: 8px;
+        margin-left: 0;
+        padding: 12px;
+    }
+    
+    .date-input-group {
+        justify-content: space-between;
+    }
+    
+    .date-input {
+        width: 100%;
+        max-width: 150px;
+    }
+    
+    .apply-filter-btn {
+        align-self: center;
+        padding: 8px 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .analytics-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .custom-date-filter {
+        padding: 10px;
+    }
+    
+    .date-input-group {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .date-input-group label {
+        font-size: 11px;
+    }
+    
+    .date-input {
+        width: 100%;
+        font-size: 12px;
+    }
+    
+    .apply-filter-btn {
+        font-size: 11px;
+        padding: 6px 12px;
+    }
 }

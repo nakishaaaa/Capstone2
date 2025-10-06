@@ -10,16 +10,30 @@ export class AnalyticsModule {
             <section id="analytics" class="content-section active">
                 <div class="analytics-header">
                     <div class="analytics-controls">
-                        <select id="analyticsTimeRange">
-                            <option value="7d">Last 7 Days</option>
-                            <option value="30d" selected>Last 30 Days</option>
-                            <option value="90d">Last 90 Days</option>
-                            <option value="1y">Last Year</option>
-                        </select>
-                        <button onclick="refreshAnalytics()" class="refresh-btn">
-                            <i class="fas fa-sync-alt"></i>
-                            Refresh
-                        </button>
+                        <div class="filter-group">
+                            <label for="analyticsTimeRange">Quick Filter:</label>
+                            <select id="analyticsTimeRange">
+                                <option value="7d">Last 7 Days</option>
+                                <option value="30d" selected>Last 30 Days</option>
+                                <option value="90d">Last 90 Days</option>
+                                <option value="1y">Last Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        <div class="custom-date-filter" id="customDateFilter" style="display: none;">
+                            <div class="date-input-group">
+                                <label for="startDate">From:</label>
+                                <input type="date" id="startDate" class="date-input">
+                            </div>
+                            <div class="date-input-group">
+                                <label for="endDate">To:</label>
+                                <input type="date" id="endDate" class="date-input">
+                            </div>
+                            <button id="applyCustomFilter" class="apply-filter-btn">
+                                <i class="fas fa-filter"></i>
+                                Apply
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -97,21 +111,38 @@ export class AnalyticsModule {
         const timeRangeSelect = document.getElementById('analyticsTimeRange');
         if (timeRangeSelect) {
             timeRangeSelect.addEventListener('change', (e) => {
-                this.loadAnalyticsData(e.target.value);
+                this.handleTimeRangeChange(e.target.value);
             });
         }
+        
+        // Add event listener for custom date filter
+        const applyCustomFilter = document.getElementById('applyCustomFilter');
+        if (applyCustomFilter) {
+            applyCustomFilter.addEventListener('click', () => {
+                this.applyCustomDateFilter();
+            });
+        }
+        
+        // Set default dates for custom filter
+        this.initializeCustomDateInputs();
     }
 
-    async loadAnalyticsData(timeRange = '30d') {
+    async loadAnalyticsData(timeRange = '30d', startDate = null, endDate = null) {
         try {
-            console.log('Loading analytics data for time range:', timeRange);
+            console.log('Loading analytics data for time range:', timeRange, startDate, endDate);
+            
+            // Build query parameters
+            let queryParams = `type=database&range=${timeRange}`;
+            if (timeRange === 'custom' && startDate && endDate) {
+                queryParams += `&start_date=${startDate}&end_date=${endDate}`;
+            }
             
             // Load all analytics data in parallel with time range
             const [databaseResponse, securityResponse, userResponse, performanceResponse] = await Promise.all([
-                fetch(`api/analytics_api.php?type=database&range=${timeRange}`),
-                fetch(`api/analytics_api.php?type=security&range=${timeRange}`),
-                fetch(`api/analytics_api.php?type=users&range=${timeRange}`),
-                fetch(`api/analytics_api.php?type=performance&range=${timeRange}`)
+                fetch(`api/analytics_api.php?${queryParams.replace('type=database', 'type=database')}`),
+                fetch(`api/analytics_api.php?${queryParams.replace('type=database', 'type=security')}`),
+                fetch(`api/analytics_api.php?${queryParams.replace('type=database', 'type=users')}`),
+                fetch(`api/analytics_api.php?${queryParams.replace('type=database', 'type=performance')}`)
             ]);
 
             const [databaseData, securityData, userData, performanceData] = await Promise.all([
@@ -171,6 +202,13 @@ export class AnalyticsModule {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        bottom: 20,
+                        left: 10,
+                        right: 10
+                    }
+                },
                 interaction: {
                     intersect: false,
                     mode: 'index'
@@ -207,7 +245,10 @@ export class AnalyticsModule {
                             font: {
                                 size: 12,
                                 weight: '500'
-                            }
+                            },
+                            maxRotation: 45,
+                            minRotation: 0,
+                            padding: 10
                         }
                     },
                     y: {
@@ -524,16 +565,66 @@ export class AnalyticsModule {
         `).join('');
     }
 
+    handleTimeRangeChange(value) {
+        const customDateFilter = document.getElementById('customDateFilter');
+        
+        if (value === 'custom') {
+            customDateFilter.style.display = 'flex';
+        } else {
+            customDateFilter.style.display = 'none';
+            this.loadAnalyticsData(value);
+        }
+    }
+    
+    initializeCustomDateInputs() {
+        const endDate = document.getElementById('endDate');
+        const startDate = document.getElementById('startDate');
+        
+        if (endDate && startDate) {
+            // Set end date to today
+            const today = new Date().toISOString().split('T')[0];
+            endDate.value = today;
+            
+            // Set start date to 30 days ago
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            startDate.value = thirtyDaysAgo.toISOString().split('T')[0];
+            
+            // Set max date to today for both inputs
+            endDate.max = today;
+            startDate.max = today;
+        }
+    }
+    
+    applyCustomDateFilter() {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
+        if (!startDate || !endDate) {
+            if (this.dashboard && this.dashboard.showNotification) {
+                this.dashboard.showNotification('Please select both start and end dates', 'error');
+            }
+            return;
+        }
+        
+        if (new Date(startDate) > new Date(endDate)) {
+            if (this.dashboard && this.dashboard.showNotification) {
+                this.dashboard.showNotification('Start date cannot be after end date', 'error');
+            }
+            return;
+        }
+        
+        // Load analytics with custom date range
+        this.loadAnalyticsData('custom', startDate, endDate);
+    }
+    
     refreshAnalytics() {
         const timeRange = document.getElementById('analyticsTimeRange')?.value || '30d';
-        this.loadAnalyticsData(timeRange);
-    }
-}
-
-// Make refreshAnalytics available globally
-window.refreshAnalytics = function() {
-    const analyticsModule = window.currentAnalyticsModule;
-    if (analyticsModule) {
-        analyticsModule.refreshAnalytics();
+        
+        if (timeRange === 'custom') {
+            this.applyCustomDateFilter();
+        } else {
+            this.loadAnalyticsData(timeRange);
+        }
     }
 }

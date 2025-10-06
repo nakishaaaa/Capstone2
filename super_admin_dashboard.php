@@ -1,13 +1,16 @@
 <?php
 session_start();
 
-// Check if user is logged in as super admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
-    header('Location: superadminlog.php');
+// Check if user is logged in as developer
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'developer') {
+    header('Location: devlog.php');
     exit();
 }
 
 require_once 'includes/config.php';
+
+// Simple automatic audit cleanup (once per day)
+require_once 'includes/simple_audit_cleanup.php';
 
 // Get system statistics
 function getSystemStats($conn) {
@@ -18,13 +21,13 @@ function getSystemStats($conn) {
     $stats['total_users'] = $result->fetch_assoc()['count'];
     
     // Total admins
-    $result = $conn->query("SELECT COUNT(*) as count FROM users WHERE role IN ('admin', 'super_admin')");
+    $result = $conn->query("SELECT COUNT(*) as count FROM users WHERE role IN ('admin', 'developer')");
     $stats['total_admins'] = $result->fetch_assoc()['count'];
     
     
-    // Pending requests
-    $result = $conn->query("SELECT COUNT(*) as count FROM user_requests WHERE status = 'pending'");
-    $stats['pending_requests'] = $result->fetch_assoc()['count'];
+    // Open customer support tickets
+    $result = $conn->query("SELECT COUNT(DISTINCT conversation_id) as count FROM support_tickets_messages");
+    $stats['open_support'] = $result->fetch_assoc()['count'];
     
     // Recent activities (placeholder)
     $stats['recent_activities'] = 0;
@@ -169,11 +172,11 @@ $unreadCount = 0;
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon">
-                            <i class="fas fa-clipboard-check"></i>
+                            <i class="fas fa-headset"></i>
                         </div>
                         <div class="stat-content">
-                            <h3><?= number_format($stats['pending_requests']) ?></h3>
-                            <p>Pending Requests</p>
+                            <h3><?= number_format($stats['open_support']) ?></h3>
+                            <p>Open Customer Support</p>
                         </div>
                     </div>
                 </div>

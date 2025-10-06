@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Check admin authentication
 $userData = getUserSessionData('admin');
 $isAdmin = isset($_SESSION['admin_name']) && isset($_SESSION['admin_email']) && 
-           isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'admin';
+           isset($_SESSION['admin_role']) && ($_SESSION['admin_role'] === 'admin' || $_SESSION['admin_role'] === 'super_admin');
 
 if (!$userData['is_logged_in'] && !$isAdmin) {
     http_response_code(401);

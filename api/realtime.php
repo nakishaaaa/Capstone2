@@ -186,6 +186,44 @@ function getRecentActivity() {
     }
 }
 
+// Function to get and deliver real-time notifications
+function getRealtimeNotifications() {
+    global $pdo;
+    
+    try {
+        // Get undelivered notifications
+        $stmt = $pdo->query("
+            SELECT id, user_id, type, data, created_at 
+            FROM realtime_notifications 
+            WHERE delivered = FALSE 
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+            ORDER BY created_at ASC
+            LIMIT 50
+        ");
+        
+        $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (!empty($notifications)) {
+            // Mark as delivered
+            $ids = array_column($notifications, 'id');
+            $placeholders = str_repeat('?,', count($ids) - 1) . '?';
+            $updateStmt = $pdo->prepare("UPDATE realtime_notifications SET delivered = TRUE WHERE id IN ($placeholders)");
+            $updateStmt->execute($ids);
+            
+            // Parse JSON data for each notification
+            foreach ($notifications as &$notification) {
+                $notification['data'] = json_decode($notification['data'], true);
+            }
+        }
+        
+        return $notifications;
+        
+    } catch (PDOException $e) {
+        error_log("SSE Realtime Notifications Error: " . $e->getMessage());
+        return [];
+    }
+}
+
 // Main SSE loop
 $lastStatsHash = '';
 $lastActivityHash = '';
@@ -226,6 +264,14 @@ while (true) {
             break; // Client disconnected
         }
         $lastActivityHash = $activityHash;
+    }
+    
+    // Check for real-time notifications
+    $realtimeNotifications = getRealtimeNotifications();
+    if (!empty($realtimeNotifications)) {
+        if (!sendSSEData('realtime_notifications', $realtimeNotifications)) {
+            break; // Client disconnected
+        }
     }
     
     // Send heartbeat every 30 seconds

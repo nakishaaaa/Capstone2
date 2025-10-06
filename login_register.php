@@ -4,9 +4,36 @@ require_once 'includes/config.php'; // Include the database connection
 require_once 'includes/csrf.php'; // Include CSRF protection
 require_once 'includes/audit_helper.php'; // Include audit logging functions
 require_once 'includes/email_verification.php'; // Include email verification functions
+require_once 'includes/unverified_account_cleanup.php'; // Include cleanup functions
+
+// Create simple maintenance check function
+function isMaintenanceModeEnabled() {
+    global $conn;
+    try {
+        $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'maintenance_mode' LIMIT 1");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['setting_value'] === 'true';
+        }
+        return false;
+    } catch (Exception $e) {
+        return false; // Default to no maintenance if error
+    }
+}
 
 // Handle registration form submission
 if (isset($_POST['register'])) {
+    // Check maintenance mode - block registration during maintenance
+    if (isMaintenanceModeEnabled()) {
+        $_SESSION['register_error'] = 'Registration is temporarily disabled due to system maintenance. Please try again later.';
+        $_SESSION['active_form'] = 'register';
+        header("Location: index.php");
+        exit();
+    }
+    
     // Validate CSRF token first
     if (!CSRFToken::validate($_POST['csrf_token'] ?? '')) {
         $_SESSION['register_error'] = 'Invalid security token. Please try again.';
@@ -225,6 +252,19 @@ if (isset($_POST['register'])) {
                         // Log registration event
                         logRegistrationEvent($new_user_id, $username);
                         
+                        // Trigger cleanup of old unverified accounts (run in background)
+                        try {
+                            require_once 'config/database.php';
+                            $pdo = Database::getConnection();
+                            $cleanup = new UnverifiedAccountCleanup($pdo, 24); // 24 hours
+                            $cleanup_result = $cleanup->cleanupExpiredAccounts();
+                            if ($cleanup_result['success'] && $cleanup_result['deleted_count'] > 0) {
+                                error_log("Auto-cleanup during registration: Removed {$cleanup_result['deleted_count']} expired unverified accounts");
+                            }
+                        } catch (Exception $e) {
+                            error_log("Auto-cleanup error during registration: " . $e->getMessage());
+                        }
+                        
                         // Registration successful - email sent
                         $_SESSION['register_success'] = 'Registration successful! Please check your email to verify your account before logging in.';
                         $_SESSION['active_form'] = 'login';
@@ -305,6 +345,19 @@ if (isset($_POST['login'])) {
                     exit();
                 }
                 
+                // Check maintenance mode - block regular users during maintenance
+                if (isMaintenanceModeEnabled()) {
+                    $user_role = trim($user['role']);
+                    $allowed_roles = ['admin', 'super_admin', 'cashier', 'developer'];
+                    
+                    if (!in_array($user_role, $allowed_roles)) {
+                        $_SESSION['login_error'] = 'System is currently under maintenance. Please try again later.';
+                        $_SESSION['active_form'] = 'login';
+                        header("Location: index.php");
+                        exit();
+                    }
+                }
+                
                 // Debug: Log the user role for troubleshooting
                 error_log("Login Debug - User: " . $user['username'] . ", Role: '" . $user['role'] . "', Role Length: " . strlen($user['role']));
                 
@@ -334,16 +387,19 @@ if (isset($_POST['login'])) {
                 $_SESSION['name'] = $user['username'];
                 $_SESSION['email'] = $user['email'];
                 $_SESSION['role'] = $role;
+                
+                // Set login time for force logout comparison
+                $_SESSION['login_time'] = time();
 
                 // Debug: Log redirect decision
                 error_log("Login Debug - Redirect check: Role is '" . $role . "', Admin check: " . ($role === 'admin' ? 'true' : 'false') . ", Cashier check: " . ($role === 'cashier' ? 'true' : 'false'));
 
                 // Redirect based on user role
-                if ($role === 'admin' || $role === 'cashier') {
-                    error_log("Login Debug - Redirecting to admin_page.php");
+                if ($role === 'admin' || $role === 'cashier' || $role === 'super_admin') {
+                    error_log("Login Debug - Redirecting to admin_page.php for role: {$role}");
                     header("Location: admin_page.php");
                 } else {
-                    error_log("Login Debug - Redirecting to user_page.php");
+                    error_log("Login Debug - Redirecting to user_page.php for role: {$role}");
                     header("Location: user_page.php");
                 }
                 exit();

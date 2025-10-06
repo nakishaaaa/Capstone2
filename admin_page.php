@@ -18,7 +18,7 @@ $adminName = '';
 $adminEmail = '';
 $role = $_SESSION['role'] ?? null;
 
-if ($role === 'admin' || $role === 'cashier') {
+if ($role === 'admin' || $role === 'cashier' || $role === 'super_admin') {
     $isStaffLoggedIn = true;
     // Prefer standard session variables set during login
     $adminName = $_SESSION['username'] ?? ($_SESSION['admin_name'] ?? '');
@@ -64,33 +64,34 @@ if (!$isStaffLoggedIn) {
                     <li><a href="#pos" class="nav-link" data-section="pos">
                         <i class="fas fa-cash-register"></i> Point of Sale
                     </a></li>
-                    <?php if ($role === 'admin'): ?>
+                    <?php if ($role === 'admin' || $role === 'super_admin'): ?>
                     <li><a href="#sales-management" class="nav-link" data-section="sales-management">
                         <i class="fas fa-cogs"></i> Product Management
                     </a></li>
-                    <li><a href="#sales-report" class="nav-link" data-section="sales-report">
-                        <i class="fas fa-chart-line"></i> Sales Report
+                    <?php endif; ?>
+                    <?php if ($role === 'super_admin'): ?>
+                    <li><a href="#user-management" class="nav-link" data-section="user-management">
+                        <i class="fas fa-users"></i> User Management
                     </a></li>
                     <?php endif; ?>
                     <li><a href="#notifications" class="nav-link" data-section="notifications">
                         <i class="fas fa-bell"></i> Notifications
                         <span class="nav-badge" id="notificationsBadge" aria-label="Unread notifications" title="Unread notifications" style="display:none">0</span>
                     </a></li>
-                    <?php if ($role === 'admin'): ?>
+                    <?php if ($role === 'admin' || $role === 'super_admin'): ?>
                     <li><a href="#requests" class="nav-link" data-section="requests">
                         <i class="fas fa-inbox"></i> Requests
                         <span class="nav-badge" id="requestsBadge" aria-label="Pending requests" title="Pending requests" style="display:none">0</span>
                     </a></li>
                     <li><a href="#order-management" class="nav-link" data-section="order-management">
-                        <i class="fas fa-cogs"></i> Order Management
-                        <span class="nav-badge" id="productionBadge" aria-label="Orders in production" title="Orders in production" style="display:none; background: #f59e0b;">0</span>
+                        <i class="fas fa-clipboard-list"></i> Order Management
+                    </a></li>
+                    <li><a href="#sales-report" class="nav-link" data-section="sales-report">
+                        <i class="fas fa-chart-line"></i> Sales Report
                     </a></li>
                     <li><a href="#customersupport" class="nav-link" data-section="customersupport">
                         <i class="fas fa-headset"></i> Customer Support
-                        <span class="nav-badge" id="supportBadge" aria-label="Unread support messages" title="Unread support messages" style="display:none">0</span>
-                    </a></li>
-                    <li><a href="#user-management" class="nav-link" data-section="user-management">
-                        <i class="fas fa-user"></i> User Management
+                        <span class="nav-badge" id="supportBadge" aria-label="Unread messages" title="Unread messages" style="display:none">0</span>
                     </a></li>
                     <?php endif; ?>
                 </ul>
@@ -98,7 +99,7 @@ if (!$isStaffLoggedIn) {
             
             <div class="sidebar-footer">
                 <div class="user-info">
-                    <i class="fas <?php echo $role === 'admin' ? 'fa-user-shield' : 'fa-cash-register'; ?>"></i>
+                    <i class="fas <?php echo ($role === 'admin' || $role === 'super_admin') ? 'fa-user-shield' : 'fa-cash-register'; ?>"></i>
                     <span><?php echo htmlspecialchars($adminName ?: $adminEmail); ?></span>
                 </div>
                 <a href="#" class="logout-btn" onclick="handleLogout('admin')">
@@ -116,7 +117,7 @@ if (!$isStaffLoggedIn) {
                     <h1>Dashboard</h1>
                     <div class="header-right">
                         <div class="logged-in-user" title="Logged in account">
-                            <i class="fas <?php echo $role === 'admin' ? 'fa-user-shield' : 'fa-cash-register'; ?>"></i>
+                            <i class="fas <?php echo ($role === 'admin' || $role === 'super_admin') ? 'fa-user-shield' : 'fa-cash-register'; ?>"></i>
                             <span>
                                 <?php echo htmlspecialchars($adminName ?: $adminEmail); ?>
                                 (<?php echo htmlspecialchars(ucfirst($role)); ?>)
@@ -358,13 +359,10 @@ if (!$isStaffLoggedIn) {
                                     <i class="fas fa-credit-card"></i> Process Payment
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                </div>
             </section>
 
-            <!-- Sales Management Section (Admin Only) -->
-            <?php if ($role === 'admin'): ?>
+            <!-- Sales Management Section (Admin and Super Admin Only) -->
+            <?php if ($role === 'admin' || $role === 'super_admin'): ?>
             <section id="sales-management" class="content-section">
                 <div class="section-header">
                     <h1>Product Management</h1>
@@ -603,8 +601,8 @@ if (!$isStaffLoggedIn) {
                 </div>
             </section>
 
-            <!-- Reports Section (Admin Only) -->
-            <?php if ($role === 'admin'): ?>
+            <!-- Reports Section (Admin and Super Admin Only) -->
+            <?php if ($role === 'admin' || $role === 'super_admin'): ?>
             <section id="requests" class="content-section">
                 <div class="section-header">
                     <h1>Customer Requests</h1>
@@ -758,8 +756,8 @@ if (!$isStaffLoggedIn) {
             </section>
             <?php endif; ?>
 
-            <!-- User Management Section (Admin Only) -->
-            <?php if ($role === 'admin'): ?>
+            <!-- User Management Section (Super Admin Only) -->
+            <?php if ($role === 'super_admin'): ?>
             <section id="user-management" class="content-section">
                 <div class="section-header">
                     <h1>User Management</h1>
@@ -835,6 +833,7 @@ if (!$isStaffLoggedIn) {
                             min-width: 120px;
                         ">
                             <option value="all">All Roles</option>
+                            <option value="super_admin">Super Admin</option>
                             <option value="admin">Admin</option>
                             <option value="cashier">Cashier</option>
                         </select>
@@ -889,7 +888,7 @@ if (!$isStaffLoggedIn) {
             <?php endif; ?>
 
             <!-- Customer Support Section (Admin Only) -->
-            <?php if ($role === 'admin'): ?>
+            <?php if ($role === 'admin' || $role === 'super_admin'): ?>
             <section id="customersupport" class="content-section">
                 <div class="section-header">
                     <h1>Customer Support</h1>
@@ -961,9 +960,7 @@ if (!$isStaffLoggedIn) {
                                 </div>
                             </div>
                             <div class="chat-actions">
-                                <button class="btn-chat-action" id="markAllReadBtn" title="Mark all as read">
-                                    <i class="fas fa-check-double"></i>
-                                </button>
+                                <!-- Mark all as read button removed -->
                             </div>
                         </div>
                         

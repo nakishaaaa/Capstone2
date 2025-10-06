@@ -381,15 +381,15 @@ class EmailNotifications {
             if (!isset($pdo)) {
                 require_once __DIR__ . '/../config/database.php';
             }
-            // Get all admin email addresses
-            $stmt = $pdo->prepare("SELECT email, firstname, lastname FROM users WHERE role = 'admin' AND status = 'active'");
+            // Get all admin and super_admin email addresses
+            $stmt = $pdo->prepare("SELECT email, firstname, lastname FROM users WHERE role IN ('admin', 'super_admin') AND status = 'active'");
             $stmt->execute();
             $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            error_log("Found " . count($admins) . " admin users for notification");
+            error_log("Found " . count($admins) . " admin/super_admin users for notification");
             
             if (empty($admins)) {
-                error_log("No active admin users found for notification");
+                error_log("No active admin/super_admin users found for notification");
                 return false;
             }
             

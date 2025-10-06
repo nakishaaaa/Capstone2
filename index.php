@@ -297,12 +297,13 @@ function isActiveForm($formName, $activeForm) {
                 
                 <!-- Terms & Conditions Checkbox -->
                 <div class="form-group terms-checkbox-group">
-                  <label class="checkbox-container">
-                    <input type="checkbox" name="terms_agreement" id="terms_agreement" required>
+                  <label class="checkbox-container" id="termsCheckboxContainer">
+                    <input type="checkbox" name="terms_agreement" id="terms_agreement" required disabled>
                     <span class="checkmark"></span>
                     <span class="checkbox-text">
                       I agree to the <a href="#" onclick="openTermsModal(); return false;" class="terms-link">Terms & Conditions</a> of this website
                     </span>
+                    <span class="checkbox-tooltip" id="termsTooltip">Please read the Terms & Conditions first</span>
                   </label>
                 </div>
                 
@@ -1348,6 +1349,8 @@ function isActiveForm($formName, $activeForm) {
     });
 
     // Terms & Conditions Modal Functions
+    let hasScrolledToBottom = false;
+    
     function openTermsModal() {
       document.getElementById('termsModal').style.display = 'block';
       document.body.style.overflow = 'hidden'; // Prevent background scrolling
@@ -1357,6 +1360,33 @@ function isActiveForm($formName, $activeForm) {
       document.getElementById('termsModal').style.display = 'none';
       document.body.style.overflow = 'auto'; // Restore scrolling
     }
+
+    // Enable checkbox after reading terms
+    document.addEventListener('DOMContentLoaded', function() {
+      const termsBody = document.querySelector('.terms-modal-body');
+      const termsCheckbox = document.getElementById('terms_agreement');
+      const termsContainer = document.getElementById('termsCheckboxContainer');
+      
+      if (termsBody) {
+        termsBody.addEventListener('scroll', function() {
+          const scrollTop = termsBody.scrollTop;
+          const scrollHeight = termsBody.scrollHeight - termsBody.clientHeight;
+          
+          // Check if scrolled to bottom (with 10px tolerance)
+          if (scrollTop + termsBody.clientHeight >= termsBody.scrollHeight - 10) {
+            hasScrolledToBottom = true;
+            
+            // Enable checkbox
+            if (termsCheckbox) {
+              termsCheckbox.disabled = false;
+              if (termsContainer) {
+                termsContainer.classList.add('enabled');
+              }
+            }
+          }
+        });
+      }
+    });
 
     // Close modal when clicking outside of it
     window.onclick = function(event) {

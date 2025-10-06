@@ -451,10 +451,15 @@ export default class SupportMessaging {
     renderConversationCard(c) {
         const preview = (c.last_message || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const subject = (c.subject || 'General').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const status = c.conversation_status || 'open';
+        const statusClass = status !== 'open' ? `conversation-${status}` : '';
+        const statusBadge = status !== 'open' ? `<span class="conv-status-badge status-${status}">${status.toUpperCase()}</span>` : '';
+        
         return `
-        <div class="conversation-card" data-conv-id="${c.conversation_id}">
+        <div class="conversation-card ${statusClass}" data-conv-id="${c.conversation_id}" data-status="${status}">
             <div class="conv-meta">
                 <span class="conv-time" data-timestamp="${c.last_updated}">Last updated ${this.timeAgo(c.last_updated)}</span>
+                ${statusBadge}
             </div>
             <div class="conv-subject">${subject}</div>
             <div class="conv-preview">${preview}</div>
@@ -464,6 +469,10 @@ export default class SupportMessaging {
 
     async viewConversation(conversationId) {
         if (!this.conversationDetailEl) return;
+        
+        // Get conversation status from the card
+        const conversationCard = document.querySelector(`[data-conv-id="${conversationId}"]`);
+        const conversationStatus = conversationCard ? conversationCard.getAttribute('data-status') : 'open';
         
         // Hide the conversations list and show the detail view
         if (this.conversationsListEl) {
@@ -486,18 +495,42 @@ export default class SupportMessaging {
                     <div class="message-body">${(m.message||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
                 </div>
             `).join('');
+            
+            // Create status indicator for header
+            const statusBadge = conversationStatus !== 'open' ? 
+                `<span class="conv-detail-status status-${conversationStatus}">${conversationStatus.toUpperCase()}</span>` : '';
+            
+            // Create reply section or status message
+            let replySection = '';
+            if (conversationStatus === 'solved' || conversationStatus === 'closed') {
+                replySection = `
+                    <div class="conversation-status-message status-${conversationStatus}">
+                        <div class="status-message-content">
+                            <i class="fas fa-${conversationStatus === 'solved' ? 'check-circle' : 'lock'}"></i>
+                            <span>This conversation has been marked as <strong>${conversationStatus}</strong> by our support team.</span>
+                            <small>No new messages can be sent to this conversation.</small>
+                        </div>
+                    </div>
+                `;
+            } else {
+                replySection = `
+                    <div class="conversation-reply">
+                        <textarea id="replyTextarea" class="reply-textarea" rows="3" placeholder="Write a reply..."></textarea>
+                        <div class="reply-actions">
+                            <button class="support-send-btn" id="sendReplyBtn"><i class="fas fa-paper-plane"></i> Send reply</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
             this.conversationDetailEl.innerHTML = `
                 <div class="conversation-detail-header">
                     <button class="btn-back" id="backToList"><i class="fas fa-arrow-left"></i></button>
                     <div class="title">Conversation ${conversationId}</div>
+                    ${statusBadge}
                 </div>
                 <div class="conversation-messages">${list || '<div class="conv-empty">No messages</div>'}</div>
-                <div class="conversation-reply">
-                    <textarea id="replyTextarea" class="reply-textarea" rows="3" placeholder="Write a reply..."></textarea>
-                    <div class="reply-actions">
-                        <button class="support-send-btn" id="sendReplyBtn"><i class="fas fa-paper-plane"></i> Send reply</button>
-                    </div>
-                </div>
+                ${replySection}
             `;
             // Refresh timestamps immediately for the newly rendered view
             this.updateTimestamps();
@@ -513,34 +546,37 @@ export default class SupportMessaging {
                 }
             });
 
-            const sendBtn = this.conversationDetailEl.querySelector('#sendReplyBtn');
-            const replyTA = this.conversationDetailEl.querySelector('#replyTextarea');
-            if (sendBtn && replyTA) {
-                sendBtn.addEventListener('click', async () => {
-                    const text = replyTA.value.trim();
-                    if (!text) return;
-                    sendBtn.disabled = true;
-                    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-                    try {
-                        await this.sendReply(conversationId, text);
-                        replyTA.value = '';
-                        // refresh messages
-                        this.viewConversation(conversationId);
-                    } catch (err) {
-                        console.error(err);
-                        sendBtn.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Failed. Retry';
-                        setTimeout(()=>{ sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send reply'; }, 1500);
-                    } finally {
-                        sendBtn.disabled = false;
-                    }
-                });
-                // Ctrl+Enter to send
-                replyTA.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                        e.preventDefault();
-                        sendBtn.click();
-                    }
-                });
+            // Only bind reply events for open conversations
+            if (conversationStatus === 'open') {
+                const sendBtn = this.conversationDetailEl.querySelector('#sendReplyBtn');
+                const replyTA = this.conversationDetailEl.querySelector('#replyTextarea');
+                if (sendBtn && replyTA) {
+                    sendBtn.addEventListener('click', async () => {
+                        const text = replyTA.value.trim();
+                        if (!text) return;
+                        sendBtn.disabled = true;
+                        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                        try {
+                            await this.sendReply(conversationId, text);
+                            replyTA.value = '';
+                            // refresh messages
+                            this.viewConversation(conversationId);
+                        } catch (err) {
+                            console.error(err);
+                            sendBtn.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Failed. Retry';
+                            setTimeout(()=>{ sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send reply'; }, 1500);
+                        } finally {
+                            sendBtn.disabled = false;
+                        }
+                    });
+                    // Ctrl+Enter to send
+                    replyTA.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            sendBtn.click();
+                        }
+                    });
+                }
             }
         } catch (e) {
             console.error(e);

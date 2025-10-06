@@ -334,25 +334,25 @@ class MyOrdersModule {
             <div class="order-detail-content">
                 <div class="detail-section">
                     <h4><i class="fas fa-info-circle"></i> Order Information</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <label>Service Category</label>
+                    <div class="detail-list">
+                        <div class="detail-row">
+                            <label>Service Category:</label>
                             <span>${order.categoryDisplay}</span>
                         </div>
-                        <div class="detail-item">
-                            <label>Size</label>
+                        <div class="detail-row">
+                            <label>Size:</label>
                             <span>${order.size}</span>
                         </div>
-                        <div class="detail-item">
-                            <label>Quantity</label>
+                        <div class="detail-row">
+                            <label>Quantity:</label>
                             <span>${order.quantity} pieces</span>
                         </div>
-                        <div class="detail-item">
-                            <label>Customer Name</label>
+                        <div class="detail-row">
+                            <label>Customer Name:</label>
                             <span>${order.customerName}</span>
                         </div>
-                        <div class="detail-item">
-                            <label>Contact Number</label>
+                        <div class="detail-row">
+                            <label>Contact Number:</label>
                             <span>+63${order.contactNumber}</span>
                         </div>
                     </div>

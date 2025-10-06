@@ -233,13 +233,23 @@ function handleSendMessage($pdo) {
         $conversationId = 'CHAT-' . date('Y') . '-' . ($user_id ?? 'guest') . '-' . time();
     }
     
-    // If this is a reply to existing conversation and no subject provided, get the original subject
-    if (!empty($conversationId) && empty($subject)) {
-        $stmt = $pdo->prepare("SELECT subject FROM support_messages WHERE conversation_id = ? AND subject IS NOT NULL AND TRIM(subject) != '' ORDER BY created_at ASC LIMIT 1");
+    // If this is a reply to existing conversation, check status and get the original subject
+    if (!empty($conversationId)) {
+        // Check if conversation exists and get its status
+        $stmt = $pdo->prepare("SELECT conversation_status, subject FROM support_messages WHERE conversation_id = ? AND message_type = 'customer_support' ORDER BY created_at DESC LIMIT 1");
         $stmt->execute([$conversationId]);
-        $originalSubject = $stmt->fetchColumn();
-        if ($originalSubject) {
-            $subject = $originalSubject;
+        $existingConversation = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existingConversation) {
+            // Check if conversation is closed/solved
+            if (in_array($existingConversation['conversation_status'], ['solved', 'closed'])) {
+                throw new Exception('This conversation has been ' . $existingConversation['conversation_status'] . ' and no longer accepts new messages.');
+            }
+            
+            // Use original subject if no subject provided
+            if (empty($subject) && !empty($existingConversation['subject'])) {
+                $subject = $existingConversation['subject'];
+            }
         }
     }
     

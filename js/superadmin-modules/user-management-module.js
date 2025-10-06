@@ -76,6 +76,7 @@ export class UserManagementModule {
                             <div class="form-group">
                                 <label for="role">Role</label>
                                 <select id="role" name="role" required>
+                                    <option value="super_admin">Super Admin</option>
                                     <option value="admin">Admin</option>
                                     <option value="cashier">Cashier</option>
                                 </select>
@@ -311,7 +312,7 @@ export class UserManagementModule {
         const userId = formData.get('user_id');
         
         const userData = {
-            action: 'save_user',
+            action: userId ? 'edit_user' : 'add_user',
             user_id: userId || null,
             username: formData.get('username'),
             email: formData.get('email'),
@@ -322,22 +323,20 @@ export class UserManagementModule {
         console.log('Sending user data:', userData);
         
         try {
-            // First test the connection
-            const testResponse = await fetch('api/superadmin_api/super_admin_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'test_connection' })
+            // Use the regular user management API with FormData (not the developer API)
+            const formData = new FormData();
+            Object.keys(userData).forEach(key => {
+                if (userData[key] !== null && userData[key] !== undefined) {
+                    formData.append(key, userData[key]);
+                }
             });
             
-            if (testResponse.ok) {
-                const testData = await testResponse.json();
-                console.log('Connection test:', testData);
-            }
+            // Add CSRF token for security
+            formData.append('csrf_token', window.csrfToken);
             
-            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+            const response = await fetch('api/user_management.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(userData)
+                body: formData
             });
 
             if (!response.ok) {
@@ -398,7 +397,7 @@ export class UserManagementModule {
 
     async showEditUserModal(userId) {
         try {
-            const response = await fetch(`api/superadmin_api/super_admin_actions.php?action=get_user&user_id=${userId}`);
+            const response = await fetch(`api/user_management.php?action=get_user&user_id=${userId}`);
             const data = await response.json();
             
             if (data.success && data.user) {

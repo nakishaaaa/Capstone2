@@ -3,8 +3,8 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/session_helper.php';
 
-// Check if user is super admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
+// Check if user is developer
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'developer') {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit;
@@ -57,20 +57,31 @@ function getDatabaseAnalytics($conn) {
     
     // Get time range from request parameter
     $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
-    $interval = '30 DAY';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
     
-    switch($timeRange) {
-        case '7d':
-            $interval = '7 DAY';
-            break;
-        case '90d':
-            $interval = '90 DAY';
-            break;
-        case '1y':
-            $interval = '365 DAY';
-            break;
-        default:
-            $interval = '30 DAY';
+    // Handle custom date range
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $whereClause = "WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)";
+        $params = [$startDate, $endDate];
+    } else {
+        $interval = '30 DAY';
+        
+        switch($timeRange) {
+            case '7d':
+                $interval = '7 DAY';
+                break;
+            case '90d':
+                $interval = '90 DAY';
+                break;
+            case '1y':
+                $interval = '365 DAY';
+                break;
+            default:
+                $interval = '30 DAY';
+        }
+        $whereClause = "WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)";
+        $params = [];
     }
     
     // Database table sizes
@@ -89,13 +100,24 @@ function getDatabaseAnalytics($conn) {
     $data['table_sizes'] = $result->fetch_all(MYSQLI_ASSOC);
     
     // Database growth over time (using audit logs as proxy)
-    $stmt = $conn->prepare("
-        SELECT DATE(created_at) as date, COUNT(*) as activity_count
-        FROM audit_logs
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-    ");
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $stmt = $conn->prepare("
+            SELECT DATE(created_at) as date, COUNT(*) as activity_count
+            FROM audit_logs
+            WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+        $stmt->bind_param('ss', $startDate, $endDate);
+    } else {
+        $stmt = $conn->prepare("
+            SELECT DATE(created_at) as date, COUNT(*) as activity_count
+            FROM audit_logs
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     $data['daily_activity'] = $result->fetch_all(MYSQLI_ASSOC);
@@ -120,69 +142,130 @@ function getSecurityAnalytics($conn) {
     
     // Get time range from request parameter
     $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
-    $interval = '30 DAY';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
     
-    switch($timeRange) {
-        case '7d':
-            $interval = '7 DAY';
-            break;
-        case '90d':
-            $interval = '90 DAY';
-            break;
-        case '1y':
-            $interval = '365 DAY';
-            break;
-        default:
-            $interval = '30 DAY';
+    // Handle custom date range
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $whereClause = "WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)";
+        $loginWhereClause = "WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY) AND (action LIKE '%login%' OR action LIKE '%authentication%')";
+        $params = [$startDate, $endDate];
+    } else {
+        $interval = '30 DAY';
+        
+        switch($timeRange) {
+            case '7d':
+                $interval = '7 DAY';
+                break;
+            case '90d':
+                $interval = '90 DAY';
+                break;
+            case '1y':
+                $interval = '365 DAY';
+                break;
+            default:
+                $interval = '30 DAY';
+        }
+        $whereClause = "WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)";
+        $loginWhereClause = "WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval) AND (action LIKE '%login%' OR action LIKE '%authentication%')";
+        $params = [];
     }
     
     // Login attempts over time
-    $stmt = $conn->prepare("
-        SELECT DATE(created_at) as date, 
-               COUNT(*) as login_attempts,
-               COUNT(CASE WHEN action LIKE '%failed%' OR action LIKE '%error%' THEN 1 END) as failed_attempts
-        FROM audit_logs
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
-          AND (action LIKE '%login%' OR action LIKE '%authentication%')
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-    ");
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $stmt = $conn->prepare("
+            SELECT DATE(created_at) as date, 
+                   COUNT(*) as login_attempts,
+                   COUNT(CASE WHEN action LIKE '%failed%' OR action LIKE '%error%' THEN 1 END) as failed_attempts
+            FROM audit_logs
+            WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)
+              AND (action LIKE '%login%' OR action LIKE '%authentication%')
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+        $stmt->bind_param('ss', $startDate, $endDate);
+    } else {
+        $stmt = $conn->prepare("
+            SELECT DATE(created_at) as date, 
+                   COUNT(*) as login_attempts,
+                   COUNT(CASE WHEN action LIKE '%failed%' OR action LIKE '%error%' THEN 1 END) as failed_attempts
+            FROM audit_logs
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
+              AND (action LIKE '%login%' OR action LIKE '%authentication%')
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     $data['daily_login_attempts'] = $result->fetch_all(MYSQLI_ASSOC);
     
     // Security events by type
-    $stmt = $conn->prepare("
-        SELECT 
-            CASE 
-                WHEN action LIKE '%login%' THEN 'Login Events'
-                WHEN action LIKE '%logout%' THEN 'Logout Events'
-                WHEN action LIKE '%password%' THEN 'Password Events'
-                WHEN action LIKE '%failed%' OR action LIKE '%error%' THEN 'Failed Attempts'
-                ELSE 'Other Security Events'
-            END as event_type,
-            COUNT(*) as count
-        FROM audit_logs
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
-        GROUP BY event_type
-        ORDER BY count DESC
-    ");
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $stmt = $conn->prepare("
+            SELECT 
+                CASE 
+                    WHEN action LIKE '%login%' THEN 'Login Events'
+                    WHEN action LIKE '%logout%' THEN 'Logout Events'
+                    WHEN action LIKE '%password%' THEN 'Password Events'
+                    WHEN action LIKE '%failed%' OR action LIKE '%error%' THEN 'Failed Attempts'
+                    ELSE 'Other Security Events'
+                END as event_type,
+                COUNT(*) as count
+            FROM audit_logs
+            WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY event_type
+            ORDER BY count DESC
+        ");
+        $stmt->bind_param('ss', $startDate, $endDate);
+    } else {
+        $stmt = $conn->prepare("
+            SELECT 
+                CASE 
+                    WHEN action LIKE '%login%' THEN 'Login Events'
+                    WHEN action LIKE '%logout%' THEN 'Logout Events'
+                    WHEN action LIKE '%password%' THEN 'Password Events'
+                    WHEN action LIKE '%failed%' OR action LIKE '%error%' THEN 'Failed Attempts'
+                    ELSE 'Other Security Events'
+                END as event_type,
+                COUNT(*) as count
+            FROM audit_logs
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
+            GROUP BY event_type
+            ORDER BY count DESC
+        ");
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     $data['security_events'] = $result->fetch_all(MYSQLI_ASSOC);
     
     // User activity by role
-    $stmt = $conn->prepare("
-        SELECT 
-            u.role,
-            COUNT(al.id) as activity_count,
-            COUNT(DISTINCT al.user_id) as active_users
-        FROM audit_logs al
-        LEFT JOIN users u ON al.user_id = u.id
-        WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL $interval)
-        GROUP BY u.role
-        ORDER BY activity_count DESC
-    ");
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $stmt = $conn->prepare("
+            SELECT 
+                u.role,
+                COUNT(al.id) as activity_count,
+                COUNT(DISTINCT al.user_id) as active_users
+            FROM audit_logs al
+            LEFT JOIN users u ON al.user_id = u.id
+            WHERE al.created_at >= ? AND al.created_at <= DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY u.role
+            ORDER BY activity_count DESC
+        ");
+        $stmt->bind_param('ss', $startDate, $endDate);
+    } else {
+        $stmt = $conn->prepare("
+            SELECT 
+                u.role,
+                COUNT(al.id) as activity_count,
+                COUNT(DISTINCT al.user_id) as active_users
+            FROM audit_logs al
+            LEFT JOIN users u ON al.user_id = u.id
+            WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL $interval)
+            GROUP BY u.role
+            ORDER BY activity_count DESC
+        ");
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     $data['activity_by_role'] = $result->fetch_all(MYSQLI_ASSOC);
@@ -196,30 +279,52 @@ function getUserAnalytics($conn) {
     
     // Get time range from request parameter
     $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
-    $interval = '30 DAY';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
     
-    switch($timeRange) {
-        case '7d':
-            $interval = '7 DAY';
-            break;
-        case '90d':
-            $interval = '90 DAY';
-            break;
-        case '1y':
-            $interval = '365 DAY';
-            break;
-        default:
-            $interval = '30 DAY';
+    // Handle custom date range
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $whereClause = "WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)";
+        $params = [$startDate, $endDate];
+    } else {
+        $interval = '30 DAY';
+        
+        switch($timeRange) {
+            case '7d':
+                $interval = '7 DAY';
+                break;
+            case '90d':
+                $interval = '90 DAY';
+                break;
+            case '1y':
+                $interval = '365 DAY';
+                break;
+            default:
+                $interval = '30 DAY';
+        }
+        $whereClause = "WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)";
+        $params = [];
     }
     
     // User registrations over time
-    $stmt = $conn->prepare("
-        SELECT DATE(created_at) as date, COUNT(*) as registrations
-        FROM users 
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-    ");
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $stmt = $conn->prepare("
+            SELECT DATE(created_at) as date, COUNT(*) as registrations
+            FROM users 
+            WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+        $stmt->bind_param('ss', $startDate, $endDate);
+    } else {
+        $stmt = $conn->prepare("
+            SELECT DATE(created_at) as date, COUNT(*) as registrations
+            FROM users 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     $data['daily_registrations'] = $result->fetch_all(MYSQLI_ASSOC);
@@ -255,20 +360,31 @@ function getSystemPerformance($conn) {
     
     // Get time range from request parameter
     $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
-    $interval = '30 DAY';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
     
-    switch($timeRange) {
-        case '7d':
-            $interval = '7 DAY';
-            break;
-        case '90d':
-            $interval = '90 DAY';
-            break;
-        case '1y':
-            $interval = '365 DAY';
-            break;
-        default:
-            $interval = '30 DAY';
+    // Handle custom date range
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $whereClause = "WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)";
+        $params = [$startDate, $endDate];
+    } else {
+        $interval = '30 DAY';
+        
+        switch($timeRange) {
+            case '7d':
+                $interval = '7 DAY';
+                break;
+            case '90d':
+                $interval = '90 DAY';
+                break;
+            case '1y':
+                $interval = '365 DAY';
+                break;
+            default:
+                $interval = '30 DAY';
+        }
+        $whereClause = "WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)";
+        $params = [];
     }
     
     // Database size
@@ -285,13 +401,24 @@ function getSystemPerformance($conn) {
     $data['table_sizes'] = $result->fetch_all(MYSQLI_ASSOC);
     
     // System activity (from audit logs)
-    $stmt = $conn->prepare("
-        SELECT DATE(created_at) as date, COUNT(*) as activity_count
-        FROM audit_logs
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-    ");
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $stmt = $conn->prepare("
+            SELECT DATE(created_at) as date, COUNT(*) as activity_count
+            FROM audit_logs
+            WHERE created_at >= ? AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+        $stmt->bind_param('ss', $startDate, $endDate);
+    } else {
+        $stmt = $conn->prepare("
+            SELECT DATE(created_at) as date, COUNT(*) as activity_count
+            FROM audit_logs
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL $interval)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     $data['daily_activity'] = $result->fetch_all(MYSQLI_ASSOC);
@@ -348,27 +475,44 @@ function formatDatabaseResponse($data) {
     
     // Get the time range to determine how many days to show
     $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
     $daysToShow = 30;
     
-    switch($timeRange) {
-        case '7d':
-            $daysToShow = 7;
-            break;
-        case '90d':
-            $daysToShow = 90;
-            break;
-        case '1y':
-            $daysToShow = 365;
-            break;
-        default:
-            $daysToShow = 30;
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $start = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        $daysToShow = $start->diff($end)->days + 1;
+    } else {
+        switch($timeRange) {
+            case '7d':
+                $daysToShow = 7;
+                break;
+            case '90d':
+                $daysToShow = 90;
+                break;
+            case '1y':
+                $daysToShow = 365;
+                break;
+            default:
+                $daysToShow = 30;
+        }
     }
     
     // Create a complete date range for database activity
     $dateMap = [];
-    for ($i = $daysToShow - 1; $i >= 0; $i--) {
-        $date = date('Y-m-d', strtotime("-$i days"));
-        $dateMap[$date] = 0;
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $current = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        while ($current <= $end) {
+            $dateMap[$current->format('Y-m-d')] = 0;
+            $current->add(new DateInterval('P1D'));
+        }
+    } else {
+        for ($i = $daysToShow - 1; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $dateMap[$date] = 0;
+        }
     }
     
     // Fill in actual activity data
@@ -410,29 +554,47 @@ function formatSecurityResponse($data) {
     
     // Get the time range to determine how many days to show
     $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
     $daysToShow = 30;
     
-    switch($timeRange) {
-        case '7d':
-            $daysToShow = 7;
-            break;
-        case '90d':
-            $daysToShow = 90;
-            break;
-        case '1y':
-            $daysToShow = 365;
-            break;
-        default:
-            $daysToShow = 30;
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $start = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        $daysToShow = $start->diff($end)->days + 1;
+    } else {
+        switch($timeRange) {
+            case '7d':
+                $daysToShow = 7;
+                break;
+            case '90d':
+                $daysToShow = 90;
+                break;
+            case '1y':
+                $daysToShow = 365;
+                break;
+            default:
+                $daysToShow = 30;
+        }
     }
     
     // Create a complete date range
     $dateMap = [];
     $failedMap = [];
-    for ($i = $daysToShow - 1; $i >= 0; $i--) {
-        $date = date('Y-m-d', strtotime("-$i days"));
-        $dateMap[$date] = 0;
-        $failedMap[$date] = 0;
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $current = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        while ($current <= $end) {
+            $dateMap[$current->format('Y-m-d')] = 0;
+            $failedMap[$current->format('Y-m-d')] = 0;
+            $current->add(new DateInterval('P1D'));
+        }
+    } else {
+        for ($i = $daysToShow - 1; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $dateMap[$date] = 0;
+            $failedMap[$date] = 0;
+        }
     }
     
     // Fill in actual login data
@@ -471,27 +633,44 @@ function formatUserResponse($data) {
     
     // Get the time range to determine how many days to show
     $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
     $daysToShow = 30;
     
-    switch($timeRange) {
-        case '7d':
-            $daysToShow = 7;
-            break;
-        case '90d':
-            $daysToShow = 90;
-            break;
-        case '1y':
-            $daysToShow = 365;
-            break;
-        default:
-            $daysToShow = 30;
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $start = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        $daysToShow = $start->diff($end)->days + 1;
+    } else {
+        switch($timeRange) {
+            case '7d':
+                $daysToShow = 7;
+                break;
+            case '90d':
+                $daysToShow = 90;
+                break;
+            case '1y':
+                $daysToShow = 365;
+                break;
+            default:
+                $daysToShow = 30;
+        }
     }
     
     // Create a complete date range for user registrations
     $dateMap = [];
-    for ($i = $daysToShow - 1; $i >= 0; $i--) {
-        $date = date('Y-m-d', strtotime("-$i days"));
-        $dateMap[$date] = 0;
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $current = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        while ($current <= $end) {
+            $dateMap[$current->format('Y-m-d')] = 0;
+            $current->add(new DateInterval('P1D'));
+        }
+    } else {
+        for ($i = $daysToShow - 1; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $dateMap[$date] = 0;
+        }
     }
     
     // Fill in actual registration data
@@ -543,27 +722,44 @@ function formatPerformanceResponse($data) {
     
     // Get the time range to determine how many days to show
     $timeRange = $_GET['time_range'] ?? $_GET['range'] ?? '30d';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
     $daysToShow = 30;
     
-    switch($timeRange) {
-        case '7d':
-            $daysToShow = 7;
-            break;
-        case '90d':
-            $daysToShow = 90;
-            break;
-        case '1y':
-            $daysToShow = 365;
-            break;
-        default:
-            $daysToShow = 30;
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $start = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        $daysToShow = $start->diff($end)->days + 1;
+    } else {
+        switch($timeRange) {
+            case '7d':
+                $daysToShow = 7;
+                break;
+            case '90d':
+                $daysToShow = 90;
+                break;
+            case '1y':
+                $daysToShow = 365;
+                break;
+            default:
+                $daysToShow = 30;
+        }
     }
     
     // Create a complete date range for performance data
     $dateMap = [];
-    for ($i = $daysToShow - 1; $i >= 0; $i--) {
-        $date = date('Y-m-d', strtotime("-$i days"));
-        $dateMap[$date] = 0;
+    if ($timeRange === 'custom' && $startDate && $endDate) {
+        $current = new DateTime($startDate);
+        $end = new DateTime($endDate);
+        while ($current <= $end) {
+            $dateMap[$current->format('Y-m-d')] = 0;
+            $current->add(new DateInterval('P1D'));
+        }
+    } else {
+        for ($i = $daysToShow - 1; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $dateMap[$date] = 0;
+        }
     }
     
     // Fill in actual activity data

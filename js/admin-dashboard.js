@@ -72,12 +72,17 @@ class AdminDashboard {
       this.modules.productManagement = new ProductManagementModule(this.toast, this.modal)
       this.modules.notifications = new NotificationsModule(this.toast)
       
-      // Only initialize requests module for admin users
-      if (window.userRole === 'admin') {
+      // Initialize requests module for admin and super_admin users
+      if (window.userRole === 'admin' || window.userRole === 'super_admin') {
         this.modules.requests = new RequestsModule(this.toast, this.modal)
         this.modules.orderManagement = new OrderManagementModule(this.toast, this.modal)
         this.modules.orderManagement.init()
         this.modules.salesReport = new SalesReportModule(this.toast, this.apiClient)
+      }
+      
+      // Initialize user management module for super_admin only
+      if (window.userRole === 'super_admin') {
+        this.modules.userManagement = new UserManagementModule(this.toast, this.modal)
       }
       
       // Pass the SSE client from dashboard module to admin support module
@@ -112,6 +117,17 @@ class AdminDashboard {
         window.updateDateInputs = () => this.modules.salesReport.updateDateInputs()
         window.filterReportTable = () => this.modules.salesReport.filterReportTable()
         window.sortReportTable = () => this.modules.salesReport.sortReportTable()
+      }
+      
+      // Only expose user management module for admin users
+      if (this.modules.userManagement) {
+        window.userManagementModule = this.modules.userManagement
+        // Expose global functions for user management onclick handlers
+        window.openAddUserModal = () => this.modules.userManagement.openAddUserModal()
+        window.closeAddUserModal = () => this.modules.userManagement.closeAddUserModal()
+        window.openEditUserModal = (userId) => this.modules.userManagement.openEditUserModal(userId)
+        window.closeEditUserModal = () => this.modules.userManagement.closeEditUserModal()
+        window.filterUsers = () => this.modules.userManagement.filterUsers()
       }
       
       window.adminSupportModule = this.modules.adminSupport

@@ -18,8 +18,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 header('Content-Type: application/json');
 
-// Check if user is logged in and has appropriate role (admin or cashier)
-if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'cashier'])) {
+// Check if user is logged in and has appropriate role (admin, cashier, or super_admin/developer)
+if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'cashier', 'super_admin'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit;

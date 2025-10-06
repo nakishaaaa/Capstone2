@@ -132,6 +132,17 @@ export class SSEClient {
         console.error('SSE: Error parsing memory_warning data', error)
       }
     })
+
+    // Real-time notifications event
+    this.eventSource.addEventListener('realtime_notifications', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.log('SSE: Real-time notifications received', data)
+        this.emit('realtime_notifications', data)
+      } catch (error) {
+        console.error('SSE: Error parsing realtime_notifications data', error)
+      }
+    })
   }
 
   scheduleReconnect() {

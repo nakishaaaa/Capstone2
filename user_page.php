@@ -1,6 +1,77 @@
 <?php
 session_start();
 
+// Include database connection for maintenance check
+require_once 'includes/config.php';
+
+// Check maintenance mode - force logout customers during maintenance
+function isMaintenanceModeEnabled() {
+    global $conn;
+    try {
+        $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'maintenance_mode' LIMIT 1");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['setting_value'] === 'true';
+        }
+        return false;
+    } catch (Exception $e) {
+        return false; // Default to no maintenance if error
+    }
+}
+
+// Check for force logout flag - immediate logout when maintenance is enabled
+function shouldForceLogout() {
+    global $conn;
+    try {
+        // Check database flag for force logout
+        $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'force_customer_logout' LIMIT 1");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            $logout_time = intval($row['setting_value']);
+            
+            // If logout time is set and greater than user's login time, force logout
+            if ($logout_time > 0) {
+                $user_login_time = $_SESSION['login_time'] ?? 0;
+                return $logout_time > $user_login_time;
+            }
+        }
+        
+        // Also check file flag as backup
+        $maintenance_flag = 'maintenance_active.flag';
+        if (file_exists($maintenance_flag)) {
+            $flag_time = intval(file_get_contents($maintenance_flag));
+            $user_login_time = $_SESSION['login_time'] ?? 0;
+            return $flag_time > $user_login_time;
+        }
+        
+        return false;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+// Force logout customers when maintenance is enabled
+$user_role = $_SESSION['user_role'] ?? $_SESSION['role'] ?? null;
+if ($user_role === 'user' && (isMaintenanceModeEnabled() || shouldForceLogout())) {
+    // Clear all session data
+    session_unset();
+    session_destroy();
+    
+    // Start new session for error message
+    session_start();
+    $_SESSION['login_error'] = 'You have been logged out due to system maintenance. Please try again later.';
+    $_SESSION['active_form'] = 'login';
+    
+    header("Location: index.php");
+    exit();
+}
+
 // Require only user-specific session variables (no legacy fallback)
 $isUserLoggedIn = false;
 $userName = '';
@@ -363,7 +434,7 @@ if (!$isUserLoggedIn) {
                                 
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label for="tagImage">Tag <span style="color:#ff0000;">*</span></label>
+                                        <label for="tagImage">Tag (optional)</label>
                                         <div class="file-upload">
                                             <input type="file" id="tagImage" name="tag_image" accept="image/*,.pdf">
                                             <label for="tagImage" class="file-upload-label">
@@ -1201,6 +1272,21 @@ if (!$isUserLoggedIn) {
 
     <script src="js/core/error-tracker.js"></script>
     <script src="js/slideshow.js"></script>
+    
+    <!-- User session data for JavaScript -->
+    <script>
+        // Make user session data available to JavaScript
+        window.currentUser = {
+            id: <?php echo json_encode($_SESSION['user_id'] ?? null); ?>,
+            name: <?php echo json_encode($userName); ?>,
+            email: <?php echo json_encode($userEmail); ?>,
+            role: 'user'
+        };
+        
+        // Legacy support
+        window.userId = <?php echo json_encode($_SESSION['user_id'] ?? null); ?>;
+    </script>
+    
     <script type="module" src="js/user_page.main.js"></script>
     <script>
     // Gallery Lightbox functionality

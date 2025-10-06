@@ -49,7 +49,7 @@ try {
     }
 
     // Fetch conversations for this user - only customer support messages
-    // We group by conversation_id and return last message, last updated time, subject (last non-null), and message count
+    // We group by conversation_id and return last message, last updated time, subject (last non-null), message count, and conversation status
     $query = "
         SELECT 
             sm.conversation_id,
@@ -60,6 +60,9 @@ try {
             (SELECT s3.message FROM support_messages s3 
              WHERE s3.conversation_id = sm.conversation_id AND s3.message_type = 'customer_support'
              ORDER BY s3.created_at DESC LIMIT 1) AS last_message,
+            (SELECT s4.conversation_status FROM support_messages s4 
+             WHERE s4.conversation_id = sm.conversation_id AND s4.message_type = 'customer_support'
+             ORDER BY s4.created_at DESC LIMIT 1) AS conversation_status,
             COUNT(*) AS message_count,
             SUM(CASE WHEN is_admin = 1 AND is_read = 0 THEN 1 ELSE 0 END) AS unread_admin_messages
         FROM support_messages sm
@@ -92,6 +95,7 @@ try {
             'last_updated_human' => timeAgo($r['last_updated']),
             'message_count' => (int)$r['message_count'],
             'unread' => (int)$r['unread_admin_messages'],
+            'conversation_status' => $r['conversation_status'] ?: 'open',
         ];
     }, $rows);
 

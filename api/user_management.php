@@ -7,6 +7,8 @@ error_reporting(0);
 session_start();
 require_once '../config/database.php';
 require_once '../includes/csrf.php';
+require_once '../includes/email_verification.php';
+require_once '../includes/unverified_account_cleanup.php';
 
 // CSRF validation helper compatible with different implementations
 function isValidCsrf($token) {
@@ -22,17 +24,17 @@ function isValidCsrf($token) {
     return false;
 }
 
-// Check if user is admin or super admin - only admins can manage users
+// Check if user is super admin - only super admins can manage users
 $is_authorized = false;
 $user_role = $_SESSION['role'] ?? $_SESSION['admin_role'] ?? null;
 
-if ($user_role === 'admin' || $user_role === 'super_admin') {
+if ($user_role === 'super_admin' || $user_role === 'developer') {
     $is_authorized = true;
 }
 
 if (!$is_authorized) {
     http_response_code(403);
-    echo json_encode(['error' => 'Access denied. Admin privileges required.']);
+    echo json_encode(['error' => 'Access denied. Super admin privileges required.']);
     exit();
 }
 
@@ -81,6 +83,9 @@ switch ($action) {
     case 'get_user_stats':
         getUserStats($pdo);
         break;
+    case 'get_user':
+        getUser($pdo);
+        break;
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);
@@ -98,7 +103,7 @@ function getUsersList($pdo) {
                        u.deleted_at, u.deletion_reason, du.username as deleted_by_username
                 FROM users u 
                 LEFT JOIN users du ON u.deleted_by = du.id 
-                WHERE u.role != 'super_admin'";
+                WHERE u.role != 'developer'";
         
         // Exclude customer accounts for regular admin access
         if ($include_customers !== 'true') {
@@ -167,7 +172,7 @@ function addUser($pdo) {
         }
         
         // Validate role
-        $valid_roles = ['admin', 'cashier', 'user'];
+        $valid_roles = ['admin', 'cashier', 'user', 'super_admin'];
         if (!in_array($role, $valid_roles)) {
             http_response_code(400);
             echo json_encode(['error' => 'Invalid role specified']);
@@ -186,11 +191,66 @@ function addUser($pdo) {
         // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
-        // Insert new user - use username field instead of name
-        $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())");
-        $stmt->execute([$username, $email, $hashed_password, $role]);
+        // Generate email verification token
+        $verification_token = null;
+        try {
+            if (function_exists('generateVerificationToken')) {
+                $verification_token = generateVerificationToken();
+            } else {
+                error_log("generateVerificationToken function not found");
+                $verification_token = bin2hex(random_bytes(32)); // Fallback
+            }
+        } catch (Exception $e) {
+            error_log("Token generation error: " . $e->getMessage());
+            $verification_token = bin2hex(random_bytes(32)); // Fallback
+        }
         
-        echo json_encode(['success' => true, 'message' => 'User added successfully']);
+        // Insert new user with email verification token - use username field instead of name
+        $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, email_verification_token, is_email_verified, created_at) VALUES (?, ?, ?, ?, ?, FALSE, NOW())");
+        $stmt->execute([$username, $email, $hashed_password, $role, $verification_token]);
+        
+        // Get the admin who created the account
+        $admin_username = $_SESSION['username'] ?? $_SESSION['admin_username'] ?? 'Administrator';
+        
+        // Send verification email
+        $email_sent = false;
+        try {
+            if (function_exists('sendAdminCreatedAccountVerificationEmail')) {
+                $email_sent = sendAdminCreatedAccountVerificationEmail($email, $username, $verification_token, $role, $admin_username);
+            } else {
+                error_log("sendAdminCreatedAccountVerificationEmail function not found");
+            }
+        } catch (Exception $e) {
+            error_log("Email sending error: " . $e->getMessage());
+            $email_sent = false;
+        } catch (Error $e) {
+            error_log("Email sending fatal error: " . $e->getMessage());
+            $email_sent = false;
+        }
+        
+        // Trigger cleanup of old unverified accounts (run in background)
+        try {
+            $cleanup = new UnverifiedAccountCleanup($pdo, 24); // 24 hours
+            $cleanup_result = $cleanup->cleanupExpiredAccounts();
+            if ($cleanup_result['success'] && $cleanup_result['deleted_count'] > 0) {
+                error_log("Auto-cleanup: Removed {$cleanup_result['deleted_count']} expired unverified accounts");
+            }
+        } catch (Exception $e) {
+            error_log("Auto-cleanup error: " . $e->getMessage());
+        }
+        
+        if ($email_sent) {
+            echo json_encode([
+                'success' => true, 
+                'message' => 'User added successfully. A verification email has been sent to ' . $email . '. The user must verify their email before they can log in.'
+            ]);
+        } else {
+            echo json_encode([
+                'success' => true, 
+                'message' => 'User added successfully, but there was an issue sending the verification email. Please contact the user directly to verify their account.',
+                'warning' => 'Email delivery failed'
+            ]);
+        }
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to add user: ' . $e->getMessage()]);
@@ -222,7 +282,7 @@ function editUser($pdo) {
         }
         
         // Validate role
-        $valid_roles = ['admin', 'cashier', 'user'];
+        $valid_roles = ['admin', 'cashier', 'user', 'super_admin'];
         if (!in_array($role, $valid_roles)) {
             http_response_code(400);
             echo json_encode(['error' => 'Invalid role specified']);
@@ -471,12 +531,12 @@ function getUserStats($pdo) {
     try {
         $stats = [];
         
-        // Total users (excluding customers and super admin)
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE role != 'user' AND role != 'super_admin'");
+        // Total users (excluding customers and developer)
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE role != 'user' AND role != 'developer'");
         $stats['total'] = $stmt->fetch()['count'];
         
-        // Users by role (excluding customers and super admin)
-        $stmt = $pdo->query("SELECT role, COUNT(*) as count FROM users WHERE role != 'user' AND role != 'super_admin' GROUP BY role");
+        // Users by role (excluding customers and developer)
+        $stmt = $pdo->query("SELECT role, COUNT(*) as count FROM users WHERE role != 'user' AND role != 'developer' GROUP BY role");
         $role_counts = $stmt->fetchAll();
         
         $stats['admin'] = 0;
@@ -490,6 +550,32 @@ function getUserStats($pdo) {
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to get user stats: ' . $e->getMessage()]);
+    }
+}
+
+function getUser($pdo) {
+    try {
+        $user_id = $_GET['user_id'] ?? '';
+        
+        if (empty($user_id)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'User ID is required']);
+            return;
+        }
+        
+        $stmt = $pdo->prepare("SELECT id, username, email, role, status, last_login, created_at FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch();
+        
+        if ($user) {
+            echo json_encode(['success' => true, 'user' => $user]);
+        } else {
+            http_response_code(404);
+            echo json_encode(['error' => 'User not found']);
+        }
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to get user: ' . $e->getMessage()]);
     }
 }
 ?>

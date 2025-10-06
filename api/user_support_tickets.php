@@ -47,15 +47,15 @@ try {
         $action = $_GET['action'] ?? 'list';
         
         if ($action === 'list') {
-            // Get all conversations for this user from support_tickets_messages
+            // Get all conversations for this user from support_tickets_messages with actual status
             $stmt = $conn->prepare("
                 SELECT 
                     sm.conversation_id as id,
                     sm.subject,
                     MIN(sm.created_at) as created_at,
                     MAX(sm.created_at) as updated_at,
-                    'open' as status,
-                    'medium' as priority,
+                    COALESCE(st.status, 'open') as status,
+                    COALESCE(st.priority, 'medium') as priority,
                     COUNT(*) as message_count,
                     SUM(CASE WHEN sm.is_admin = 1 THEN 1 ELSE 0 END) as reply_count,
                     (SELECT s2.message FROM support_tickets_messages s2 
@@ -65,8 +65,9 @@ try {
                      WHERE s3.conversation_id = sm.conversation_id AND s3.attachment_paths IS NOT NULL
                      ORDER BY s3.created_at ASC LIMIT 1) as attachment_path
                 FROM support_tickets_messages sm
+                LEFT JOIN support_tickets st ON st.id = CAST(SUBSTRING(sm.conversation_id, 8) AS UNSIGNED)
                 WHERE sm.user_id = ? OR sm.user_name = ?
-                GROUP BY sm.conversation_id, sm.subject
+                GROUP BY sm.conversation_id, sm.subject, st.status, st.priority
                 ORDER BY MAX(sm.created_at) DESC
             ");
             $stmt->bind_param("is", $userId, $userName);
@@ -100,13 +101,15 @@ try {
                 exit();
             }
             
-            // Get conversation messages from support_tickets_messages
+            // Get conversation messages from support_tickets_messages with ticket status
             $stmt = $conn->prepare("
-                SELECT id, conversation_id, user_name, user_email, admin_name, 
-                       subject, message, attachment_paths, is_admin, created_at, is_read
-                FROM support_tickets_messages 
-                WHERE conversation_id = ? AND (user_id = ? OR user_name = ?)
-                ORDER BY created_at ASC
+                SELECT sm.id, sm.conversation_id, sm.user_name, sm.user_email, sm.admin_name, 
+                       sm.subject, sm.message, sm.attachment_paths, sm.is_admin, sm.created_at, sm.is_read,
+                       st.status, st.priority
+                FROM support_tickets_messages sm
+                LEFT JOIN support_tickets st ON st.id = CAST(SUBSTRING(sm.conversation_id, 8) AS UNSIGNED)
+                WHERE sm.conversation_id = ? AND (sm.user_id = ? OR sm.user_name = ?)
+                ORDER BY sm.created_at ASC
             ");
             $stmt->bind_param("sis", $conversationId, $userId, $userName);
             $stmt->execute();
@@ -121,8 +124,8 @@ try {
                     $ticket = [
                         'id' => $row['conversation_id'],
                         'subject' => $row['subject'],
-                        'status' => 'open',
-                        'priority' => 'medium',
+                        'status' => $row['status'] ?: 'open',
+                        'priority' => $row['priority'] ?: 'medium',
                         'created_at' => $row['created_at'],
                         'updated_at' => $row['created_at'] // Will be updated with last message
                     ];

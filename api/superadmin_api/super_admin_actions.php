@@ -8,8 +8,8 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 error_reporting(E_ALL);
 
-// Check if user is logged in as super admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
+// Check if user is logged in as developer
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'developer') {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit();
@@ -38,8 +38,32 @@ try {
             $stmt->bind_param("si", $enabled, $_SESSION['user_id']);
             $stmt->execute();
             
-            // Log the action
-            logAuditEvent($_SESSION['user_id'], 'maintenance_toggle', "Maintenance mode " . ($enabled === 'true' ? 'enabled' : 'disabled'));
+            // If maintenance is being enabled, force logout all customer sessions
+            if ($enabled === 'true') {
+                // Create a maintenance flag file to signal all customer sessions to logout
+                $maintenance_flag = '../maintenance_active.flag';
+                file_put_contents($maintenance_flag, time());
+                
+                // Also set a database flag for immediate logout
+                $logout_stmt = $conn->prepare("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'force_customer_logout'");
+                $logout_time = time();
+                $logout_stmt->bind_param("s", $logout_time);
+                $logout_stmt->execute();
+            } else {
+                // Remove maintenance flag when disabled
+                $maintenance_flag = '../maintenance_active.flag';
+                if (file_exists($maintenance_flag)) {
+                    unlink($maintenance_flag);
+                }
+                
+                // Clear the force logout flag
+                $logout_stmt = $conn->prepare("UPDATE system_settings SET setting_value = '0' WHERE setting_key = 'force_customer_logout'");
+                $logout_stmt->execute();
+            }
+            
+            // Log the action with detailed description
+            $status = ($enabled === 'true') ? 'enabled' : 'disabled';
+            logAuditEvent($_SESSION['user_id'], 'maintenance_toggle', "Maintenance mode {$status} - System " . ($enabled === 'true' ? 'locked for customers' : 'unlocked for all users'));
             
             echo json_encode(['success' => true, 'message' => 'Maintenance mode updated']);
             break;
@@ -316,13 +340,28 @@ try {
         case 'save_settings':
             $data = json_decode(file_get_contents('php://input'), true);
             
+            $maintenanceChanged = false;
+            $maintenanceStatus = '';
+            
             foreach ($data['settings'] as $key => $value) {
                 $stmt = $conn->prepare("UPDATE system_settings SET setting_value = ?, updated_by = ?, updated_at = NOW() WHERE setting_key = ?");
                 $stmt->bind_param("sis", $value, $_SESSION['user_id'], $key);
                 $stmt->execute();
+                
+                // Track maintenance mode changes
+                if ($key === 'maintenance_mode') {
+                    $maintenanceChanged = true;
+                    $maintenanceStatus = $value;
+                }
             }
             
-            logAuditEvent($_SESSION['user_id'], 'settings_update', 'System settings updated');
+            // Log specific maintenance toggle or generic settings update
+            if ($maintenanceChanged) {
+                $status = ($maintenanceStatus === 'true') ? 'enabled' : 'disabled';
+                logAuditEvent($_SESSION['user_id'], 'maintenance_toggle', "Maintenance mode {$status} - System " . ($maintenanceStatus === 'true' ? 'locked for customers' : 'unlocked for all users'));
+            } else {
+                logAuditEvent($_SESSION['user_id'], 'settings_update', 'System settings updated');
+            }
             
             echo json_encode(['success' => true, 'message' => 'Settings saved successfully']);
             break;
@@ -332,7 +371,7 @@ try {
             $role = $_GET['role'] ?? '';
             $status = $_GET['status'] ?? '';
             
-            $query = "SELECT id, username, email, role, status, last_login, created_at FROM users WHERE role != 'super_admin'";
+            $query = "SELECT id, username, email, role, status, last_login, created_at FROM users WHERE role != 'developer'";
             $params = [];
             $types = '';
             
@@ -410,9 +449,18 @@ try {
             
             // Add action filter
             if ($filterAction !== 'all') {
-                $query .= " AND al.action = ?";
-                $params[] = $filterAction;
-                $types .= 's';
+                // Handle maintenance toggle filter - match both possible action names
+                if ($filterAction === 'maintenance_toggle') {
+                    $query .= " AND (al.action = ? OR al.action = ? OR al.action = ?)";
+                    $params[] = 'maintenance_toggle';
+                    $params[] = 'SETTINGS_UPDATE';
+                    $params[] = 'settings_update';
+                    $types .= 'sss';
+                } else {
+                    $query .= " AND al.action = ?";
+                    $params[] = $filterAction;
+                    $types .= 's';
+                }
             }
             
             // Add user filter
@@ -581,8 +629,8 @@ try {
                 break;
             }
             
-            if ($user['role'] === 'super_admin') {
-                echo json_encode(['success' => false, 'message' => 'Cannot delete super admin accounts']);
+            if ($user['role'] === 'developer') {
+                echo json_encode(['success' => false, 'message' => 'Cannot delete developer accounts']);
                 break;
             }
             
@@ -1706,6 +1754,16 @@ try {
                     $stats['total_users'] = 0;
                 }
                 
+                // Admin accounts count
+                $stmt = $conn->prepare("SELECT COUNT(*) as total FROM users WHERE role IN ('admin', 'developer')");
+                if ($stmt && $stmt->execute()) {
+                    $result = $stmt->get_result();
+                    $stats['total_admins'] = $result->fetch_assoc()['total'];
+                    $stmt->close();
+                } else {
+                    $stats['total_admins'] = 0;
+                }
+                
                 // Order statistics with prepared statement
                 $stmt = $conn->prepare("SELECT COUNT(*) as total FROM sales WHERE DATE(created_at) = CURDATE()");
                 if ($stmt && $stmt->execute()) {
@@ -1724,6 +1782,16 @@ try {
                     $stmt->close();
                 } else {
                     $stats['total_revenue'] = '0.00';
+                }
+                
+                // Open customer support tickets count
+                $stmt = $conn->prepare("SELECT COUNT(DISTINCT conversation_id) as total FROM support_tickets_messages");
+                if ($stmt && $stmt->execute()) {
+                    $result = $stmt->get_result();
+                    $stats['open_support'] = $result->fetch_assoc()['total'];
+                    $stmt->close();
+                } else {
+                    $stats['open_support'] = 0;
                 }
                 
                 // System health (placeholder)

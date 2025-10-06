@@ -225,17 +225,30 @@ class SuperAdminDashboard {
 
     updateDashboardStats(stats) {
         if (stats) {
-            const elements = {
-                'totalUsers': stats.total_users,
-                'totalOrders': stats.total_orders,
-                'totalRevenue': stats.total_revenue,
-                'systemHealth': stats.system_health
-            };
-
-            Object.entries(elements).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element && value !== undefined) {
-                    element.textContent = value;
+            // Update stat cards by finding them by their text content
+            const statCards = document.querySelectorAll('.stat-card');
+            
+            statCards.forEach(card => {
+                const content = card.querySelector('.stat-content');
+                const label = content.querySelector('p').textContent.trim();
+                const valueElement = content.querySelector('h3');
+                
+                switch (label) {
+                    case 'Total Users':
+                        if (stats.total_users !== undefined) {
+                            valueElement.textContent = Number(stats.total_users).toLocaleString();
+                        }
+                        break;
+                    case 'Admin Accounts':
+                        if (stats.total_admins !== undefined) {
+                            valueElement.textContent = Number(stats.total_admins).toLocaleString();
+                        }
+                        break;
+                    case 'Open Customer Support':
+                        if (stats.open_support !== undefined) {
+                            valueElement.textContent = Number(stats.open_support).toLocaleString();
+                        }
+                        break;
                 }
             });
         }

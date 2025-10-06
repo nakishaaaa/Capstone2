@@ -37,10 +37,8 @@ export class SupportModule {
                                 <div id="chatUserEmail" class="chat-user-email"></div>
                             </div>
                         </div>
-                        <div class="chat-actions">
-                            <button id="refreshSupportBtn" class="refresh-btn">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
+                        <div class="chat-subject-info">
+                            <div id="chatSubject" class="chat-subject">No subject</div>
                         </div>
                     </div>
 
@@ -73,12 +71,6 @@ export class SupportModule {
     }
 
     bindEvents() {
-        // Refresh button
-        const refreshBtn = document.getElementById('refreshSupportBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadConversations());
-        }
-
         // Conversation search
         const conversationSearch = document.getElementById('conversationSearch');
         if (conversationSearch) {
@@ -213,18 +205,24 @@ export class SupportModule {
             const isAdmin = msg.sender_type === 'admin';
             return `
                 <div class="message-group ${isAdmin ? 'admin-group' : 'customer-group'}">
+                    ${!isAdmin ? `<div class="customer-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>` : ''}
                     <div class="message-bubble ${isAdmin ? 'admin-bubble' : 'customer-bubble'}">
                         <div class="bubble-header">
-                            <span class="bubble-time">${this.timeAgo(msg.created_at)}</span>
-                            <span class="bubble-sender">${this.escapeHtml(msg.sender_name)}</span>
+                            ${isAdmin ? 
+                                `<span class="bubble-time">${this.timeAgo(msg.created_at)}</span>
+                                 <span class="bubble-sender">${this.escapeHtml(msg.sender_name)}</span>` :
+                                `<span class="bubble-sender">${this.escapeHtml(msg.sender_name)}</span>
+                                 <span class="bubble-time">${this.timeAgo(msg.created_at)}</span>`
+                            }
                         </div>
                         <div class="message-text">${this.escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
                         ${msg.attachment_path ? this.renderAttachment(msg.attachment_path) : ''}
-                        <div class="message-subject">Subject: ${this.escapeHtml(msg.subject || 'No subject')}</div>
                     </div>
-                    <div class="${isAdmin ? 'admin-avatar' : 'customer-avatar'}">
-                        <i class="fas fa-${isAdmin ? 'user-shield' : 'user'}"></i>
-                    </div>
+                    ${isAdmin ? `<div class="admin-avatar">
+                        <i class="fas fa-user-shield"></i>
+                    </div>` : ''}
                 </div>
             `;
         }).join('');
@@ -238,10 +236,12 @@ export class SupportModule {
         const chatInputArea = document.getElementById('chatInputArea');
         const chatUserName = document.getElementById('chatUserName');
         const chatUserEmail = document.getElementById('chatUserEmail');
+        const chatSubject = document.getElementById('chatSubject');
         
         if (ticket) {
             chatUserName.textContent = ticket.username;
             chatUserEmail.textContent = ticket.customer_email || 'No email';
+            chatSubject.textContent = ticket.subject || 'No subject';
         }
         
         chatHeader.style.display = 'flex';

@@ -58,11 +58,7 @@ export class AdminSupportManager {
             });
         }
         
-        // Mark all as read button
-        const markAllReadBtn = document.getElementById('markAllReadBtn');
-        if (markAllReadBtn) {
-            markAllReadBtn.addEventListener('click', () => this.markConversationAsRead());
-        }
+        // Mark all as read button removed
     }
     
     async loadConversations(preserveSearch = false) {
@@ -125,7 +121,7 @@ export class AdminSupportManager {
         }
         
         conversationsList.innerHTML = this.currentConversations.map(conv => `
-            <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''}" 
+            <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''} ${conv.conversation_status !== 'open' ? 'conversation-' + conv.conversation_status : ''}" 
                  data-conversation-id="${conv.conversation_id}" 
                  onclick="adminSupportModule.selectConversation('${conv.conversation_id}')">
                 <div class="conversation-avatar">
@@ -142,6 +138,7 @@ export class AdminSupportManager {
                             ${conv.last_message_is_admin ? 'You: ' : ''}${this.truncateText(conv.last_message, 60)}
                         </div>
                     </div>
+                    ${conv.conversation_status !== 'open' ? `<div class="conversation-status-badge status-${conv.conversation_status}">${conv.conversation_status.toUpperCase()}</div>` : ''}
                 </div>
                 ${conv.unread_count > 0 ? `<div class="conversation-unread-badge">${conv.unread_count}</div>` : ''}
             </div>
@@ -214,8 +211,23 @@ export class AdminSupportManager {
             chatUserEmail.textContent = firstMessage.sender_email;
         }
         
+        // Get current conversation status
+        const currentConversation = this.currentConversations.find(c => c.conversation_id === this.selectedConversationId);
+        const conversationStatus = currentConversation?.conversation_status || 'open';
+        
+        // Add status controls to chat header
+        this.addStatusControls(conversationStatus);
+        
+        // Show/hide input area based on status
+        if (conversationStatus === 'solved' || conversationStatus === 'closed') {
+            chatInputArea.style.display = 'none';
+            this.showStatusMessage(conversationStatus);
+        } else {
+            chatInputArea.style.display = 'block';
+            this.hideStatusMessage();
+        }
+        
         chatHeader.style.display = 'flex';
-        chatInputArea.style.display = 'block';
     }
     
     updateSupportStats(stats) {
@@ -555,6 +567,119 @@ export class AdminSupportManager {
         if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
         if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
         return `${Math.floor(diffInSeconds / 31536000)}y ago`;
+    }
+
+    addStatusControls(currentStatus) {
+        const chatHeader = document.getElementById('chatHeader');
+        if (!chatHeader) return;
+        
+        // Remove existing status controls
+        const existingControls = chatHeader.querySelector('.status-controls');
+        if (existingControls) {
+            existingControls.remove();
+        }
+        
+        // Create status controls
+        const statusControls = document.createElement('div');
+        statusControls.className = 'status-controls';
+        statusControls.innerHTML = `
+            <div class="status-dropdown">
+                <label for="conversationStatus">Status:</label>
+                <select id="conversationStatus" onchange="adminSupportModule.updateConversationStatus(this.value)">
+                    <option value="open" ${currentStatus === 'open' ? 'selected' : ''}>Open</option>
+                    <option value="solved" ${currentStatus === 'solved' ? 'selected' : ''}>Solved</option>
+                    <option value="closed" ${currentStatus === 'closed' ? 'selected' : ''}>Closed</option>
+                </select>
+            </div>
+        `;
+        
+        chatHeader.appendChild(statusControls);
+    }
+    
+    showStatusMessage(status) {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        // Remove existing status message
+        const existingMessage = chatMessages.querySelector('.status-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+        
+        // Add status message
+        const statusMessage = document.createElement('div');
+        statusMessage.className = `status-message status-${status}`;
+        statusMessage.innerHTML = `
+            <div class="status-message-content">
+                <i class="fas fa-${status === 'solved' ? 'check-circle' : 'lock'}"></i>
+                <span>This conversation has been marked as <strong>${status}</strong>. No new messages can be sent.</span>
+                <button onclick="adminSupportModule.updateConversationStatus('open')" class="reopen-btn">
+                    <i class="fas fa-unlock"></i> Reopen Conversation
+                </button>
+            </div>
+        `;
+        
+        chatMessages.appendChild(statusMessage);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    hideStatusMessage() {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        const existingMessage = chatMessages.querySelector('.status-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+    }
+    
+    async updateConversationStatus(newStatus) {
+        if (!this.selectedConversationId) {
+            this.showError('No conversation selected');
+            return;
+        }
+        
+        try {
+            const csrfToken = await this.getCSRFToken();
+            
+            const response = await fetch('/Capstone2/api/admin_support_messages.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'update_conversation_status',
+                    conversation_id: this.selectedConversationId,
+                    status: newStatus,
+                    csrf_token: csrfToken
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showSuccess(`Conversation status updated to ${newStatus}`);
+                
+                // Refresh conversations and current chat
+                await this.loadConversations(true);
+                await this.loadConversationMessages(this.selectedConversationId);
+                
+                // Update UI based on new status
+                if (newStatus === 'solved' || newStatus === 'closed') {
+                    document.getElementById('chatInputArea').style.display = 'none';
+                    this.showStatusMessage(newStatus);
+                } else {
+                    document.getElementById('chatInputArea').style.display = 'block';
+                    this.hideStatusMessage();
+                }
+                
+            } else {
+                this.showError(result.message || 'Failed to update conversation status');
+            }
+        } catch (error) {
+            console.error('Error updating conversation status:', error);
+            this.showError('Network error while updating status');
+        }
     }
 
     destroy() {

@@ -168,7 +168,9 @@ export class ProductManagementModule {
             </div>
             <div class="form-group">
               <label for="newProductPrice"><strong>Price (₱): <span style="color: red;">*</span></strong></label>
-              <input type="number" id="newProductPrice" step="0.01" min="0" required placeholder="0.00"
+              <input type="number" id="newProductPrice" step="0.01" min="0" max="15000" required placeholder="0.00"
+                     oninput="if(this.value > 15000) this.value = 15000;"
+                     onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode === 46"
                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
               <div class="price-preview" style="margin-top: 0.5rem; padding: 0.75rem; background: #e3f2fd; border-radius: 5px; border: 1px solid #bbdefb;">
                 <div style="font-size: 0.8rem; color:rgb(0, 0, 0); margin-bottom: 0.25rem;">
@@ -276,6 +278,37 @@ export class ProductManagementModule {
     document.getElementById("newProductCategory").value = ""
   }
 
+  handleEditCategoryChange() {
+    const categorySelect = document.getElementById("editProductCategorySelect")
+    const categoryInput = document.getElementById("editProductCategory")
+    const customContainer = document.getElementById("editCustomCategoryContainer")
+    
+    if (categorySelect.value === "__custom__") {
+      // Show custom input, hide dropdown
+      categorySelect.style.display = "none"
+      customContainer.style.display = "block"
+      categoryInput.focus()
+      categoryInput.value = ""
+    } else if (categorySelect.value) {
+      // Set the hidden input value to selected category
+      categoryInput.value = categorySelect.value
+    } else {
+      // Clear the hidden input if no selection
+      categoryInput.value = ""
+    }
+  }
+
+  showEditCategoryDropdown() {
+    const categorySelect = document.getElementById("editProductCategorySelect")
+    const customContainer = document.getElementById("editCustomCategoryContainer")
+    
+    // Show dropdown, hide custom input
+    categorySelect.style.display = "block"
+    customContainer.style.display = "none"
+    categorySelect.value = ""
+    document.getElementById("editProductCategory").value = ""
+  }
+
   setupProductPreview() {
     const inputs = {
       name: document.getElementById("newProductName"),
@@ -365,6 +398,11 @@ export class ProductManagementModule {
         return
       }
 
+      if (formData.price > 15000) {
+        this.toast.error("Price cannot exceed ₱15,000.00")
+        return
+      }
+
       // Check for duplicate names
       const existingProduct = this.products.find((p) => p.name.toLowerCase() === formData.name.toLowerCase())
       if (existingProduct) {
@@ -441,12 +479,31 @@ export class ProductManagementModule {
             </div>
             <div class="form-group">
               <label for="editProductCategory"><strong>Category:</strong></label>
-              <input type="text" id="editProductCategory" value="${Utils.escapeHtml(product.category)}" required
-                     style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+              <select id="editProductCategorySelect" onchange="window.productManagementModule.handleEditCategoryChange()"
+                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                <option value="" disabled>Select existing category</option>
+                ${this.getExistingCategories().map(category => 
+                  `<option value="${category}" ${category === product.category ? 'selected' : ''}>${category}</option>`
+                ).join('')}
+                <option value="__custom__">+ Add New Category</option>
+              </select>
+              <div id="editCustomCategoryContainer" style="display: none;">
+                <input type="text" id="editProductCategory" value="${Utils.escapeHtml(product.category)}" required placeholder="Enter new category name" 
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
+                <button type="button" onclick="window.productManagementModule.showEditCategoryDropdown()" 
+                        style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                  <i class="fas fa-arrow-left"></i> Back to Categories
+                </button>
+              </div>
+              <small style="color: #666; font-size: 0.8rem; margin-top: 0.25rem; display: block;">
+                Choose from existing categories or create a new one
+              </small>
             </div>
             <div class="form-group">
               <label for="editProductPrice"><strong>Price (₱):</strong></label>
-              <input type="number" id="editProductPrice" value="${product.price}" step="0.01" min="0" required
+              <input type="number" id="editProductPrice" value="${product.price}" step="0.01" min="0" max="15000" required
+                     oninput="if(this.value > 15000) this.value = 15000;"
+                     onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode === 46"
                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 5px; margin-top: 0.5rem;">
               <div class="price-preview" style="margin-top: 0.5rem; padding: 0.75rem; background: #e3f2fd; border-radius: 5px; border: 1px solid #bbdefb;">
                 <div style="font-size: 0.8rem; color:rgb(0, 0, 0); margin-bottom: 0.25rem;">
@@ -625,6 +682,11 @@ export class ProductManagementModule {
       // Validate form data
       if (!formData.name || !formData.category || formData.price < 0 || formData.min_stock < 0 || newStock < 0) {
         this.toast.error("Please fill in all required fields with valid values")
+        return
+      }
+
+      if (formData.price > 15000) {
+        this.toast.error("Price cannot exceed ₱15,000.00")
         return
       }
 

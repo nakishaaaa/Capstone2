@@ -13,7 +13,7 @@ require_once '../config/database.php';
 $is_authorized = false;
 $user_role = $_SESSION['role'] ?? $_SESSION['admin_role'] ?? null;
 
-if ($user_role === 'admin' || $user_role === 'cashier') {
+if ($user_role === 'admin' || $user_role === 'super_admin' || $user_role === 'cashier') {
     $is_authorized = true;
 }
 

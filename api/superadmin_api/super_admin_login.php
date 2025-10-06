@@ -4,7 +4,7 @@ require_once '../../includes/config.php';
 require_once '../../includes/audit_helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../../superadminlog.php');
+    header('Location: ../../devlog.php');
     exit();
 }
 
@@ -14,13 +14,13 @@ $password = $_POST['password'] ?? '';
 // Validate input
 if (empty($username) || empty($password)) {
     $_SESSION['super_admin_error'] = 'Please enter both username and access key.';
-    header('Location: ../../superadminlog.php');
+    header('Location: ../../devlog.php');
     exit();
 }
 
 try {
-    // Check for super admin user
-    $stmt = $conn->prepare("SELECT id, username, password, role, deleted_at FROM users WHERE username = ? AND role = 'super_admin'");
+    // Check for developer user
+    $stmt = $conn->prepare("SELECT id, username, password, role, deleted_at FROM users WHERE username = ? AND role = 'developer'");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -33,12 +33,12 @@ try {
             // Check if account is soft deleted (deactivated)
             if (isset($user['deleted_at']) && $user['deleted_at'] !== null) {
                 $_SESSION['super_admin_error'] = 'Your account has been deactivated. Please contact the system administrator.';
-                header('Location: ../../superadminlog.php');
+                header('Location: ../../devlog.php');
                 exit();
             }
             
             // Log successful login using audit helper
-            logLoginEvent($user['id'], $user['username'], 'super_admin');
+            logLoginEvent($user['id'], $user['username'], 'developer');
             
             // Set session variables
             $_SESSION['user_id'] = $user['id'];
@@ -57,16 +57,16 @@ try {
     }
     
     // Log failed login attempt using audit helper
-    logFailedLoginEvent($username, 'Invalid super admin credentials');
+    logFailedLoginEvent($username, 'Invalid developer credentials');
     
     $_SESSION['super_admin_error'] = 'Invalid credentials. Access denied.';
-    header('Location: ../../superadminlog.php');
+    header('Location: ../../devlog.php');
     exit();
     
 } catch (Exception $e) {
     error_log("Super admin login error: " . $e->getMessage());
     $_SESSION['super_admin_error'] = 'System error occurred. Please try again.';
-    header('Location: ../../superadminlog.php');
+    header('Location: ../../devlog.php');
     exit();
 }
 

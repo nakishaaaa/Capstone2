@@ -26,15 +26,15 @@ require_once '../includes/csrf.php';
 // Check admin authentication
 session_start();
 
-// Check admin authentication - allow both admin and cashier roles
-$allowedRoles = ['admin', 'cashier'];
+// Check admin authentication - allow admin, cashier, and super_admin roles
+$allowedRoles = ['admin', 'cashier', 'super_admin'];
 $userRole = $_SESSION['role'] ?? null;
 
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['username']) || !isset($_SESSION['email']) || !in_array($userRole, $allowedRoles)) {
     http_response_code(403);
     echo json_encode([
         'success' => false, 
-        'message' => 'Access denied. Admin or cashier privileges required.'
+        'message' => 'Access denied. Admin, super admin, or cashier privileges required.'
     ]);
     exit();
 }
@@ -60,13 +60,15 @@ try {
             message TEXT NOT NULL,
             attachment_paths TEXT NULL,
             message_type ENUM('customer_support', 'dev_support') DEFAULT 'customer_support',
+            conversation_status ENUM('open', 'solved', 'closed') DEFAULT 'open',
             is_admin BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_read BOOLEAN DEFAULT FALSE,
             INDEX idx_conversation_id (conversation_id),
             INDEX idx_created_at (created_at),
             INDEX idx_is_read (is_read),
-            INDEX idx_message_type (message_type)
+            INDEX idx_message_type (message_type),
+            INDEX idx_conversation_status (conversation_status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
     
@@ -97,6 +99,19 @@ try {
     } else {
         // Ensure existing NULL values are set to customer_support
         $pdo->exec("UPDATE support_messages SET message_type = 'customer_support' WHERE message_type IS NULL");
+    }
+    
+    // Check if conversation_status column exists in existing table
+    $stmt = $pdo->query("SHOW COLUMNS FROM support_messages LIKE 'conversation_status'");
+    if ($stmt->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE support_messages ADD COLUMN conversation_status ENUM('open', 'solved', 'closed') DEFAULT 'open' AFTER message_type");
+        
+        // Update existing messages to have open status
+        $pdo->exec("UPDATE support_messages SET conversation_status = 'open' WHERE conversation_status IS NULL");
+        error_log("Added conversation_status column and set existing messages to 'open'");
+    } else {
+        // Ensure existing NULL values are set to open
+        $pdo->exec("UPDATE support_messages SET conversation_status = 'open' WHERE conversation_status IS NULL");
     }
     
     $method = $_SERVER['REQUEST_METHOD'];
@@ -159,6 +174,9 @@ function handleGetSupportMessages($pdo) {
                 (SELECT s4.is_admin FROM support_messages s4 
                  WHERE s4.conversation_id = sm.conversation_id AND s4.message_type = 'customer_support'
                  ORDER BY s4.created_at DESC LIMIT 1) AS last_message_is_admin,
+                (SELECT s5.conversation_status FROM support_messages s5 
+                 WHERE s5.conversation_id = sm.conversation_id AND s5.message_type = 'customer_support'
+                 ORDER BY s5.created_at DESC LIMIT 1) AS conversation_status,
                 COUNT(*) AS message_count,
                 SUM(CASE WHEN sm.is_admin = 0 AND sm.is_read = 0 THEN 1 ELSE 0 END) AS unread_user_messages,
                 SUM(CASE WHEN sm.is_admin = 1 THEN 1 ELSE 0 END) AS admin_replies
@@ -182,6 +200,7 @@ function handleGetSupportMessages($pdo) {
                 'subject' => $conv['subject'],
                 'last_message' => $conv['last_message'],
                 'last_message_is_admin' => (bool)$conv['last_message_is_admin'],
+                'conversation_status' => $conv['conversation_status'] ?? 'open',
                 'last_updated' => $conv['last_updated'],
                 'last_updated_human' => timeAgo($conv['last_updated']),
                 'message_count' => (int)$conv['message_count'],
@@ -321,6 +340,10 @@ function handlePostActions($pdo) {
             handleMarkConversationAsRead($pdo, $input);
             break;
             
+        case 'update_conversation_status':
+            handleUpdateConversationStatus($pdo, $input);
+            break;
+            
         default:
             throw new Exception('Invalid action');
     }
@@ -406,13 +429,18 @@ function handleReplyToConversation($pdo, $input) {
     // Get admin name from session (temporarily use a default)
     $adminName = $_SESSION['admin_name'] ?? 'Admin';
     
-    // Get conversation details
-    $stmt = $pdo->prepare("SELECT user_name, user_email FROM support_messages WHERE conversation_id = ? LIMIT 1");
+    // Get conversation details and check status
+    $stmt = $pdo->prepare("SELECT user_id, user_name, user_email, conversation_status FROM support_messages WHERE conversation_id = ? AND message_type = 'customer_support' AND is_admin = 0 ORDER BY created_at ASC LIMIT 1");
     $stmt->execute([$conversationId]);
     $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$conversation) {
         throw new Exception('Conversation not found');
+    }
+    
+    // Check if conversation is closed/solved
+    if (in_array($conversation['conversation_status'], ['solved', 'closed'])) {
+        throw new Exception('Cannot reply to a ' . $conversation['conversation_status'] . ' conversation. Please reopen it first.');
     }
     
     // Get the original subject from the conversation
@@ -435,6 +463,9 @@ function handleReplyToConversation($pdo, $input) {
         $originalSubject,
         $response
     ]);
+    
+    // Trigger real-time notification for new admin reply
+    triggerNewReplyNotification($pdo, $conversationId, $conversation, $adminName, $response);
     
     echo json_encode([
         'success' => true,
@@ -492,6 +523,53 @@ function handleMarkConversationAsRead($pdo, $input) {
     ]);
 }
 
+function handleUpdateConversationStatus($pdo, $input) {
+    $conversationId = trim($input['conversation_id'] ?? '');
+    $status = trim($input['status'] ?? '');
+    
+    if (empty($conversationId)) {
+        throw new Exception('Conversation ID is required');
+    }
+    
+    if (!in_array($status, ['open', 'solved', 'closed'])) {
+        throw new Exception('Invalid status. Must be: open, solved, or closed');
+    }
+    
+    // Check if conversation exists and get customer info
+    $checkStmt = $pdo->prepare("SELECT user_id, user_name, user_email FROM support_messages WHERE conversation_id = ? AND message_type = 'customer_support' AND is_admin = 0 ORDER BY created_at ASC LIMIT 1");
+    $checkStmt->execute([$conversationId]);
+    $customerInfo = $checkStmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$customerInfo) {
+        throw new Exception('Conversation not found');
+    }
+    
+    // Update all messages in this conversation with the new status
+    $stmt = $pdo->prepare("
+        UPDATE support_messages 
+        SET conversation_status = ? 
+        WHERE conversation_id = ? AND message_type = 'customer_support'
+    ");
+    
+    $stmt->execute([$status, $conversationId]);
+    
+    $affectedRows = $stmt->rowCount();
+    
+    // Log the status change
+    $adminName = $_SESSION['admin_name'] ?? 'Admin';
+    error_log("Conversation $conversationId status changed to '$status' by $adminName");
+    
+    // Trigger real-time notification for customer
+    triggerStatusChangeNotification($pdo, $conversationId, $status, $customerInfo, $adminName);
+    
+    echo json_encode([
+        'success' => true,
+        'message' => "Conversation status updated to '$status'",
+        'status' => $status,
+        'messages_updated' => $affectedRows
+    ]);
+}
+
 function getSupportStats($pdo) {
     // Get various statistics
     $stats = [];
@@ -513,5 +591,99 @@ function getSupportStats($pdo) {
     $stats['active_conversations'] = $stmt->fetch(PDO::FETCH_ASSOC)['active'];
     
     return $stats;
+}
+
+function triggerStatusChangeNotification($pdo, $conversationId, $newStatus, $customerInfo, $adminName) {
+    try {
+        // Create a notification record for real-time delivery
+        $notificationData = [
+            'type' => 'support_status_change',
+            'conversation_id' => $conversationId,
+            'new_status' => $newStatus,
+            'customer_id' => $customerInfo['user_id'],
+            'customer_name' => $customerInfo['user_name'],
+            'customer_email' => $customerInfo['user_email'],
+            'admin_name' => $adminName,
+            'timestamp' => time(),
+            'message' => "Your support ticket status has been updated to: " . ucfirst($newStatus)
+        ];
+        
+        // Store in a temporary notifications table for SSE pickup
+        $stmt = $pdo->prepare("
+            INSERT INTO realtime_notifications 
+            (user_id, type, data, created_at) 
+            VALUES (?, 'support_status_change', ?, NOW())
+            ON DUPLICATE KEY UPDATE 
+            data = VALUES(data), created_at = VALUES(created_at)
+        ");
+        
+        // Create table if it doesn't exist
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS realtime_notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NULL,
+                type VARCHAR(50) NOT NULL,
+                data JSON NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                delivered BOOLEAN DEFAULT FALSE,
+                INDEX idx_user_type (user_id, type),
+                INDEX idx_created (created_at),
+                INDEX idx_delivered (delivered)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+        
+        $stmt->execute([$customerInfo['user_id'], json_encode($notificationData)]);
+        
+        error_log("Real-time status notification queued for user {$customerInfo['user_id']} - conversation $conversationId status: $newStatus");
+        
+    } catch (Exception $e) {
+        error_log("Failed to trigger status change notification: " . $e->getMessage());
+    }
+}
+
+function triggerNewReplyNotification($pdo, $conversationId, $customerInfo, $adminName, $replyMessage) {
+    try {
+        // Create a notification record for real-time delivery
+        $notificationData = [
+            'type' => 'support_new_reply',
+            'conversation_id' => $conversationId,
+            'customer_id' => $customerInfo['user_id'],
+            'customer_name' => $customerInfo['user_name'],
+            'customer_email' => $customerInfo['user_email'],
+            'admin_name' => $adminName,
+            'reply_preview' => substr($replyMessage, 0, 100) . (strlen($replyMessage) > 100 ? '...' : ''),
+            'timestamp' => time(),
+            'message' => "You have a new reply from {$adminName} on your support ticket"
+        ];
+        
+        // Store in a temporary notifications table for SSE pickup
+        $stmt = $pdo->prepare("
+            INSERT INTO realtime_notifications 
+            (user_id, type, data, created_at) 
+            VALUES (?, 'support_new_reply', ?, NOW())
+        ");
+        
+        // Ensure table exists
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS realtime_notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NULL,
+                type VARCHAR(50) NOT NULL,
+                data JSON NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                delivered BOOLEAN DEFAULT FALSE,
+                INDEX idx_user_type (user_id, type),
+                INDEX idx_created (created_at),
+                INDEX idx_delivered (delivered)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+        
+        $stmt->execute([$customerInfo['user_id'], json_encode($notificationData)]);
+        
+        error_log("Real-time reply notification queued for user {$customerInfo['user_id']} - conversation $conversationId from: $adminName");
+        
+    } catch (Exception $e) {
+        error_log("Failed to trigger new reply notification: " . $e->getMessage());
+    }
 }
 ?>

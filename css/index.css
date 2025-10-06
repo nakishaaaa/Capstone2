@@ -931,6 +931,79 @@ body::before {
     user-select: none;
 }
 
+/* Checkbox Tooltip */
+.checkbox-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: #333;
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(5px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 100;
+    margin-bottom: 8px;
+}
+
+.checkbox-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 20px;
+    border: 6px solid transparent;
+    border-top-color: #333;
+}
+
+.checkbox-container:hover .checkbox-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Hide tooltip when checkbox is enabled */
+.checkbox-container.enabled .checkbox-tooltip {
+    display: none;
+}
+
+/* Disabled checkbox styling */
+.checkbox-container input[type="checkbox"]:disabled ~ .checkmark {
+    background-color: #f0f0f0;
+    border-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.checkbox-container input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+}
+
+/* Enabled checkbox animation */
+.checkbox-container.enabled input[type="checkbox"] ~ .checkmark {
+    animation: enableCheckbox 0.3s ease;
+    opacity: 1;
+    cursor: pointer;
+}
+
+@keyframes enableCheckbox {
+    0% {
+        transform: scale(1);
+        opacity: 0.6;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 .checkbox-container input[type="checkbox"] {
     position: absolute;
     opacity: 0;
@@ -1750,11 +1823,9 @@ button#toggle-register-password img,
 }
 
 .contact-info {
-    background: #2a2a2a;
     padding: 1.5rem;
     border-radius: 8px;
     margin-top: 1rem;
-    border: 1px solid #333;
 }
 
 .contact-info p {

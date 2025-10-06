@@ -50,9 +50,9 @@ class UserManagementModule {
     }
 
     async loadUsers() {
-        // Check if user has permission (admin only)
-        if (typeof userRole !== 'undefined' && userRole !== 'admin') {
-            console.log('User management restricted to admins only');
+        // Check if user has permission (super_admin only)
+        if (typeof window.userRole !== 'undefined' && window.userRole !== 'super_admin') {
+            console.log('User management restricted to super admins only');
             return;
         }
         
@@ -85,8 +85,8 @@ class UserManagementModule {
     }
 
     async loadUserStats() {
-        // Check if user has permission (admin only)
-        if (typeof userRole !== 'undefined' && userRole !== 'admin') {
+        // Check if user has permission (super_admin only)
+        if (typeof window.userRole !== 'undefined' && window.userRole !== 'super_admin') {
             return;
         }
         
@@ -266,7 +266,11 @@ class UserManagementModule {
             const data = await response.json();
 
             if (data.success) {
-                this.showSuccess(data.message);
+                if (data.warning) {
+                    this.showWarning(data.message);
+                } else {
+                    this.showSuccess(data.message);
+                }
                 this.closeAddUserModal();
                 await this.loadUsers();
                 await this.loadUserStats();
@@ -440,6 +444,15 @@ class UserManagementModule {
         }
     }
 
+    showWarning(message) {
+        // Use existing toast system if available
+        if (window.toastManager) {
+            window.toastManager.show(message, 'warning');
+        } else {
+            this.showCustomModal(message, 'warning');
+        }
+    }
+
     showCustomModal(message, type) {
         // Remove any existing custom modal
         const existingModal = document.getElementById('customMessageModal');
@@ -463,9 +476,11 @@ class UserManagementModule {
             z-index: 10000;
         `;
 
-        const iconColor = type === 'success' ? '#10b981' : '#ef4444';
+        const iconColor = type === 'success' ? '#10b981' : type === 'warning' ? '#f59e0b' : '#ef4444';
         const icon = type === 'success' ? 
             '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' :
+            type === 'warning' ?
+            '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>' :
             '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
 
         modal.innerHTML = `

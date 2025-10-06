@@ -4199,6 +4199,20 @@ box-shadow: none;
     font-size: 14px;
 }
 
+/* Text alignment for different message types */
+.message-left .message-text {
+    text-align: left;
+}
+
+.message-right .message-text {
+    text-align: right;
+}
+
+/* Ticket card subject alignment */
+.ticket-subject {
+    text-align: left;
+}
+
 .message-time {
     font-size: 11px;
     opacity: 0.6;
@@ -4388,5 +4402,160 @@ box-shadow: none;
     .send-btn {
         width: 36px;
         height: 36px;
+    }
+}
+
+/* Customer Support Status Indicators */
+.conv-status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 0.5rem;
+}
+
+.conv-status-badge.status-solved {
+    background-color: #28a745;
+    color: white;
+}
+
+.conv-status-badge.status-closed {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Conversation Card Status Styling */
+.conversation-card.conversation-solved {
+    opacity: 0.8;
+    border-color: green;
+    background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
+}
+
+.conversation-card.conversation-closed {
+    opacity: 0.7;
+    border-color: red;
+    background: linear-gradient(135deg, #fff8f8 0%, #f8e8e8 100%);
+}
+
+/* Conversation Detail Header Status */
+.conv-detail-status {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 1rem;
+}
+
+.conv-detail-status.status-solved {
+    background-color: #28a745;
+    color: white;
+}
+
+.conv-detail-status.status-closed {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Conversation Status Message */
+.conversation-status-message {
+    margin: 1rem;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid;
+}
+
+.conversation-status-message.status-solved {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.conversation-status-message.status-closed {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.conversation-status-message .status-message-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.conversation-status-message .status-message-content i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.conversation-status-message .status-message-content span {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.conversation-status-message .status-message-content small {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Conversation Detail Header Layout */
+.conversation-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    background: #f8f9fa;
+}
+
+.conversation-detail-header .title {
+    flex: 1;
+    margin-left: 1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Mobile responsive for status indicators */
+@media (max-width: 768px) {
+    .conv-status-badge {
+        font-size: 0.6rem;
+        padding: 0.15rem 0.4rem;
+    }
+    
+    .conv-detail-status {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.6rem;
+        margin-left: 0.5rem;
+    }
+    
+    .conversation-status-message {
+        margin: 0.5rem;
+        padding: 1rem;
+    }
+    
+    .conversation-status-message .status-message-content i {
+        font-size: 1.5rem;
+    }
+    
+    .conversation-status-message .status-message-content span {
+        font-size: 1rem;
+    }
+    
+    .conversation-detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .conversation-detail-header .title {
+        margin-left: 0;
     }
 }

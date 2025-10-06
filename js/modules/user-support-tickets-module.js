@@ -4,9 +4,10 @@
  */
 
 export default class UserSupportTicketsModule {
-    constructor() {
+    constructor(sseClient = null) {
         this.tickets = [];
         this.currentTicket = null;
+        this.sseClient = sseClient;
         
         // Register global functions immediately
         window.openSupportTicketsModal = () => this.openModal();
@@ -21,6 +22,7 @@ export default class UserSupportTicketsModule {
     init() {
         this.createTicketsModal();
         this.bindEvents();
+        this.initializeRealtimeUpdates();
     }
 
     createTicketsModal() {
@@ -158,21 +160,21 @@ export default class UserSupportTicketsModule {
         }
 
         const ticketsHTML = this.tickets.map(ticket => `
-            <div class="ticket-card" onclick="viewTicketDetails('${ticket.id}')">"
+            <div class="ticket-card" onclick="viewTicketDetails('${ticket.id}')">
                 <div class="ticket-header">
                     <div class="ticket-id">#${ticket.id}</div>
                     <div class="ticket-status">
-                        <span class="status-badge ${ticket.status}">${ticket.status}</span>
+                        <span class="status-badge ${ticket.status}">${this.formatStatus(ticket.status)}</span>
                     </div>
                 </div>
                 <div class="ticket-subject">${ticket.subject}</div>
                 <div class="ticket-meta">
                     <div class="ticket-priority">
-                        <span class="priority-badge ${ticket.priority}">${ticket.priority}</span>
+                        <span class="priority-badge ${ticket.priority}">${ticket.priority.toUpperCase()}</span>
                     </div>
                     <div class="ticket-date">${new Date(ticket.created_at).toLocaleDateString()}</div>
                     <div class="ticket-replies">
-                        <i class="fas fa-reply"></i> ${ticket.admin_response ? '1 reply' : '0 replies'}
+                        <i class="fas fa-reply"></i> ${ticket.reply_count || 0} ${ticket.reply_count === 1 ? 'reply' : 'replies'}
                     </div>
                 </div>
             </div>
@@ -226,11 +228,11 @@ export default class UserSupportTicketsModule {
                     </div>
                     <div class="info-row">
                         <label>Priority:</label>
-                        <span class="priority-badge ${ticket.priority}">${ticket.priority}</span>
+                        <span class="priority-badge ${ticket.priority}">${ticket.priority.toUpperCase()}</span>
                     </div>
                     <div class="info-row">
                         <label>Status:</label>
-                        <span class="status-badge ${ticket.status}">${ticket.status}</span>
+                        <span class="status-badge ${ticket.status}">${this.formatStatus(ticket.status)}</span>
                     </div>
                     <div class="info-row">
                         <label>Created:</label>
@@ -261,6 +263,14 @@ export default class UserSupportTicketsModule {
                 ${conversationHTML}
             </div>
         `;
+        
+        // Scroll to bottom of chat messages after rendering
+        setTimeout(() => {
+            const chatArea = document.getElementById('chatMessagesArea');
+            if (chatArea) {
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+        }, 100);
     }
 
     renderConversation() {
@@ -439,5 +449,305 @@ export default class UserSupportTicketsModule {
     showSuccess(message) {
         console.log(message);
         // You can implement a toast notification here
+    }
+
+    initializeRealtimeUpdates() {
+        if (this.sseClient) {
+            console.log('UserSupportTickets: Setting up real-time updates');
+            
+            // Listen for real-time notifications
+            this.sseClient.on('realtime_notifications', (notifications) => {
+                this.handleRealtimeNotifications(notifications);
+            });
+        } else {
+            console.warn('UserSupportTickets: No SSE client available for real-time updates');
+        }
+    }
+
+    handleRealtimeNotifications(notifications) {
+        if (!Array.isArray(notifications)) return;
+        
+        // Get current user ID from session or other source
+        const currentUserId = this.getCurrentUserId();
+        if (!currentUserId) return;
+        
+        notifications.forEach(notification => {
+            if (notification.data) {
+                const data = notification.data;
+                
+                // Check if this notification is for the current user
+                if (data.customer_id == currentUserId) {
+                    if (data.type === 'support_status_change') {
+                        this.handleStatusChangeNotification(data);
+                    } else if (data.type === 'support_new_reply') {
+                        this.handleNewReplyNotification(data);
+                    }
+                }
+            }
+        });
+    }
+
+    handleStatusChangeNotification(data) {
+        console.log('Status change notification received:', data);
+        
+        // Show visual notification
+        this.showStatusChangeToast(data);
+        
+        // Update ticket status in memory if tickets are loaded
+        if (this.tickets && this.tickets.length > 0) {
+            const ticket = this.tickets.find(t => t.id == data.conversation_id);
+            if (ticket) {
+                ticket.status = data.new_status;
+                
+                // If tickets modal is open, refresh the display
+                if (document.getElementById('supportTicketsModal').style.display === 'flex') {
+                    this.renderTickets();
+                }
+            }
+        }
+        
+        // If currently viewing this ticket's details, refresh the view
+        if (this.currentTicket && this.currentTicket.id == data.conversation_id) {
+            this.currentTicket.status = data.new_status;
+            
+            // If details modal is open, refresh the display
+            if (document.getElementById('ticketDetailsModal').style.display === 'flex') {
+                this.renderTicketDetails();
+            }
+        }
+    }
+
+    handleNewReplyNotification(data) {
+        console.log('New reply notification received:', data);
+        
+        // Show visual notification
+        this.showNewReplyToast(data);
+        
+        // If currently viewing this ticket's details, refresh to show new message
+        if (this.currentTicket && this.currentTicket.id == data.conversation_id) {
+            // If details modal is open, refresh the conversation
+            if (document.getElementById('ticketDetailsModal').style.display === 'flex') {
+                this.viewTicketDetails(data.conversation_id);
+            }
+        }
+        
+        // If tickets list is open, refresh to update reply count
+        if (document.getElementById('supportTicketsModal').style.display === 'flex') {
+            this.loadTickets();
+        }
+    }
+
+    showStatusChangeToast(data) {
+        // Create a toast notification
+        const toast = document.createElement('div');
+        toast.className = 'status-change-toast';
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-icon">
+                    <i class="fas fa-${this.getStatusIcon(data.new_status)}"></i>
+                </div>
+                <div class="toast-message">
+                    <div class="toast-title">Support Ticket Updated</div>
+                    <div class="toast-text">${data.message}</div>
+                    <div class="toast-admin">Updated by: ${data.admin_name}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        this.showToast(toast);
+    }
+
+    showNewReplyToast(data) {
+        // Create a toast notification for new replies
+        const toast = document.createElement('div');
+        toast.className = 'status-change-toast new-reply-toast';
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-icon">
+                    <i class="fas fa-reply"></i>
+                </div>
+                <div class="toast-message">
+                    <div class="toast-title">New Support Reply</div>
+                    <div class="toast-text">${data.message}</div>
+                    <div class="toast-preview">"${data.reply_preview}"</div>
+                    <div class="toast-admin">From: ${data.admin_name}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        this.showToast(toast);
+    }
+
+    showToast(toast) {
+        // Add CSS if not already added
+        this.addToastStyles();
+        
+        // Add to page
+        document.body.appendChild(toast);
+        
+        // Auto-remove after 8 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 8000);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+    }
+
+    getStatusIcon(status) {
+        const icons = {
+            'open': 'envelope-open',
+            'solved': 'check-circle',
+            'closed': 'lock'
+        };
+        return icons[status] || 'bell';
+    }
+
+    addToastStyles() {
+        if (document.getElementById('status-toast-styles')) return;
+        
+        const styles = document.createElement('style');
+        styles.id = 'status-toast-styles';
+        styles.textContent = `
+            .status-change-toast {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                border-left: 4px solid #007bff;
+                min-width: 300px;
+                max-width: 400px;
+                z-index: 10000;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                margin-bottom: 10px;
+            }
+            
+            .status-change-toast.new-reply-toast {
+                border-left-color: #28a745;
+            }
+            
+            .status-change-toast.new-reply-toast .toast-icon {
+                background: #28a745;
+            }
+            
+            .status-change-toast.show {
+                transform: translateX(0);
+            }
+            
+            .toast-content {
+                display: flex;
+                align-items: flex-start;
+                padding: 16px;
+                gap: 12px;
+            }
+            
+            .toast-icon {
+                background: #007bff;
+                color: white;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            
+            .toast-message {
+                flex: 1;
+            }
+            
+            .toast-title {
+                font-weight: 600;
+                color: #333;
+                margin-bottom: 4px;
+            }
+            
+            .toast-text {
+                color: #666;
+                font-size: 14px;
+                margin-bottom: 4px;
+            }
+            
+            .toast-preview {
+                color: #555;
+                font-size: 13px;
+                font-style: italic;
+                margin-bottom: 4px;
+                background: #f8f9fa;
+                padding: 4px 8px;
+                border-radius: 4px;
+            }
+            
+            .toast-admin {
+                color: #888;
+                font-size: 12px;
+            }
+            
+            .toast-close {
+                background: none;
+                border: none;
+                color: #999;
+                cursor: pointer;
+                padding: 4px;
+                flex-shrink: 0;
+            }
+            
+            .toast-close:hover {
+                color: #666;
+            }
+        `;
+        
+        document.head.appendChild(styles);
+    }
+
+    getCurrentUserId() {
+        // Try to get user ID from various sources
+        // This might need to be adapted based on how user session is handled
+        if (window.currentUser && window.currentUser.id) {
+            return window.currentUser.id;
+        }
+        
+        // Try to get from a global variable or session storage
+        if (window.userId) {
+            return window.userId;
+        }
+        
+        // Try to get from session storage
+        const userId = sessionStorage.getItem('user_id') || localStorage.getItem('user_id');
+        if (userId) {
+            return parseInt(userId);
+        }
+        
+        return null;
+    }
+
+    formatStatus(status) {
+        if (!status) return 'OPEN';
+        
+        // Convert status to uppercase and replace underscores with spaces
+        return status.toUpperCase().replace(/_/g, ' ');
+    }
+
+    destroy() {
+        // Clean up SSE event listeners
+        if (this.sseClient) {
+            this.sseClient.off('realtime_notifications');
+        }
+        
+        console.log('UserSupportTickets module destroyed');
     }
 }

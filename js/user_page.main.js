@@ -1,6 +1,7 @@
 import { ANIMATION_SETTINGS } from './modules/config-module.js';
 import { csrfService } from './modules/csrf-module.js';
 import { ApiClient } from './core/api-client.js';
+import { SSEClient } from './core/sse-client.js';
 import './modules/ui-module.js';
 import { FormManager } from './modules/form-module.js';
 import { UserDropdownManager } from './modules/user-dropdown-module.js';
@@ -24,6 +25,7 @@ class UserPageApp {
         this.devTicketManager = null;
         this.userSupportTickets = null;
         this.apiClient = new ApiClient();
+        this.sseClient = null;
         
         this.init();
     }
@@ -31,6 +33,9 @@ class UserPageApp {
     async init() {
         // Load CSRF token first
         await csrfService.load();
+        
+        // Initialize SSE client for real-time updates
+        this.initializeSSE();
         
         // Initialize all modules
         this.initializeModules();
@@ -58,7 +63,7 @@ class UserPageApp {
         // Support functionality
         this.supportMessaging = new SupportMessaging();
         this.devTicketManager = new DevTicketManager();
-        this.userSupportTickets = new UserSupportTicketsModule();
+        this.userSupportTickets = new UserSupportTicketsModule(this.sseClient);
         this.userSupportTickets.init();
     }
     
@@ -79,11 +84,31 @@ class UserPageApp {
         window.apiClient = this.apiClient;
     }
 
+    initializeSSE() {
+        try {
+            // Initialize SSE client for real-time updates
+            this.sseClient = new SSEClient('api/realtime.php', {
+                maxReconnectAttempts: 5,
+                reconnectDelay: 2000,
+                maxReconnectDelay: 30000
+            });
+            
+            console.log('User Page: SSE client initialized for real-time updates');
+        } catch (error) {
+            console.error('User Page: Failed to initialize SSE client:', error);
+        }
+    }
+
     defineLogoutHandler() {
         // Expose a global logout function used by onclick handlers in the page
         const api = this.apiClient;
         window.handleLogout = async (role = 'user') => {
             try {
+                // Close SSE connection before logout
+                if (this.sseClient) {
+                    this.sseClient.close();
+                }
+                
                 // Ensure CSRF token is available
                 await csrfService.ensure();
                 const token = csrfService.getToken();

@@ -446,13 +446,7 @@ export class FormManager {
                 // Check if tag file is uploaded
                 const hasTagFile = tagImageInput && tagImageInput.files && tagImageInput.files.length > 0;
                 
-                // Tag is now required for T-shirt customization
-                if (!hasTagFile) {
-                    window.showModal('error', 'Tag design is required for T-shirt customization. Please upload a tag design.');
-                    return false;
-                }
-                
-                // If tag file is uploaded, tag location is required
+                // Tag is optional, but if tag file is uploaded, tag location is required
                 if (hasTagFile && tagLocationSelect && !tagLocationSelect.value) {
                     window.showModal('error', 'Please select a tag location for your tag design.');
                     return false;
@@ -470,20 +464,33 @@ export class FormManager {
             let hasFiles = false;
             
             if (category === 't-shirt-print') {
-                // For T-shirt, check if at least one of front, back, or regular image is uploaded
-                const frontImageInput = document.getElementById('frontImage');
-                const backImageInput = document.getElementById('backImage');
-                const regularImageInput = document.getElementById('image');
+                const designOption = document.getElementById('designOption').value;
                 
-                const hasFrontImage = frontImageInput && frontImageInput.files && frontImageInput.files.length > 0;
-                const hasBackImage = backImageInput && backImageInput.files && backImageInput.files.length > 0;
-                const hasRegularImage = regularImageInput && regularImageInput.files && regularImageInput.files.length > 0;
-                
-                hasFiles = hasFrontImage || hasBackImage || hasRegularImage;
-                
-                if (!hasFiles) {
-                    window.showModal('error', 'Please upload at least one design file (front design, back design, or regular image).');
-                    return false;
+                if (designOption === 'customize') {
+                    // For T-shirt customization, check if at least one of front, back, or tag is uploaded
+                    const frontImageInput = document.getElementById('frontImage');
+                    const backImageInput = document.getElementById('backImage');
+                    const tagImageInput = document.getElementById('tagImage');
+                    
+                    const hasFrontImage = frontImageInput && frontImageInput.files && frontImageInput.files.length > 0;
+                    const hasBackImage = backImageInput && backImageInput.files && backImageInput.files.length > 0;
+                    const hasTagImage = tagImageInput && tagImageInput.files && tagImageInput.files.length > 0;
+                    
+                    hasFiles = hasFrontImage || hasBackImage || hasTagImage;
+                    
+                    if (!hasFiles) {
+                        window.showModal('error', 'Please upload at least one design file (front design, back design, or tag).');
+                        return false;
+                    }
+                } else {
+                    // For ready design option, check regular image upload
+                    const regularImageInput = document.getElementById('image');
+                    hasFiles = regularImageInput && regularImageInput.files && regularImageInput.files.length > 0;
+                    
+                    if (!hasFiles) {
+                        window.showModal('error', 'Please upload your design file.');
+                        return false;
+                    }
                 }
             } else if (category === 'card-print' && (size === 'calling' || size === 'business')) {
                 // For calling/business cards, check front/back design uploads
