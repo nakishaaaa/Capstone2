@@ -237,13 +237,7 @@ class MyOrdersModule {
                                     Contact Us
                                 </button>`
                         : ''
-                    }
-                </div>
-            
-            <div class="order-footer">
-                <div class="order-timeline-mini">
-                    ${this.generateMiniTimeline(order)}
-                </div>
+                }
             </div>
         `;
         
@@ -251,9 +245,6 @@ class MyOrdersModule {
     }
 
     generateMiniTimeline(order) {
-        const statusFlow = ['pending', 'approved', 'printing', 'ready_for_pickup', 'on_the_way', 'completed'];
-        const currentIndex = statusFlow.indexOf(order.status);
-        
         // Handle rejected orders separately
         if (order.status === 'rejected') {
             return `
@@ -272,30 +263,66 @@ class MyOrdersModule {
             `;
         }
         
-        // Show current status with appropriate icon
-        const statusConfig = {
-            'pending': { icon: 'fas fa-clock', label: 'Under Review' },
-            'approved': { icon: 'fas fa-check-circle', label: 'Approved' },
-            'printing': { icon: 'fas fa-print', label: 'Printing' },
-            'ready_for_pickup': { icon: 'fas fa-box', label: 'Ready' },
-            'on_the_way': { icon: 'fas fa-truck', label: 'On the Way' },
-            'completed': { icon: 'fas fa-check-double', label: 'Completed' }
-        };
+        // Determine the current step based on production_status and payment status
+        let currentStep = 0; // 0: Placed, 1: Reviewed, 2: Approved, 3: Printing, 4: Ready, 5: On the Way, 6: Completed
+        let currentIcon = 'fas fa-clock';
+        let currentLabel = 'Pending';
         
-        const currentConfig = statusConfig[order.status] || { icon: 'fas fa-clock', label: order.statusDisplay };
+        // Always show as placed
+        currentStep = 1;
+        
+        // If order has pricing_set_at, it means it was reviewed and approved
+        if (order.pricing_set_at || order.totalPrice) {
+            currentStep = 2; // Reviewed
+            currentIcon = 'fas fa-search';
+            currentLabel = 'Reviewed';
+            
+            // If payment is received, show as approved
+            if (order.payment_status === 'partial_paid' || order.payment_status === 'fully_paid') {
+                currentStep = 3; // Approved
+                currentIcon = 'fas fa-check-circle';
+                currentLabel = 'Approved';
+                
+                // Check production_status for further progress
+                if (order.production_status) {
+                    switch (order.production_status) {
+                        case 'printing':
+                            currentStep = 4; // Printing
+                            currentIcon = 'fas fa-print';
+                            currentLabel = 'Printing';
+                            break;
+                        case 'ready_for_pickup':
+                            currentStep = 5; // Ready
+                            currentIcon = 'fas fa-box';
+                            currentLabel = 'Ready';
+                            break;
+                        case 'on_the_way':
+                            currentStep = 6; // On the Way
+                            currentIcon = 'fas fa-truck';
+                            currentLabel = 'On the Way';
+                            break;
+                        case 'completed':
+                            currentStep = 7; // Completed
+                            currentIcon = 'fas fa-check-double';
+                            currentLabel = 'Completed';
+                            break;
+                    }
+                }
+            }
+        }
         
         return `
             <div class="timeline-step completed">
                 <i class="fas fa-plus-circle"></i>
                 <span>Placed</span>
             </div>
-            <div class="timeline-step ${currentIndex >= 1 ? 'completed' : ''}">
+            <div class="timeline-step ${currentStep >= 2 ? 'completed' : ''}">
                 <i class="fas fa-search"></i>
                 <span>Reviewed</span>
             </div>
-            <div class="timeline-step ${currentIndex >= 1 ? 'completed' : ''}">
-                <i class="${currentConfig.icon}"></i>
-                <span>${currentConfig.label}</span>
+            <div class="timeline-step ${currentStep >= 3 ? 'completed' : ''}">
+                <i class="${currentIcon}"></i>
+                <span>${currentLabel}</span>
             </div>
         `;
     }

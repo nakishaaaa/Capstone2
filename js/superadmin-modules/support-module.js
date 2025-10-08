@@ -1,4 +1,6 @@
 // Super Admin Support Module - Conversation System (matches Admin Support)
+import { SSEClient } from '../core/sse-client.js';
+
 export class SupportModule {
     constructor(dashboard) {
         this.dashboard = dashboard;
@@ -6,9 +8,137 @@ export class SupportModule {
         this.currentMessages = [];
         this.selectedConversationId = null;
         this.timestampUpdateInterval = null;
+        this.sseClient = null;
+        this.currentFilters = {
+            archive: 'active' // 'active', 'archived', 'all'
+        };
         
         // Make functions globally available
         window.superAdminSupportModule = this;
+        
+        // Initialize badge count on dashboard load
+        this.initializeBadge();
+        
+        // Initialize SSE for real-time updates
+        this.initializeSSE();
+    }
+
+    async initializeBadge() {
+        try {
+            const response = await fetch('api/superadmin_api/super_admin_actions.php?action=get_support_conversations');
+            const result = await response.json();
+            
+            if (result.success && result.data && result.data.stats) {
+                this.updateSupportBadge(result.data.stats.unread || 0);
+            }
+        } catch (error) {
+            console.error('Error initializing support badge:', error);
+        }
+    }
+
+    initializeSSE() {
+        try {
+            // Initialize Pusher for real-time messaging
+            this.pusher = new Pusher('5f2e092f1e11a34b880f', {
+                cluster: 'ap1',
+                encrypted: true
+            });
+            
+            // Subscribe to support channel
+            this.channel = this.pusher.subscribe('support-channel');
+            
+            // Handle new customer messages
+            this.channel.bind('new-customer-message', (data) => {
+                console.log('Support: New customer message received', data);
+                this.handleRealTimeSupportUpdate({
+                    messages: [data],
+                    unread_count: 1
+                });
+            });
+            
+            // Handle connection events
+            this.pusher.connection.bind('connected', () => {
+                console.log('Support: Real-time connection established');
+            });
+            
+            this.pusher.connection.bind('error', (err) => {
+                console.error('Support: Connection error', err);
+            });
+
+            console.log('Support: Pusher initialized successfully');
+        } catch (error) {
+            console.error('Support: Failed to initialize Pusher:', error);
+        }
+    }
+
+    handleRealTimeSupportUpdate(data) {
+        console.log('Support: Real-time update received:', data);
+        console.log('Support: Currently viewing support?', this.isCurrentlyViewingSupport());
+        console.log('Support: Selected conversation ID:', this.selectedConversationId);
+        console.log('Support: Message conversation ID:', data.messages?.[0]?.conversation_id);
+        
+        // Update badge count
+        if (data.unread_count !== undefined) {
+            this.updateSupportBadge(data.unread_count);
+        } 
+
+        // Show browser notification for new messages
+        if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+                this.showNotification('New Support Message', {
+                    body: `${msg.user_name}: ${msg.message}`,
+                    icon: '/favicon.ico',
+                    tag: 'support-' + msg.conversation_id
+                });
+            });
+        }
+
+        // If viewing a specific conversation, refresh its messages immediately
+        if (this.selectedConversationId) {
+            console.log('Support: Refreshing conversation messages for:', this.selectedConversationId);
+            this.loadConversationMessages(this.selectedConversationId);
+        }
+        
+        // Also refresh conversations list if currently viewing support section
+        if (this.isCurrentlyViewingSupport()) {
+            console.log('Support: Refreshing conversations list');
+            this.loadConversations(true);
+        }
+    }
+    
+    // Method to refresh messages (called by real-time updates)
+    refreshMessages() {
+        console.log('Support: Refreshing messages due to real-time update');
+        
+        // If viewing a specific conversation, refresh its messages
+        if (this.selectedConversationId && this.isCurrentlyViewingSupport()) {
+            console.log('Support: Refreshing conversation:', this.selectedConversationId);
+            this.loadConversationMessages(this.selectedConversationId);
+        }
+        
+        // Also refresh conversations list to update unread counts
+        if (this.isCurrentlyViewingSupport()) {
+            this.loadConversations(true);
+        }
+    }
+
+    showNotification(title, options = {}) {
+        if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+                new Notification(title, options);
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification(title, options);
+                    }
+                });
+            }
+        }
+    }
+
+    isCurrentlyViewingSupport() {
+        const activeSection = document.querySelector('.nav-link.active');
+        return activeSection && activeSection.getAttribute('data-section') === 'customer-support';
     }
 
     loadCustomerSupport(container) {
@@ -17,6 +147,11 @@ export class SupportModule {
                 <div class="conversations-sidebar">
                     <div class="conversations-header">
                         <h3>Conversations</h3>
+                        <select id="archiveFilter" class="filter-select" title="Filter conversations">
+                            <option value="active">Active Conversations</option>
+                            <option value="archived">Archived Conversations</option>
+                            <option value="all">All Conversations</option>
+                        </select>
                     </div>
                     <div class="search-container">
                         <input type="text" id="conversationSearch" placeholder="Search conversations..." class="search-input">
@@ -35,10 +170,17 @@ export class SupportModule {
                             <div class="chat-user-details">
                                 <div id="chatUserName" class="chat-user-name">Select a conversation</div>
                                 <div id="chatUserEmail" class="chat-user-email"></div>
+                                <div id="chatSubject" class="chat-subject" style="font-size: 0.85rem; color: #333; margin-top: 2px; font-weight: 600; font-style: normal;">No subject</div>
                             </div>
                         </div>
-                        <div class="chat-subject-info">
-                            <div id="chatSubject" class="chat-subject">No subject</div>
+                        <div class="chat-status-controls">
+                            <label for="ticketStatus" class="status-label">Status:</label>
+                            <select id="ticketStatus" class="status-dropdown">
+                                <option value="open">Open</option>
+                                <option value="pending">Pending</option>
+                                <option value="resolved">Resolved</option>
+                                <option value="closed">Closed</option>
+                            </select>
                         </div>
                     </div>
 
@@ -71,6 +213,15 @@ export class SupportModule {
     }
 
     bindEvents() {
+        // Archive filter dropdown
+        const archiveFilter = document.getElementById('archiveFilter');
+        if (archiveFilter) {
+            archiveFilter.addEventListener('change', (e) => {
+                this.currentFilters.archive = e.target.value;
+                this.loadConversations();
+            });
+        }
+        
         // Conversation search
         const conversationSearch = document.getElementById('conversationSearch');
         if (conversationSearch) {
@@ -93,11 +244,18 @@ export class SupportModule {
                 }
             });
         }
+        
+        // Status dropdown change event
+        const ticketStatus = document.getElementById('ticketStatus');
+        if (ticketStatus) {
+            ticketStatus.addEventListener('change', (e) => this.updateTicketStatus(e.target.value));
+        }
     }
 
     async loadConversations(preserveSearch = false) {
         try {
-            const response = await fetch('api/superadmin_api/super_admin_actions.php?action=get_support_conversations');
+            const archiveFilter = this.currentFilters.archive || 'active';
+            const response = await fetch(`api/superadmin_api/super_admin_actions.php?action=get_support_conversations&archive_filter=${archiveFilter}`);
             const result = await response.json();
             
             if (result.success) {
@@ -131,8 +289,10 @@ export class SupportModule {
             return;
         }
         
-        conversationsList.innerHTML = this.currentConversations.map(conv => `
-            <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''} ${this.selectedConversationId === conv.ticket_id ? 'active' : ''}" 
+        conversationsList.innerHTML = this.currentConversations.map(conv => {
+            const isArchived = conv.archived == 1;
+            return `
+            <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''} ${this.selectedConversationId === conv.ticket_id ? 'active' : ''} ${isArchived ? 'archived' : ''}" 
                  data-conversation-id="${conv.ticket_id}" 
                  onclick="superAdminSupportModule.selectConversation('${conv.ticket_id}')">
                 <div class="conversation-avatar">
@@ -141,7 +301,14 @@ export class SupportModule {
                 <div class="conversation-info">
                     <div class="conversation-header">
                         <div class="conversation-name">${this.escapeHtml(conv.username)}</div>
-                        <div class="conversation-ticket-id">#${conv.ticket_id}</div>
+                        <div class="conversation-actions">
+                            <button class="archive-btn" 
+                                    onclick="event.stopPropagation(); superAdminSupportModule.archiveConversation('${conv.ticket_id}', '${isArchived ? 'unarchive' : 'archive'}')" 
+                                    title="${isArchived ? 'Unarchive' : 'Archive'} conversation">
+                                <i class="fas fa-${isArchived ? 'box-open' : 'archive'}"></i>
+                            </button>
+                            <div class="conversation-ticket-id">#${conv.ticket_id}</div>
+                        </div>
                     </div>
                     <div class="conversation-subject">${this.escapeHtml(conv.subject)}</div>
                     <div class="conversation-preview">
@@ -150,7 +317,8 @@ export class SupportModule {
                 </div>
                 <div class="conversation-time">${this.timeAgo(conv.last_message_at || conv.created_at)}</div>
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     async selectConversation(conversationId) {
@@ -237,15 +405,40 @@ export class SupportModule {
         const chatUserName = document.getElementById('chatUserName');
         const chatUserEmail = document.getElementById('chatUserEmail');
         const chatSubject = document.getElementById('chatSubject');
+        const ticketStatus = document.getElementById('ticketStatus');
         
         if (ticket) {
-            chatUserName.textContent = ticket.username;
-            chatUserEmail.textContent = ticket.customer_email || 'No email';
-            chatSubject.textContent = ticket.subject || 'No subject';
+            if (chatUserName) chatUserName.textContent = ticket.username;
+            if (chatUserEmail) chatUserEmail.textContent = ticket.customer_email || 'No email';
+            
+            // Extract and display subject (remove ticket ID prefix if present)
+            if (ticket.subject) {
+                let subject = ticket.subject;
+                // Remove ticket ID prefix like [ANON-2025-5065] from subject
+                subject = subject.replace(/^\[ANON-\d{4}-\d+\]\s*/, '');
+                // Remove "Re: " prefix if present
+                subject = subject.replace(/^Re:\s*/, '');
+                // Clean up any extra whitespace
+                subject = subject.trim();
+                
+                if (subject && chatSubject) {
+                    chatSubject.textContent = `Subject: ${subject}`;
+                    chatSubject.style.display = 'block';
+                } else if (chatSubject) {
+                    chatSubject.style.display = 'none';
+                }
+            } else if (chatSubject) {
+                chatSubject.style.display = 'none';
+            }
+            
+            // Set the status dropdown value
+            if (ticketStatus) {
+                ticketStatus.value = ticket.status || 'open';
+            }
         }
         
-        chatHeader.style.display = 'flex';
-        chatInputArea.style.display = 'block';
+        if (chatHeader) chatHeader.style.display = 'flex';
+        if (chatInputArea) chatInputArea.style.display = 'block';
     }
 
     async sendReply() {
@@ -507,6 +700,55 @@ export class SupportModule {
         }
     }
 
+    async updateTicketStatus(newStatus) {
+        if (!this.selectedConversationId) {
+            this.showError('No conversation selected');
+            return;
+        }
+
+        try {
+            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'update_ticket_status',
+                    conversation_id: this.selectedConversationId,
+                    status: newStatus
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showSuccess(`Ticket status updated to: ${newStatus.replace('_', ' ')}`);
+                // Update the conversation in the list
+                const conversation = this.currentConversations.find(c => c.ticket_id === this.selectedConversationId);
+                if (conversation) {
+                    conversation.status = newStatus;
+                }
+                this.updateConversationsList();
+            } else {
+                this.showError(result.message || 'Failed to update ticket status');
+                // Reset dropdown to previous value
+                this.resetStatusDropdown();
+            }
+        } catch (error) {
+            console.error('Error updating ticket status:', error);
+            this.showError('Network error while updating status');
+            this.resetStatusDropdown();
+        }
+    }
+
+    resetStatusDropdown() {
+        const ticketStatus = document.getElementById('ticketStatus');
+        const conversation = this.currentConversations.find(c => c.ticket_id === this.selectedConversationId);
+        if (ticketStatus && conversation) {
+            ticketStatus.value = conversation.status || 'open';
+        }
+    }
+
     destroy() {
         // Clear timestamp update interval
         if (this.timestampUpdateInterval) {
@@ -515,6 +757,66 @@ export class SupportModule {
         }
         
         console.log('Super Admin Support module destroyed');
+    }
+
+    // Archive/Unarchive conversation methods
+    async archiveConversation(conversationId, action = 'archive') {
+        try {
+            // Get CSRF token from meta tag or csrfService
+            let csrfToken = null;
+            
+            // Try to get from csrfService first
+            if (window.csrfService && typeof window.csrfService.getToken === 'function') {
+                csrfToken = window.csrfService.getToken();
+            }
+            
+            // Fallback: get from meta tag
+            if (!csrfToken) {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) {
+                    csrfToken = metaTag.getAttribute('content');
+                }
+            }
+            
+            if (!csrfToken) {
+                throw new Error('CSRF token not available. Please refresh the page.');
+            }
+
+            const response = await fetch('/Capstone2/api/archive_conversation.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({
+                    conversation_id: conversationId,
+                    action: action,
+                    csrf_token: csrfToken
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                const actionText = action === 'archive' ? 'archived' : 'unarchived';
+                console.log(`Conversation ${actionText} successfully`);
+                
+                // Refresh conversations list
+                this.loadConversations();
+                
+                // Clear selected conversation if it was archived
+                if (action === 'archive' && this.selectedConversationId === conversationId) {
+                    this.selectedConversationId = null;
+                }
+                
+                return true;
+            } else {
+                throw new Error(data.message || 'Archive operation failed');
+            }
+        } catch (error) {
+            console.error('Archive conversation error:', error);
+            return false;
+        }
     }
 }
 

@@ -158,6 +158,21 @@ function handleGetSupportMessages($pdo) {
             return getConversationMessages($pdo, $_GET['conversation_id'] ?? '');
         }
         
+        // Get archive filter from request (default to active only)
+        $archiveFilter = $_GET['archive_filter'] ?? 'active'; // 'active', 'archived', 'all'
+        
+        // Build archive condition - temporarily disable for debugging
+        $archiveCondition = '';
+        if ($archiveFilter === 'active') {
+            $archiveCondition = ' AND (sm.archived = 0 OR sm.archived IS NULL)';
+        } elseif ($archiveFilter === 'archived') {
+            $archiveCondition = ' AND sm.archived = 1';
+        }
+        // 'all' means no additional condition
+        
+        // Debug: Log the archive filter being used
+        error_log("Archive filter: " . $archiveFilter . ", Archive condition: " . $archiveCondition);
+        
         // Get conversations grouped by conversation_id - only customer support messages
         $query = "
             SELECT 
@@ -177,11 +192,14 @@ function handleGetSupportMessages($pdo) {
                 (SELECT s5.conversation_status FROM support_messages s5 
                  WHERE s5.conversation_id = sm.conversation_id AND s5.message_type = 'customer_support'
                  ORDER BY s5.created_at DESC LIMIT 1) AS conversation_status,
+                (SELECT s6.archived FROM support_messages s6 
+                 WHERE s6.conversation_id = sm.conversation_id AND s6.message_type = 'customer_support'
+                 ORDER BY s6.created_at DESC LIMIT 1) AS archived,
                 COUNT(*) AS message_count,
                 SUM(CASE WHEN sm.is_admin = 0 AND sm.is_read = 0 THEN 1 ELSE 0 END) AS unread_user_messages,
                 SUM(CASE WHEN sm.is_admin = 1 THEN 1 ELSE 0 END) AS admin_replies
             FROM support_messages sm
-            WHERE sm.message_type = 'customer_support'
+            WHERE sm.message_type = 'customer_support'" . $archiveCondition . "
             GROUP BY sm.conversation_id, sm.user_name, sm.user_email
             ORDER BY last_updated DESC
             LIMIT 50
@@ -201,6 +219,7 @@ function handleGetSupportMessages($pdo) {
                 'last_message' => $conv['last_message'],
                 'last_message_is_admin' => (bool)$conv['last_message_is_admin'],
                 'conversation_status' => $conv['conversation_status'] ?? 'open',
+                'archived' => (int)($conv['archived'] ?? 0),
                 'last_updated' => $conv['last_updated'],
                 'last_updated_human' => timeAgo($conv['last_updated']),
                 'message_count' => (int)$conv['message_count'],
@@ -463,6 +482,24 @@ function handleReplyToConversation($pdo, $input) {
         $originalSubject,
         $response
     ]);
+    
+    // Send real-time notification via Pusher
+    require_once '../includes/pusher_config.php';
+    
+    // Get customer user_id
+    $userStmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+    $userStmt->execute([$conversation['user_name']]);
+    $userResult = $userStmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($userResult) {
+        triggerPusherEvent('support-channel', 'new-admin-reply', [
+            'conversation_id' => $conversationId,
+            'customer_id' => $userResult['id'],
+            'admin_name' => $adminName,
+            'message' => substr($response, 0, 100),
+            'timestamp' => time()
+        ]);
+    }
     
     // Trigger real-time notification for new admin reply
     triggerNewReplyNotification($pdo, $conversationId, $conversation, $adminName, $response);

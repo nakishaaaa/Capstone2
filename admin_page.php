@@ -11,6 +11,10 @@ ini_set('log_errors', 1);
 */
 
 session_start();
+require_once 'includes/csrf.php';
+
+// Generate CSRF token for this session
+$csrfToken = generateCSRFToken();
 
 // Allow both admin and cashier roles to access this dashboard
 $isStaffLoggedIn = false;
@@ -35,12 +39,14 @@ if (!$isStaffLoggedIn) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars($csrfToken); ?>">
     <title>Admin Dashboard</title>
     <script>
         window.userRole = '<?php echo $role; ?>';
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script src="js/core/error-tracker.js"></script>
     <link rel="stylesheet" href="css/admin_page.css">
     
@@ -935,7 +941,14 @@ if (!$isStaffLoggedIn) {
                     <!-- Conversations List -->
                     <div class="support-conversations-panel">
                         <div class="conversations-header">
-                            <h3>Conversations</h3>
+                            <div class="conversations-title-row">
+                                <h3>Conversations</h3>
+                                <select id="archiveFilter" class="filter-select" title="Filter conversations">
+                                    <option value="active">Active Conversations</option>
+                                    <option value="archived">Archived Conversations</option>
+                                    <option value="all">All Conversations</option>
+                                </select>
+                            </div>
                             <div class="conversations-search">
                                 <input type="text" id="conversationSearch" placeholder="Search conversations..." class="search-input-small" autocomplete="off">
                             </div>
@@ -957,6 +970,7 @@ if (!$isStaffLoggedIn) {
                                 <div class="chat-user-details">
                                     <div class="chat-user-name" id="chatUserName"></div>
                                     <div class="chat-user-email" id="chatUserEmail"></div>
+                                    <div class="chat-subject" id="chatSubject" style="font-size: 0.9rem; color: #666; margin-top: 2px;"></div>
                                 </div>
                             </div>
                             <div class="chat-actions">

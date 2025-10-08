@@ -102,6 +102,17 @@ export class SSEClient {
       }
     })
 
+    // Admin replies update event (for customers)
+    this.eventSource.addEventListener('admin_replies_update', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.log('SSE: Admin replies update received', data)
+        this.emit('admin_replies_update', data)
+      } catch (error) {
+        console.error('SSE: Error parsing admin_replies_update data', error)
+      }
+    })
+
     // Timeout event
     this.eventSource.addEventListener('timeout', (event) => {
       try {

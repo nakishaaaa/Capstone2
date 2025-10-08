@@ -61,10 +61,16 @@ export class SettingsModule {
                                     <div class="backup-controls">
                                         <div class="control-group">
                                             <h6>Create Backup</h6>
-                                            <button type="button" class="btn btn-primary" onclick="window.createManualBackup()">
-                                                <i class="fas fa-download"></i>
-                                                Create Backup Now
-                                            </button>
+                                            <div class="backup-form">
+                                                <div class="form-group">
+                                                    <label for="settingsBackupDescription">Backup Description:</label>
+                                                    <textarea id="settingsBackupDescription" placeholder="Enter reason for this backup..." class="backup-description-input" rows="2" style="resize: none !important;"></textarea>
+                                                </div>
+                                                <button type="button" class="btn btn-primary" onclick="window.createManualBackup()">
+                                                    <i class="fas fa-download"></i>
+                                                    Create Backup Now
+                                                </button>
+                                            </div>
                                         </div>
                                         
                                         <div class="control-group">
@@ -90,13 +96,15 @@ export class SettingsModule {
                                                 <thead>
                                                     <tr>
                                                         <th>Date</th>
+                                                        <th>Description</th>
+                                                        <th>Type</th>
                                                         <th>Size</th>
                                                         <th>Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="backupHistoryList">
                                                     <tr>
-                                                        <td colspan="3" class="loading-cell">Loading backup history...</td>
+                                                        <td colspan="5" class="loading-cell">Loading backup history...</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
@@ -266,30 +274,49 @@ export class SettingsModule {
             
             const tbody = document.getElementById('backupHistoryList');
             if (data.success && data.backups && data.backups.length > 0) {
-                tbody.innerHTML = data.backups.slice(0, 10).map(backup => `
-                    <tr>
-                        <td>${new Date(backup.created_at).toLocaleDateString()}</td>
-                        <td>${this.formatFileSize(backup.file_size || 0)}</td>
-                        <td>
-                            <button onclick="window.downloadBackup('${backup.id}')" class="backup-download-btn" title="Download">
-                                <i class="fas fa-download"></i>
-                            </button>
-                            <button onclick="window.deleteBackup('${backup.id}')" class="backup-delete-btn" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
+                tbody.innerHTML = data.backups.slice(0, 10).map(backup => {
+                    const description = backup.description || 'No description';
+                    const isLongDescription = description.length > 50;
+                    const truncatedDescription = isLongDescription ? description.substring(0, 50) + '...' : description;
+                    
+                    return `
+                        <tr>
+                            <td>${new Date(backup.created_at).toLocaleDateString()}</td>
+                            <td class="description-cell ${isLongDescription ? 'clickable' : ''}" 
+                                onclick="${isLongDescription ? `toggleDescriptionCell('${backup.id}', '${description.replace(/'/g, "&#39;").replace(/"/g, "&quot;")}', '${truncatedDescription.replace(/'/g, "&#39;").replace(/"/g, "&quot;")}')` : ''}" 
+                                title="${isLongDescription ? 'Click to expand/collapse' : description}" 
+                                id="desc-cell-${backup.id}" 
+                                data-expanded="false">
+                                <div class="description-truncated">${truncatedDescription}</div>
+                                ${isLongDescription ? `<div class="description-full" style="display: none;">${description}</div>` : ''}
+                            </td>
+                            <td>${backup.backup_type || 'manual'}</td>
+                            <td>${this.formatFileSize(backup.file_size || 0)}</td>
+                            <td>
+                                <button onclick="window.downloadBackup('${backup.id}')" class="backup-download-btn" title="Download">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <button onclick="window.deleteBackup('${backup.id}')" class="backup-delete-btn" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="3" class="no-data">No backups found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="no-data">No backups found</td></tr>';
             }
         } catch (error) {
             console.error('Error loading backup history:', error);
-            document.getElementById('backupHistoryList').innerHTML = '<tr><td colspan="3" class="error-cell">Error loading backup history</td></tr>';
+            document.getElementById('backupHistoryList').innerHTML = '<tr><td colspan="5" class="error-cell">Error loading backup history</td></tr>';
         }
     }
 
     async createManualBackup() {
+        // Get description from textarea
+        const descriptionInput = document.getElementById('settingsBackupDescription');
+        const description = descriptionInput ? descriptionInput.value.trim() || 'Manual backup from settings' : 'Manual backup from settings';
+        
         const options = {
             database: true,
             userFiles: true,
@@ -304,6 +331,7 @@ export class SettingsModule {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'create_backup',
+                    description: description,
                     options: options
                 })
             });
@@ -311,6 +339,10 @@ export class SettingsModule {
             const data = await response.json();
             if (data.success) {
                 this.dashboard.showNotification('Backup created successfully', 'success');
+                // Clear the description input
+                if (descriptionInput) {
+                    descriptionInput.value = '';
+                }
                 this.loadBackupHistory();
             } else {
                 this.dashboard.showNotification(data.message || 'Failed to create backup', 'error');

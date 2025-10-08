@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'includes/csrf.php';
 
 // Check if user is logged in as developer
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'developer') {
@@ -8,6 +9,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'developer') {
 }
 
 require_once 'includes/config.php';
+
+// Generate CSRF token for this session
+$csrfToken = generateCSRFToken();
 
 // Simple automatic audit cleanup (once per day)
 require_once 'includes/simple_audit_cleanup.php';
@@ -25,8 +29,8 @@ function getSystemStats($conn) {
     $stats['total_admins'] = $result->fetch_assoc()['count'];
     
     
-    // Open customer support tickets
-    $result = $conn->query("SELECT COUNT(DISTINCT conversation_id) as count FROM support_tickets_messages");
+    // Open customer support tickets (exclude archived)
+    $result = $conn->query("SELECT COUNT(DISTINCT conversation_id) as count FROM support_tickets_messages WHERE archived = 0 OR archived IS NULL");
     $stats['open_support'] = $result->fetch_assoc()['count'];
     
     // Recent activities (placeholder)
@@ -50,10 +54,12 @@ $unreadCount = 0;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars($csrfToken); ?>">
     <title>Developer Dashboard - 053 Prints</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="css/super_admin.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script src="js/core/error-tracker.js"></script>
 </head>
 <body>
@@ -135,7 +141,6 @@ $unreadCount = 0;
             <header class="main-header">
                 <div class="header-left">
                     <h1 id="page-title">Developer Dashboard</h1>
-                    <p id="page-subtitle">System Administration & Technical Management</p>
                 </div>
                 <div class="header-right">
                     <div class="maintenance-toggle">
@@ -447,6 +452,27 @@ $unreadCount = 0;
 
         // Make CSRF token available globally for soft delete functions
         window.csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
+        
+        // Toggle description cell function for backup history
+        window.toggleDescriptionCell = function(backupId, fullDescription, truncatedDescription) {
+            const cell = document.getElementById(`desc-cell-${backupId}`);
+            const truncatedDiv = cell.querySelector('.description-truncated');
+            const fullDiv = cell.querySelector('.description-full');
+            
+            if (cell.dataset.expanded === 'false') {
+                // Show full description below
+                truncatedDiv.style.display = 'none';
+                fullDiv.style.display = 'block';
+                cell.dataset.expanded = 'true';
+                cell.title = 'Click to collapse';
+            } else {
+                // Show truncated description
+                truncatedDiv.style.display = 'block';
+                fullDiv.style.display = 'none';
+                cell.dataset.expanded = 'false';
+                cell.title = 'Click to expand/collapse';
+            }
+        };
 
     </script>
     

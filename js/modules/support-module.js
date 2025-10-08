@@ -31,6 +31,36 @@ export default class SupportMessaging {
         SupportMessaging.instance = this;
         this.init();
     }
+
+    // Method to refresh messages (called by real-time updates)
+    refreshMessages() {
+        console.log('Support: Refreshing messages due to real-time update');
+        console.log('Support: currentConversationId:', this.currentConversationId);
+        
+        // If viewing a specific conversation, refresh it immediately
+        if (this.currentConversationId) {
+            console.log('Support: Refreshing conversation:', this.currentConversationId);
+            this.viewConversation(this.currentConversationId).then(() => {
+                console.log('Support: Conversation refreshed successfully');
+                // Scroll to bottom to show new message
+                setTimeout(() => {
+                    const messagesEl = this.conversationDetailEl?.querySelector('.conversation-messages');
+                    if (messagesEl) {
+                        this.scrollToBottom(messagesEl);
+                        console.log('Support: Scrolled to bottom after refresh');
+                    }
+                }, 100);
+            }).catch(error => {
+                console.error('Support: Error refreshing conversation:', error);
+            });
+        } else if (this.prevModal && this.prevModal.style.display !== 'none') {
+            console.log('Support: Refreshing conversations list');
+            // Only refresh conversations list if NOT viewing a specific conversation
+            this.openPreviousConversations();
+        } else {
+            console.warn('Support: No active conversation or modal to refresh');
+        }
+    }
     
     init() {
         // Make functions globally available for onclick handlers
@@ -289,7 +319,7 @@ export default class SupportMessaging {
         if (submitBtn) {
             submitBtn.disabled = isLoading;
             submitBtn.innerHTML = isLoading ? 
-                '<i class="fas fa-spinner fa-spin"></i> Submitting Ticket...' : 
+                '<div class="loading-circle" style="width: 16px; height: 16px; margin-right: 8px; display: inline-block;"></div> Submitting Ticket...' : 
                 '<i class="fas fa-paper-plane"></i> Submit Support Ticket';
         }
     }
@@ -422,7 +452,7 @@ export default class SupportMessaging {
 
     async loadConversations() {
         if (!this.conversationsListEl) return;
-        this.conversationsListEl.innerHTML = '<div class="conv-loading"><i class="fas fa-spinner fa-spin"></i> Loading conversations...</div>';
+        this.conversationsListEl.innerHTML = '<div class="conv-loading"><div class="loading-circle"></div> Loading conversations...</div>';
         try {
             const res = await fetch('/Capstone2/api/user_support_conversations.php');
             const data = await res.json();
@@ -470,6 +500,10 @@ export default class SupportMessaging {
     async viewConversation(conversationId) {
         if (!this.conversationDetailEl) return;
         
+        // Store current conversation ID for real-time updates
+        this.currentConversationId = conversationId;
+        console.log('Setting current conversation ID to:', conversationId);
+        
         // Get conversation status from the card
         const conversationCard = document.querySelector(`[data-conv-id="${conversationId}"]`);
         const conversationStatus = conversationCard ? conversationCard.getAttribute('data-status') : 'open';
@@ -479,7 +513,7 @@ export default class SupportMessaging {
             this.conversationsListEl.style.display = 'none';
         }
         this.conversationDetailEl.style.display = 'block';
-        this.conversationDetailEl.innerHTML = '<div class="conv-loading"><i class="fas fa-spinner fa-spin"></i> Loading messages...</div>';
+        this.conversationDetailEl.innerHTML = '<div class="conv-loading"><div class="loading-circle"></div> Loading messages...</div>';
         try {
             const url = `/Capstone2/api/customer_support.php?conversation_id=${encodeURIComponent(conversationId)}&last_message_id=0`;
             const res = await fetch(url);
@@ -555,7 +589,7 @@ export default class SupportMessaging {
                         const text = replyTA.value.trim();
                         if (!text) return;
                         sendBtn.disabled = true;
-                        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                        sendBtn.innerHTML = '<div class="loading-circle" style="width: 16px; height: 16px; margin-right: 8px; display: inline-block;"></div> Sending...';
                         try {
                             await this.sendReply(conversationId, text);
                             replyTA.value = '';

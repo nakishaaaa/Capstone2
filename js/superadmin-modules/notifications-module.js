@@ -15,9 +15,11 @@ export class NotificationsModule {
                         <button class="filter-tab" data-filter="system">System</button>
                         <button class="filter-tab" data-filter="customer_support">Customer Support</button>
                     </div>
-                    <button class="btn btn-success" id="markAllReadBtn">
-                        Mark All as Read
-                    </button>
+                    <div class="filter-actions">
+                        <button class="btn btn-success" id="markAllReadBtn">
+                            Mark All as Read
+                        </button>
+                    </div>
                 </div>
 
 
@@ -31,7 +33,7 @@ export class NotificationsModule {
         setTimeout(() => {
             this.loadNotificationsList();
             this.updateNotificationBadge();
-            this.updateSupportBadge();
+            // Removed updateSupportBadge() - causes conflict with support-module.js
             this.setupFilterTabs();
             this.setupMarkAllReadButton();
         }, 100);
@@ -40,7 +42,7 @@ export class NotificationsModule {
     async init() {
         await this.loadNotificationsList();
         await this.updateNotificationBadge();
-        await this.updateSupportBadge();
+        // Removed updateSupportBadge() - causes conflict with support-module.js
     }
 
     async loadNotificationsList(filter = 'all') {
@@ -299,7 +301,6 @@ export class NotificationsModule {
     }
 
     async deleteNotification(notificationId, notificationSource = 'system', supportType = 'ticket') {
-        if (!confirm('Delete this notification?')) return;
 
         try {
             const requestBody = {
@@ -389,36 +390,9 @@ export class NotificationsModule {
         }
     }
 
-    async updateSupportBadge() {
-        try {
-            const response = await fetch('api/superadmin_api/super_admin_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    action: 'get_support_tickets',
-                    status: 'open'
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success && data.stats) {
-                const openCount = data.stats.open_tickets || 0;
-                const badge = document.getElementById('supportBadge');
-                
-                if (badge) {
-                    if (openCount > 0) {
-                        badge.textContent = openCount;
-                        badge.style.display = 'inline-block';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error updating support badge:', error);
-        }
-    }
+    // updateSupportBadge() disabled - causes conflict with support-module.js
+    // The support module handles the support badge to show unread message count
+    // This function was showing open ticket count which is different and conflicting
 }
 
 // Global functions for inline onclick handlers

@@ -8,7 +8,8 @@ export class AdminSupportManager {
         this.itemsPerPage = 20;
         this.currentFilters = {
             status: '',
-            search: ''
+            search: '',
+            archive: 'active' // 'active', 'archived', 'all'
         };
         this.sseClient = sseClient;
         this.timestampUpdateInterval = null;
@@ -33,6 +34,15 @@ export class AdminSupportManager {
         const refreshBtn = document.getElementById('refreshSupportBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.loadConversations());
+        }
+        
+        // Archive filter dropdown
+        const archiveFilter = document.getElementById('archiveFilter');
+        if (archiveFilter) {
+            archiveFilter.addEventListener('change', (e) => {
+                this.currentFilters.archive = e.target.value;
+                this.loadConversations();
+            });
         }
         
         // Conversation search
@@ -63,7 +73,8 @@ export class AdminSupportManager {
     
     async loadConversations(preserveSearch = false) {
         try {
-            const response = await fetch('/Capstone2/api/admin_support_messages.php?action=conversations');
+            const archiveFilter = this.currentFilters.archive || 'active';
+            const response = await fetch(`/Capstone2/api/admin_support_messages.php?action=conversations&archive_filter=${archiveFilter}`);
             const result = await response.json();
             
             if (result.success) {
@@ -120,8 +131,10 @@ export class AdminSupportManager {
             return;
         }
         
-        conversationsList.innerHTML = this.currentConversations.map(conv => `
-            <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''} ${conv.conversation_status !== 'open' ? 'conversation-' + conv.conversation_status : ''}" 
+        conversationsList.innerHTML = this.currentConversations.map(conv => {
+            const isArchived = conv.archived == 1;
+            return `
+            <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''} ${conv.conversation_status !== 'open' ? 'conversation-' + conv.conversation_status : ''} ${isArchived ? 'archived' : ''}" 
                  data-conversation-id="${conv.conversation_id}" 
                  onclick="adminSupportModule.selectConversation('${conv.conversation_id}')">
                 <div class="conversation-avatar">
@@ -130,7 +143,14 @@ export class AdminSupportManager {
                 <div class="conversation-content">
                     <div class="conversation-header">
                         <div class="conversation-name">${this.escapeHtml(conv.user_name)}</div>
-                        <div class="conversation-time">${this.timeAgo(conv.last_updated)}</div>
+                        <div class="conversation-actions">
+                            <button class="archive-btn" 
+                                    onclick="event.stopPropagation(); adminSupportModule.archiveConversation('${conv.conversation_id}', '${isArchived ? 'unarchive' : 'archive'}')" 
+                                    title="${isArchived ? 'Unarchive' : 'Archive'} conversation">
+                                <i class="fas fa-${isArchived ? 'box-open' : 'archive'}"></i>
+                            </button>
+                            <div class="conversation-time">${this.timeAgo(conv.last_updated)}</div>
+                        </div>
                     </div>
                     <div class="conversation-preview">
                         <div class="conversation-subject">${this.escapeHtml(conv.subject)}</div>
@@ -142,7 +162,8 @@ export class AdminSupportManager {
                 </div>
                 ${conv.unread_count > 0 ? `<div class="conversation-unread-badge">${conv.unread_count}</div>` : ''}
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     async selectConversation(conversationId) {
@@ -189,14 +210,13 @@ export class AdminSupportManager {
                         }
                     </div>
                     <div class="message-text">${this.escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
-                    ${msg.subject ? `<div class="message-subject">Subject: ${this.escapeHtml(msg.subject)}</div>` : ''}
                     ${msg.attachment_paths ? this.renderAttachments(msg.attachment_paths) : ''}
                 </div>
             </div>
         `).join('');
         
         // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        this.scrollToBottom();
     }
 
     showChatInterface() {
@@ -204,11 +224,32 @@ export class AdminSupportManager {
         const chatInputArea = document.getElementById('chatInputArea');
         const chatUserName = document.getElementById('chatUserName');
         const chatUserEmail = document.getElementById('chatUserEmail');
+        const chatSubject = document.getElementById('chatSubject');
         
         if (this.currentMessages.length > 0) {
             const firstMessage = this.currentMessages[0];
             chatUserName.textContent = firstMessage.sender_name;
             chatUserEmail.textContent = firstMessage.sender_email;
+            
+            // Extract and display subject (remove ticket ID prefix if present)
+            if (firstMessage.subject) {
+                let subject = firstMessage.subject;
+                // Remove ticket ID prefix like [ANON-2025-5065] from subject
+                subject = subject.replace(/^\[ANON-\d{4}-\d+\]\s*/, '');
+                // Remove "Re: " prefix if present
+                subject = subject.replace(/^Re:\s*/, '');
+                // Clean up any extra whitespace
+                subject = subject.trim();
+                
+                if (subject) {
+                    chatSubject.textContent = `Subject: ${subject}`;
+                    chatSubject.style.display = 'block';
+                } else {
+                    chatSubject.style.display = 'none';
+                }
+            } else {
+                chatSubject.style.display = 'none';
+            }
         }
         
         // Get current conversation status
@@ -464,24 +505,99 @@ export class AdminSupportManager {
     }
 
     initializeRealTimeUpdates() {
-        // Use existing SSE client if available
+        try {
+            // Initialize Pusher for real-time messaging
+            this.pusher = new Pusher('5f2e092f1e11a34b880f', {
+                cluster: 'ap1',
+                encrypted: true
+            });
+            
+            // Subscribe to support channel
+            this.channel = this.pusher.subscribe('support-channel');
+            
+            // Handle new customer support messages (customer → admin)
+            this.channel.bind('new-customer-support-message', (data) => {
+                console.log('Admin Support: New customer message received', data);
+                console.log('Admin Support: Message user_name:', data.user_name);
+                console.log('Admin Support: Message conversation_id:', data.conversation_id);
+                
+                // Show browser notification
+                this.showNotification('New Support Message', {
+                    body: `${data.user_name}: ${data.message}`,
+                    icon: '/favicon.ico',
+                    tag: 'support-' + data.conversation_id
+                });
+                
+                // Update badge count
+                this.updateSupportBadge(1);
+                
+                // Force refresh conversations list to show updated conversation
+                console.log('Admin Support: Refreshing conversations list for customer message');
+                this.loadConversations();
+                
+                // If viewing the specific conversation, refresh its messages
+                if (this.selectedConversationId === data.conversation_id) {
+                    console.log('Admin Support: Refreshing current conversation messages');
+                    this.loadConversationMessages(this.selectedConversationId).then(() => {
+                        // Auto-scroll to bottom for new unread messages
+                        this.scrollToBottom(true);
+                    });
+                }
+            });
+            
+            // Handle new anonymous tickets
+            this.channel.bind('new-anonymous-ticket', (data) => {
+                console.log('Admin Support: New anonymous ticket received', data);
+                
+                // Show browser notification
+                this.showNotification('New Anonymous Ticket', {
+                    body: `${data.ticket_id}: ${data.message}`,
+                    icon: '/favicon.ico',
+                    tag: 'ticket-' + data.ticket_id
+                });
+                
+                // Update badge count
+                this.updateSupportBadge(1);
+                
+                // Force refresh conversations list to show new ticket immediately
+                console.log('Admin Support: Refreshing conversations list for new ticket');
+                this.loadConversations();
+            });
+            
+            // Handle connection events
+            this.pusher.connection.bind('connected', () => {
+                console.log('Admin Support: Real-time connection established');
+            });
+            
+            this.pusher.connection.bind('error', (err) => {
+                console.error('Admin Support: Connection error', err);
+                console.error('Admin Support: Error details:', JSON.stringify(err, null, 2));
+                
+                // Check for specific error codes
+                if (err.data && err.data.code) {
+                    console.error('Admin Support: Pusher error code:', err.data.code);
+                    console.error('Admin Support: Pusher error message:', err.data.message);
+                }
+            });
+            
+            console.log('Admin Support: Pusher initialized successfully');
+        } catch (error) {
+            console.error('Admin Support: Failed to initialize Pusher:', error);
+        }
+        
+        // Fallback: Use existing SSE client if available
         if (this.sseClient) {
-            console.log('Admin Support: Using existing SSE client for real-time updates');
+            console.log('Admin Support: SSE client available as fallback');
             
             // Listen for heartbeat to update timestamps
             this.sseClient.on('heartbeat', (data) => {
                 this.updateTimestamps();
             });
             
-            // Listen for activity updates that might include new support messages
-            this.sseClient.on('activity_update', (data) => {
-                this.handleActivityUpdate(data);
-            });
-            
             // Listen for connection status
             this.sseClient.on('connection', (data) => {
                 if (data.status === 'connected') {
-                    console.log('Admin Support: Real-time connection established');
+                    console.log('Admin Support: SSE connection established');
                 } else if (data.status === 'error') {
                     console.warn('Admin Support: Real-time connection error, using manual refresh');
                 }
@@ -499,6 +615,58 @@ export class AdminSupportManager {
         this.timestampUpdateInterval = setInterval(() => {
             this.updateTimestamps();
         }, 30000);
+    }
+
+    handleSupportMessagesUpdate(data) {
+        console.log('Admin Support: Real-time support messages update:', data);
+        console.log('Admin Support: Current selected conversation:', this.selectedConversationId);
+        
+        // Update badge count
+        if (data.unread_count !== undefined) {
+            this.updateSupportBadge(data.unread_count);
+        }
+
+        // Show browser notification for new messages
+        if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+                this.showNotification('New Support Message', {
+                    body: `${msg.user_name}: ${msg.message}`,
+                    icon: '/favicon.ico',
+                    tag: 'support-' + msg.conversation_id
+                });
+            });
+        }
+
+        // If viewing a specific conversation, refresh its messages immediately
+        if (this.selectedConversationId) {
+            console.log('Admin Support: Refreshing conversation messages for:', this.selectedConversationId);
+            this.loadConversationMessages(this.selectedConversationId);
+        }
+        
+        // Also refresh conversations list if currently viewing support
+        if (this.isCurrentlyViewingSupport()) {
+            console.log('Admin Support: Refreshing conversations list');
+            this.loadConversations();
+        }
+    }
+
+    showNotification(title, options = {}) {
+        if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+                new Notification(title, options);
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification(title, options);
+                    }
+                });
+            }
+        }
+    }
+
+    isCurrentlyViewingSupport() {
+        const activeSection = document.querySelector('.nav-link.active');
+        return activeSection && activeSection.getAttribute('data-section') === 'customersupport';
     }
 
     updateTimestamps() {
@@ -682,6 +850,74 @@ export class AdminSupportManager {
         }
     }
 
+    // Archive/Unarchive conversation methods
+    async archiveConversation(conversationId, action = 'archive') {
+        try {
+            // Get CSRF token from meta tag or csrfService
+            let csrfToken = null;
+            
+            // Try to get from csrfService first
+            if (window.csrfService && typeof window.csrfService.getToken === 'function') {
+                csrfToken = window.csrfService.getToken();
+            }
+            
+            // Fallback: get from meta tag
+            if (!csrfToken) {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) {
+                    csrfToken = metaTag.getAttribute('content');
+                }
+            }
+            
+            // Fallback: get from hidden input
+            if (!csrfToken) {
+                const hiddenInput = document.querySelector('input[name="csrf_token"]');
+                if (hiddenInput) {
+                    csrfToken = hiddenInput.value;
+                }
+            }
+            
+            if (!csrfToken) {
+                throw new Error('CSRF token not available. Please refresh the page.');
+            }
+
+            const response = await fetch('/Capstone2/api/archive_conversation.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({
+                    conversation_id: conversationId,
+                    action: action,
+                    csrf_token: csrfToken
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                const actionText = action === 'archive' ? 'archived' : 'unarchived';
+                console.log(`Conversation ${actionText} successfully`);
+                
+                // Refresh conversations list
+                this.loadConversations();
+                
+                // Clear selected conversation if it was archived
+                if (action === 'archive' && this.selectedConversationId === conversationId) {
+                    this.selectedConversationId = null;
+                }
+                
+                return true;
+            } else {
+                throw new Error(data.message || 'Archive operation failed');
+            }
+        } catch (error) {
+            console.error('Archive conversation error:', error);
+            return false;
+        }
+    }
+
     destroy() {
         // Clean up SSE event listeners (don't close the shared client)
         if (this.sseClient) {
@@ -809,6 +1045,22 @@ export class AdminSupportManager {
             'rar': 'fa-file-archive'
         };
         return iconMap[extension] || 'fa-file';
+    }
+    
+    scrollToBottom(smooth = false) {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        if (smooth) {
+            // Smooth scroll for new messages
+            chatMessages.scrollTo({
+                top: chatMessages.scrollHeight,
+                behavior: 'smooth'
+            });
+        } else {
+            // Instant scroll for initial load
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
     }
     
     debounce(func, wait) {

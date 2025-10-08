@@ -60,8 +60,13 @@ function handleLinkPaymentPaid($pdo, $eventData) {
         throw new Exception('Missing link ID in webhook data');
     }
     
-    // Find the request associated with this payment link
-    $stmt = $pdo->prepare("SELECT * FROM user_requests WHERE paymongo_link_id = ?");
+    // Find the order associated with this payment link
+    $stmt = $pdo->prepare("
+        SELECT cr.id, ao.downpayment_amount
+        FROM customer_requests cr
+        JOIN approved_orders ao ON cr.id = ao.request_id
+        WHERE ao.paymongo_link_id = ?
+    ");
     $stmt->execute([$linkId]);
     $request = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -69,16 +74,15 @@ function handleLinkPaymentPaid($pdo, $eventData) {
         throw new Exception('Request not found for link ID: ' . $linkId);
     }
     
-    // Update request status to partial_paid
+    // Update order payment status
     $stmt = $pdo->prepare("
-        UPDATE user_requests 
-        SET status = 'partial_paid',
-            payment_status = 'partial_paid',
+        UPDATE approved_orders
+        SET payment_status = 'partial_paid',
             paid_amount = downpayment_amount,
             payment_date = NOW()
-        WHERE id = ?
+        WHERE paymongo_link_id = ?
     ");
-    $stmt->execute([$request['id']]);
+    $stmt->execute([$linkId]);
     
     // Log successful payment
     $logFile = '../logs/paymongo_webhook.log';
@@ -92,8 +96,13 @@ function handleLinkPaymentFailed($pdo, $eventData) {
         throw new Exception('Missing link ID in webhook data');
     }
     
-    // Find the request associated with this payment link
-    $stmt = $pdo->prepare("SELECT * FROM user_requests WHERE paymongo_link_id = ?");
+    // Find the order associated with this payment link
+    $stmt = $pdo->prepare("
+        SELECT cr.id
+        FROM customer_requests cr
+        JOIN approved_orders ao ON cr.id = ao.request_id
+        WHERE ao.paymongo_link_id = ?
+    ");
     $stmt->execute([$linkId]);
     $request = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -103,11 +112,11 @@ function handleLinkPaymentFailed($pdo, $eventData) {
     
     // Update payment status to failed
     $stmt = $pdo->prepare("
-        UPDATE user_requests 
+        UPDATE approved_orders
         SET payment_status = 'failed'
-        WHERE id = ?
+        WHERE paymongo_link_id = ?
     ");
-    $stmt->execute([$request['id']]);
+    $stmt->execute([$linkId]);
     
     // Log failed payment
     $logFile = '../logs/paymongo_webhook.log';

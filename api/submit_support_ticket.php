@@ -97,7 +97,7 @@ try {
             $msg_stmt = $conn->prepare("
                 INSERT INTO support_tickets_messages 
                 (conversation_id, user_id, user_name, user_email, admin_name, subject, message, attachment_paths, is_admin, created_at, is_read) 
-                VALUES (?, ?, ?, ?, NULL, ?, ?, ?, FALSE, NOW(), TRUE)
+                VALUES (?, ?, ?, ?, NULL, ?, ?, ?, FALSE, NOW(), FALSE)
             ");
             
             if ($msg_stmt) {

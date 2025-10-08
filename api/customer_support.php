@@ -125,12 +125,13 @@ function handleGetMessages($pdo) {
     }
     
     // Get messages after the last message ID for real-time updates
+    // If lastMessageId is 0, get ALL messages (id >= 0 means all messages)
     $query = "
         SELECT id, user_name, admin_name, message, attachment_paths, is_admin, created_at, is_read
         FROM support_messages 
-        WHERE conversation_id = ? AND id > ? AND message_type = 'customer_support'
+        WHERE conversation_id = ? AND id >= ? AND message_type = 'customer_support'
         ORDER BY created_at ASC
-        LIMIT 50
+        LIMIT 100
     ";
     
     $stmt = $pdo->prepare($query);
@@ -274,6 +275,18 @@ function handleSendMessage($pdo) {
     ]);
     
     $messageId = $pdo->lastInsertId();
+    
+    // Send real-time notification via Pusher to admins
+    require_once '../includes/pusher_config.php';
+    
+    triggerPusherEvent('support-channel', 'new-customer-support-message', [
+        'conversation_id' => $conversationId,
+        'user_id' => $user_id,
+        'user_name' => $user_name,
+        'subject' => $subject,
+        'message' => substr($message, 0, 100),
+        'timestamp' => time()
+    ]);
     
     // Create notification for admins and send email immediately
     createAdminNotification($pdo, $user_name, $user_email, $subject, $message, $conversationId);

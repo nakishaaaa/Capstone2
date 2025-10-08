@@ -38,6 +38,24 @@ class SuperAdminDashboard {
         this.setupEventListeners();
         this.loadInitialData();
         this.handleInitialSection();
+        this.startAutoRefresh();
+    }
+
+    startAutoRefresh() {
+        // Auto-refresh dashboard stats every 30 seconds
+        this.refreshInterval = setInterval(() => {
+            this.refreshDashboardStats();
+        }, 30000); // 30 seconds
+        
+        console.log('Dashboard auto-refresh started (30 seconds interval)');
+    }
+
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+            console.log('Dashboard auto-refresh stopped');
+        }
     }
 
     setupNavigation() {
@@ -138,7 +156,12 @@ class SuperAdminDashboard {
         };
 
         document.getElementById('page-title').textContent = titles[section] || 'Developer Dashboard';
-        document.getElementById('page-subtitle').textContent = subtitles[section] || 'System Administration';
+        
+        // Only update subtitle if element exists
+        const subtitleElement = document.getElementById('page-subtitle');
+        if (subtitleElement) {
+            subtitleElement.textContent = subtitles[section] || 'System Administration';
+        }
     }
 
     loadDynamicSection(sectionName) {
@@ -199,7 +222,7 @@ class SuperAdminDashboard {
             await this.refreshDashboardStats();
             await this.auditModule.loadRecentActivityData();
             await this.notificationsModule.updateNotificationBadge();
-            await this.notificationsModule.updateSupportBadge();
+            // Support badge is now handled by support-module.js to avoid conflicts
         } catch (error) {
             console.error('Error loading initial data:', error);
         }

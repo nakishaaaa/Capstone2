@@ -529,6 +529,59 @@ function isActiveForm($formName, $activeForm) {
       </div>
       <button class="lightbox-nav next" aria-label="Next">&#10095;</button>
     </div>
+
+    <!-- Anonymous Support Modal -->
+    <div id="anonymousSupportModal" class="support-modal" style="display: none;">
+        <div class="support-modal-content">
+            <div class="support-modal-header">
+                <button class="support-back-btn" onclick="closeAnonymousSupportModal()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2>Send a message</h2>
+            </div>
+            
+            <div class="support-modal-body">
+                <div id="anonymousSupportMessage" style="margin-bottom: 15px; padding: 12px; border-radius: 8px; display: none;"></div>
+                
+                <div class="support-header-info">
+                    <h3>How can we help?</h3>
+                    <p>We usually respond in a few hours</p>
+                </div>
+                
+                <form id="anonymousSupportForm" class="support-form">
+                    
+                    <div class="support-form-group">
+                        <label for="anonymousEmail">Email (Optional - for reply notifications)</label>
+                        <input type="email" id="anonymousEmail" name="email" placeholder="your.email@example.com">
+                        <small style="color: #6b7280; font-size: 0.8rem;">We'll send you a ticket ID and reply notifications</small>
+                    </div>
+                    
+                    <div class="support-form-group">
+                        <label for="anonymousSubject">Subject</label>
+                        <input type="text" id="anonymousSubject" name="subject" required>
+                    </div>
+                    
+                    <div class="support-form-group">
+                        <label for="anonymousMessage">How can we help?</label>
+                        <textarea id="anonymousMessage" name="message" rows="6" required placeholder="Describe your issue or question..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="support-send-btn">
+                        Send a message
+                    </button>
+                </form>
+                
+                <!-- Check Existing Ticket Section -->
+                <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                    <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 10px;">Already have a ticket?</p>
+                    <a href="check-ticket.php" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; color: #3b82f6; text-decoration: none; font-weight: 500; padding: 8px 16px; border: 1px solid #3b82f6; border-radius: 6px; transition: all 0.2s;">
+                        <i class="fas fa-search"></i>
+                        Check Ticket Status
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
   </main>
 
   
@@ -571,6 +624,21 @@ function isActiveForm($formName, $activeForm) {
     
     // Hide all cards
     document.querySelectorAll(".login-card").forEach(form => form.classList.remove("active"));
+  }
+
+  function closeAnonymousSupportModal() {
+    const modal = document.getElementById('anonymousSupportModal');
+    const form = document.getElementById('anonymousSupportForm');
+    const message = document.getElementById('anonymousSupportMessage');
+    
+    if (modal) {
+      modal.classList.remove('active');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 400);
+    }
+    if (form) form.reset();
+    if (message) message.style.display = 'none';
   }
 
   function hideForgotForm() {
@@ -707,7 +775,17 @@ function isActiveForm($formName, $activeForm) {
     
     // Add event listeners with button type tracking for specific buttons
     if (aiTrigger) aiTrigger.addEventListener('click', (e) => requireLogin(e, 'aiTrigger'));
-    if (supportBtn) supportBtn.addEventListener('click', (e) => requireLogin(e, 'supportBtn'));
+    
+    // Support button opens anonymous support modal
+    if (supportBtn) {
+      supportBtn.addEventListener('click', function() {
+        const modal = document.getElementById('anonymousSupportModal');
+        modal.style.display = 'block';
+        setTimeout(() => {
+          modal.classList.add('active');
+        }, 10);
+      });
+    }
     
     // Other buttons without shake tracking
     [aiGen, aiEdit, reqBtn, goLogin].forEach(btn => {
@@ -1263,6 +1341,74 @@ function isActiveForm($formName, $activeForm) {
         else if (e.key === 'ArrowLeft') show(-1);
       });
     })();
+
+    // Anonymous Support Form Handler
+    const anonymousSupportForm = document.getElementById('anonymousSupportForm');
+    if (anonymousSupportForm) {
+      anonymousSupportForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = this.querySelector('.support-send-btn');
+        const messageDiv = document.getElementById('anonymousSupportMessage');
+        const originalText = submitBtn.innerHTML;
+        
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        submitBtn.disabled = true;
+
+        const formData = new FormData(this);
+        formData.append('action', 'anonymous_support');
+
+        try {
+          const response = await fetch('/Capstone2/api/anonymous_support.php', {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            messageDiv.style.display = 'block';
+            messageDiv.style.background = '#d4edda';
+            messageDiv.style.color = '#155724';
+            messageDiv.style.border = '1px solid #c3e6cb';
+            
+            // Create message with ticket lookup link
+            const message = document.createElement('div');
+            message.innerHTML = `
+              <div style="margin-bottom: 10px;">${data.message || 'Message sent successfully!'}</div>
+              <div style="margin-top: 10px;">
+                <a href="check-ticket.php" target="_blank" style="color: #155724; text-decoration: underline; font-weight: bold;">
+                  <i class="fas fa-external-link-alt"></i> Check ticket status
+                </a>
+              </div>
+            `;
+            messageDiv.innerHTML = '';
+            messageDiv.appendChild(message);
+            
+            anonymousSupportForm.reset();
+            
+            // Don't auto-close modal so user can see ticket ID and use "Check Ticket Status" link
+            // User can manually close with the back button
+          } else {
+            messageDiv.style.display = 'block';
+            messageDiv.style.background = '#f8d7da';
+            messageDiv.style.color = '#721c24';
+            messageDiv.style.border = '1px solid #f5c6cb';
+            messageDiv.textContent = data.message || 'Failed to send message.';
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          messageDiv.style.display = 'block';
+          messageDiv.style.background = '#f8d7da';
+          messageDiv.style.color = '#721c24';
+          messageDiv.style.border = '1px solid #f5c6cb';
+          messageDiv.textContent = 'Network error. Please try again.';
+        } finally {
+          submitBtn.innerHTML = originalText;
+          submitBtn.disabled = false;
+        }
+      });
+    }
   });
   </script>
   <script src="js/slideshow.js"></script>

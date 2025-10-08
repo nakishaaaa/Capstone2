@@ -69,7 +69,19 @@ try {
             break;
 
         case 'get_support_conversations':
-            // Get conversations from support_tickets_messages table (same as admin support)
+            // Get archive filter from request (default to active only)
+            $archiveFilter = $_GET['archive_filter'] ?? 'active'; // 'active', 'archived', 'all'
+            
+            // Build archive condition
+            $archiveCondition = '';
+            if ($archiveFilter === 'active') {
+                $archiveCondition = ' AND sm.archived = 0';
+            } elseif ($archiveFilter === 'archived') {
+                $archiveCondition = ' AND sm.archived = 1';
+            }
+            // 'all' means no additional condition
+            
+            // Get conversations from support_tickets_messages table with status from support_tickets
             $query = "
                 SELECT 
                     sm.conversation_id as ticket_id,
@@ -85,15 +97,23 @@ try {
                     (SELECT s4.is_admin FROM support_tickets_messages s4 
                      WHERE s4.conversation_id = sm.conversation_id
                      ORDER BY s4.created_at DESC LIMIT 1) AS last_message_is_admin,
+                    (SELECT s5.archived FROM support_tickets_messages s5 
+                     WHERE s5.conversation_id = sm.conversation_id
+                     ORDER BY s5.created_at DESC LIMIT 1) AS archived,
                     COUNT(*) AS message_count,
                     SUM(CASE WHEN sm.is_admin = 0 AND sm.is_read = 0 THEN 1 ELSE 0 END) AS unread_user_messages,
-                    SUM(CASE WHEN sm.is_admin = 1 THEN 1 ELSE 0 END) AS admin_replies
+                    SUM(CASE WHEN sm.is_admin = 1 THEN 1 ELSE 0 END) AS admin_replies,
+                    COALESCE(st.status, 'open') AS status
                 FROM support_tickets_messages sm
-                GROUP BY sm.conversation_id, sm.user_name, sm.user_email
+                LEFT JOIN support_tickets st ON st.id = CAST(SUBSTRING(sm.conversation_id, 8) AS UNSIGNED)
+                WHERE 1=1" . $archiveCondition . "
+                GROUP BY sm.conversation_id, sm.user_name, sm.user_email, st.status
                 ORDER BY last_updated DESC
             ";
             
-            $result = $conn->query($query);
+            $stmt = $conn->prepare($query);
+            $stmt->execute();
+            $result = $stmt->get_result();
             $conversations = [];
             
             if ($result) {
@@ -111,20 +131,27 @@ try {
                         'customer_email' => $row['customer_email'],
                         'last_message' => $row['last_message'],
                         'message_count' => $row['message_count'],
-                        'admin_replies' => $row['admin_replies']
+                        'admin_replies' => $row['admin_replies'],
+                        'archived' => (int)($row['archived'] ?? 0)
                     ];
                 }
             }
             
             // Stats - same as admin support
-            $totalStmt = $conn->query("SELECT COUNT(DISTINCT conversation_id) as total FROM support_tickets_messages");
-            $total = $totalStmt ? $totalStmt->fetch_assoc()['total'] : 0;
+            $totalStmt = $conn->prepare("SELECT COUNT(DISTINCT conversation_id) as total FROM support_tickets_messages");
+            $totalStmt->execute();
+            $totalResult = $totalStmt->get_result();
+            $total = $totalResult ? $totalResult->fetch_assoc()['total'] : 0;
             
-            $unreadStmt = $conn->query("SELECT COUNT(DISTINCT conversation_id) as unread FROM support_tickets_messages WHERE is_admin = 0 AND is_read = 0");
-            $unread = $unreadStmt ? $unreadStmt->fetch_assoc()['unread'] : 0;
+            $unreadStmt = $conn->prepare("SELECT COUNT(DISTINCT conversation_id) as unread FROM support_tickets_messages WHERE is_admin = 0 AND is_read = 0");
+            $unreadStmt->execute();
+            $unreadResult = $unreadStmt->get_result();
+            $unread = $unreadResult ? $unreadResult->fetch_assoc()['unread'] : 0;
             
-            $repliedStmt = $conn->query("SELECT COUNT(DISTINCT conversation_id) as replied FROM support_tickets_messages WHERE is_admin = 1");
-            $replied = $repliedStmt ? $repliedStmt->fetch_assoc()['replied'] : 0;
+            $repliedStmt = $conn->prepare("SELECT COUNT(DISTINCT conversation_id) as replied FROM support_tickets_messages WHERE is_admin = 1");
+            $repliedStmt->execute();
+            $repliedResult = $repliedStmt->get_result();
+            $replied = $repliedResult ? $repliedResult->fetch_assoc()['replied'] : 0;
             
             $stats = [
                 'total' => $total,
@@ -150,14 +177,16 @@ try {
                 break;
             }
             
-            // Get messages from support_tickets_messages table (same as admin support)
+            // Get messages from support_tickets_messages table with ticket status
             $query = "
                 SELECT 
-                    id, conversation_id, user_name, user_email, admin_name, 
-                    subject, message, attachment_paths, is_admin, created_at, is_read
-                FROM support_tickets_messages 
-                WHERE conversation_id = ?
-                ORDER BY created_at ASC
+                    sm.id, sm.conversation_id, sm.user_name, sm.user_email, sm.admin_name, 
+                    sm.subject, sm.message, sm.attachment_paths, sm.is_admin, sm.created_at, sm.is_read,
+                    COALESCE(st.status, 'open') AS status
+                FROM support_tickets_messages sm
+                LEFT JOIN support_tickets st ON st.id = CAST(SUBSTRING(sm.conversation_id, 8) AS UNSIGNED)
+                WHERE sm.conversation_id = ?
+                ORDER BY sm.created_at ASC
             ";
             
             $stmt = $conn->prepare($query);
@@ -175,7 +204,8 @@ try {
                         'conversation_id' => $row['conversation_id'],
                         'username' => $row['user_name'],
                         'customer_email' => $row['user_email'],
-                        'subject' => $row['subject']
+                        'subject' => $row['subject'],
+                        'status' => $row['status']
                     ];
                 }
                 
@@ -258,6 +288,25 @@ try {
                 $markReadStmt = $conn->prepare("UPDATE support_tickets_messages SET is_read = TRUE WHERE conversation_id = ? AND is_admin = 0");
                 $markReadStmt->bind_param("s", $conversationId);
                 $markReadStmt->execute();
+                
+                // Get customer user_id for real-time notification
+                $userStmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
+                $userStmt->bind_param("s", $conversation['user_name']);
+                $userStmt->execute();
+                $userResult = $userStmt->get_result()->fetch_assoc();
+                
+                if ($userResult) {
+                    // Send real-time notification via Pusher
+                    require_once '../../includes/pusher_config.php';
+                    
+                    triggerPusherEvent('support-channel', 'new-developer-reply', [
+                        'conversation_id' => $conversationId,
+                        'customer_id' => $userResult['id'],
+                        'admin_name' => $adminName,
+                        'message' => substr($message, 0, 100),
+                        'timestamp' => time()
+                    ]);
+                }
                 
                 echo json_encode([
                     'success' => true,
@@ -701,8 +750,11 @@ try {
             // Get system health notifications (technical issues only, no business/sales data)
             if ($filter === 'all' || $filter === 'system') {
                 // Add is_read and deleted columns to audit_logs if they don't exist
-                $conn->query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
-                $conn->query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE");
+                // Use prepared statements for ALTER TABLE (safe since no user input)
+                $stmt1 = $conn->prepare("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
+                $stmt1->execute();
+                $stmt2 = $conn->prepare("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE");
+                $stmt2->execute();
                 
                 // Enhanced system errors from audit logs (last 24 hours) - comprehensive error tracking
                 $errorQuery = "
@@ -783,7 +835,8 @@ try {
             // Get customer support ticket notifications (last 7 days)
             if ($filter === 'all' || $filter === 'customer_support') {
                 // Add is_read column to support_tickets table if it doesn't exist
-                $conn->query("ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
+                $stmt = $conn->prepare("ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
+                $stmt->execute();
                 
                 $ticketQuery = "
                     SELECT 
@@ -811,10 +864,13 @@ try {
             // Get customer support message notifications (last 7 days)
             if ($filter === 'all' || $filter === 'customer_support') {
                 // Check if support_messages table exists
-                $tableCheck = $conn->query("SHOW TABLES LIKE 'support_messages'");
+                $tableCheckStmt = $conn->prepare("SHOW TABLES LIKE 'support_messages'");
+                $tableCheckStmt->execute();
+                $tableCheck = $tableCheckStmt->get_result();
                 if ($tableCheck->num_rows > 0) {
                     // Add is_read column to support_messages table if it doesn't exist
-                    $conn->query("ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
+                    $stmt = $conn->prepare("ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE");
+                    $stmt->execute();
                     
                     $messageQuery = "
                         SELECT 
@@ -884,7 +940,7 @@ try {
                 // Determine which table based on system_type
                 $systemType = $data['system_type'] ?? 'high_value_order';
                 if ($systemType === 'high_value_order') {
-                    $stmt = $conn->prepare("UPDATE user_requests SET is_read = TRUE WHERE id = ?");
+                    $stmt = $conn->prepare("UPDATE customer_requests SET is_read = TRUE WHERE id = ?");
                 } elseif ($systemType === 'low_inventory') {
                     $stmt = $conn->prepare("UPDATE inventory SET is_read = TRUE WHERE id = ?");
                 } else {
@@ -930,7 +986,7 @@ try {
                 // For system notifications, mark as deleted instead of actually deleting the records
                 $systemType = $data['system_type'] ?? 'high_value_order';
                 if ($systemType === 'high_value_order') {
-                    $stmt = $conn->prepare("UPDATE user_requests SET deleted = TRUE WHERE id = ?");
+                    $stmt = $conn->prepare("UPDATE customer_requests SET deleted = TRUE WHERE id = ?");
                 } elseif ($systemType === 'low_inventory') {
                     $stmt = $conn->prepare("UPDATE inventory SET deleted = TRUE WHERE id = ?");
                 } else {
@@ -959,13 +1015,15 @@ try {
         case 'create_backup':
             $data = json_decode(file_get_contents('php://input'), true);
             $backupType = $data['type'] ?? 'manual';
+            $description = $data['description'] ?? 'Manual backup';
             $options = $data['options'] ?? ['database' => true, 'files' => true];
             
             // Create backup_logs table if it doesn't exist
-            $conn->query("CREATE TABLE IF NOT EXISTS backup_logs (
+            $createTableStmt = $conn->prepare("CREATE TABLE IF NOT EXISTS backup_logs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 backup_type VARCHAR(50) NOT NULL DEFAULT 'manual',
                 file_name VARCHAR(255) NOT NULL,
+                description TEXT DEFAULT NULL,
                 file_size BIGINT DEFAULT NULL,
                 status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
                 error_message TEXT DEFAULT NULL,
@@ -974,11 +1032,16 @@ try {
                 completed_at TIMESTAMP NULL DEFAULT NULL,
                 INDEX idx_created_at (created_at)
             )");
+            $createTableStmt->execute();
+            
+            // Add description column if it doesn't exist (for existing tables)
+            $alterStmt = $conn->prepare("ALTER TABLE backup_logs ADD COLUMN IF NOT EXISTS description TEXT DEFAULT NULL AFTER file_name");
+            $alterStmt->execute();
             
             // Create backup entry
             $fileName = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
-            $stmt = $conn->prepare("INSERT INTO backup_logs (backup_type, file_name, status, created_by, created_at) VALUES (?, ?, 'pending', ?, NOW())");
-            $stmt->bind_param("ssi", $backupType, $fileName, $_SESSION['user_id']);
+            $stmt = $conn->prepare("INSERT INTO backup_logs (backup_type, file_name, description, status, created_by, created_at) VALUES (?, ?, ?, 'pending', ?, NOW())");
+            $stmt->bind_param("sssi", $backupType, $fileName, $description, $_SESSION['user_id']);
             $stmt->execute();
             $backupId = $conn->insert_id;
             
@@ -997,7 +1060,7 @@ try {
                 
                 // Get all tables with validation
                 $tables = [];
-                $stmt = $conn->prepare("SHOW TABLES");
+                $stmt = $conn->prepare("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'");
                 $stmt->execute();
                 $result = $stmt->get_result();
                 while ($row = $result->fetch_array()) {
@@ -1013,19 +1076,25 @@ try {
                     $backupContent .= "\n-- Table structure for table `$table`\n";
                     $backupContent .= "DROP TABLE IF EXISTS `$table`;\n";
                     
-                    // Get table structure with prepared statement
-                    $stmt = $conn->prepare("SHOW CREATE TABLE `" . $table . "`");
-                    if ($stmt && $stmt->execute()) {
-                        $result = $stmt->get_result();
-                        $row = $result->fetch_array();
-                        $backupContent .= $row[1] . ";\n\n";
-                        $stmt->close();
+                    // Get table structure with prepared statement (table name already validated)
+                    // Note: SHOW CREATE TABLE cannot use ? placeholders, but table name is validated above
+                    if (preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+                        $createTableQuery = "SHOW CREATE TABLE `" . $conn->real_escape_string($table) . "`";
+                        $stmt = $conn->prepare($createTableQuery);
+                        if ($stmt && $stmt->execute()) {
+                            $result = $stmt->get_result();
+                            $row = $result->fetch_array();
+                            $backupContent .= $row[1] . ";\n\n";
+                            $stmt->close();
+                        }
                     }
                     
-                    // Get table data with prepared statement
+                    // Get table data with prepared statement (table name already validated)
                     $backupContent .= "-- Dumping data for table `$table`\n";
-                    $stmt = $conn->prepare("SELECT * FROM `" . $table . "`");
-                    if ($stmt && $stmt->execute()) {
+                    if (preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+                        $selectQuery = "SELECT * FROM `" . $conn->real_escape_string($table) . "`";
+                        $stmt = $conn->prepare($selectQuery);
+                        if ($stmt && $stmt->execute()) {
                         $result = $stmt->get_result();
                         
                         if ($result->num_rows > 0) {
@@ -1042,7 +1111,8 @@ try {
                                 $backupContent .= implode(', ', $values) . ");\n";
                             }
                         }
-                        $stmt->close();
+                            $stmt->close();
+                        }
                     }
                     $backupContent .= "\n";
                 }
@@ -1275,7 +1345,9 @@ try {
             }
             
             // Mark all support tickets as read (last 7 days)
-            $tableCheck = $conn->query("SHOW TABLES LIKE 'support_tickets'");
+            $tableCheckStmt = $conn->prepare("SHOW TABLES LIKE 'support_tickets'");
+            $tableCheckStmt->execute();
+            $tableCheck = $tableCheckStmt->get_result();
             if ($tableCheck && $tableCheck->num_rows > 0) {
                 $stmt = $conn->prepare("UPDATE support_tickets SET is_read = TRUE WHERE COALESCE(is_read, FALSE) = FALSE AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
                 if ($stmt) {
@@ -1286,7 +1358,9 @@ try {
             }
             
             // Mark all support messages as read (last 7 days)
-            $tableCheck = $conn->query("SHOW TABLES LIKE 'support_messages'");
+            $tableCheckStmt = $conn->prepare("SHOW TABLES LIKE 'support_messages'");
+            $tableCheckStmt->execute();
+            $tableCheck = $tableCheckStmt->get_result();
             if ($tableCheck && $tableCheck->num_rows > 0) {
                 $stmt = $conn->prepare("UPDATE support_messages SET is_read = TRUE WHERE COALESCE(is_read, FALSE) = FALSE AND message_type = 'customer_support' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
                 if ($stmt) {
@@ -1355,7 +1429,7 @@ try {
 
         case 'get_console_errors':
             // Create console_errors table if it doesn't exist
-            $conn->query("CREATE TABLE IF NOT EXISTS console_errors (
+            $createTableStmt = $conn->prepare("CREATE TABLE IF NOT EXISTS console_errors (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 error_type VARCHAR(100) NOT NULL,
                 error_message TEXT NOT NULL,
@@ -1365,6 +1439,7 @@ try {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_created_at (created_at)
             )");
+            $createTableStmt->execute();
             
             $limit = $_GET['limit'] ?? 50;
             $stmt = $conn->prepare("SELECT * FROM console_errors ORDER BY created_at DESC LIMIT ?");
@@ -1386,7 +1461,7 @@ try {
             $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '';
             
             // Create table if it doesn't exist
-            $conn->query("CREATE TABLE IF NOT EXISTS console_errors (
+            $createTableStmt = $conn->prepare("CREATE TABLE IF NOT EXISTS console_errors (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 error_type VARCHAR(100) NOT NULL,
                 error_message TEXT NOT NULL,
@@ -1396,6 +1471,7 @@ try {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_created_at (created_at)
             )");
+            $createTableStmt->execute();
             
             $stmt = $conn->prepare("INSERT INTO console_errors (error_type, error_message, url, user_agent, ip_address) VALUES (?, ?, ?, ?, ?)");
             $stmt->bind_param("sssss", $errorType, $errorMessage, $url, $userAgent, $ipAddress);
@@ -1408,7 +1484,8 @@ try {
             break;
 
         case 'clear_console_errors':
-            $conn->query("DELETE FROM console_errors");
+            $deleteStmt = $conn->prepare("DELETE FROM console_errors");
+            $deleteStmt->execute();
             echo json_encode(['success' => true, 'message' => 'Console errors cleared']);
             break;
 
@@ -1541,13 +1618,13 @@ try {
                 $stats['resolved_today'] = 0;
             }
             
-            // Request statistics (if user_requests table exists)
-            $stmt = $conn->prepare("SHOW TABLES LIKE 'user_requests'");
+            // Request statistics (if customer_requests table exists)
+            $stmt = $conn->prepare("SHOW TABLES LIKE 'customer_requests'");
             if ($stmt && $stmt->execute()) {
                 $result = $stmt->get_result();
                 if ($result->num_rows > 0) {
                     $stmt->close();
-                    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM user_requests WHERE status = 'pending'");
+                    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM customer_requests WHERE status = 'pending' AND deleted = 0");
                     if ($stmt && $stmt->execute()) {
                         $result = $stmt->get_result();
                         $stats['pending_requests'] = $result->fetch_assoc()['total'];
@@ -1785,7 +1862,7 @@ try {
                 }
                 
                 // Open customer support tickets count
-                $stmt = $conn->prepare("SELECT COUNT(DISTINCT conversation_id) as total FROM support_tickets_messages");
+                $stmt = $conn->prepare("SELECT COUNT(DISTINCT conversation_id) as total FROM support_tickets_messages WHERE archived = 0 OR archived IS NULL");
                 if ($stmt && $stmt->execute()) {
                     $result = $stmt->get_result();
                     $stats['open_support'] = $result->fetch_assoc()['total'];
@@ -1801,6 +1878,85 @@ try {
             } catch (Exception $e) {
                 error_log("Dashboard stats error: " . $e->getMessage());
                 echo json_encode(['success' => false, 'message' => 'Error loading dashboard stats']);
+            }
+            break;
+
+        case 'update_ticket_status':
+            $data = json_decode(file_get_contents('php://input'), true);
+            $conversationId = $data['conversation_id'] ?? null;
+            $status = $data['status'] ?? null;
+            
+            if (!$conversationId || !$status) {
+                echo json_encode(['success' => false, 'message' => 'Missing conversation ID or status']);
+                break;
+            }
+            
+            // Validate status values
+            $validStatuses = ['open', 'pending', 'resolved', 'closed'];
+            if (!in_array($status, $validStatuses)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid status value']);
+                break;
+            }
+            
+            try {
+                // Extract ticket ID from conversation_id (format: ticket_X where X is the ticket ID)
+                $ticketId = null;
+                if (preg_match('/^ticket_(\d+)$/', $conversationId, $matches)) {
+                    $ticketId = (int)$matches[1];
+                }
+                
+                if (!$ticketId) {
+                    echo json_encode(['success' => false, 'message' => 'Invalid conversation ID format']);
+                    break;
+                }
+                
+                // Debug: Log the extracted ticket ID
+                error_log("Updating ticket status: conversation_id={$conversationId}, extracted_ticket_id={$ticketId}, new_status={$status}");
+                
+                // Update the ticket status in support_tickets table
+                $stmt = $conn->prepare("UPDATE support_tickets SET status = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->bind_param("si", $status, $ticketId);
+                
+                if ($stmt->execute()) {
+                    $affectedRows = $stmt->affected_rows;
+                    
+                    if ($affectedRows > 0) {
+                        // Log the status change
+                        logAuditEvent($_SESSION['user_id'], 'ticket_status_update', "Ticket {$conversationId} (ID: {$ticketId}) status changed to {$status}");
+                        
+                        echo json_encode(['success' => true, 'message' => 'Ticket status updated successfully']);
+                    } else {
+                        // No rows affected - ticket doesn't exist, create it with proper fields
+                        // First get conversation details
+                        $detailStmt = $conn->prepare("SELECT user_name, user_email, subject, MIN(created_at) as created_at FROM support_tickets_messages WHERE conversation_id = ? LIMIT 1");
+                        $detailStmt->bind_param("s", $conversationId);
+                        $detailStmt->execute();
+                        $details = $detailStmt->get_result()->fetch_assoc();
+                        $detailStmt->close();
+                        
+                        if ($details) {
+                            $createStmt = $conn->prepare("INSERT INTO support_tickets (id, username, email, subject, message, status, priority, created_at, updated_at) VALUES (?, ?, ?, ?, 'Auto-created from conversation', ?, 'medium', ?, NOW()) ON DUPLICATE KEY UPDATE status = ?, updated_at = NOW()");
+                            $createStmt->bind_param("isssss", $ticketId, $details['user_name'], $details['user_email'], $details['subject'], $status, $details['created_at'], $status);
+                        } else {
+                            $createStmt = $conn->prepare("INSERT INTO support_tickets (id, status, created_at, updated_at) VALUES (?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE status = ?, updated_at = NOW()");
+                            $createStmt->bind_param("iss", $ticketId, $status, $status);
+                        }
+                        
+                        if ($createStmt->execute()) {
+                            logAuditEvent($_SESSION['user_id'], 'ticket_status_update', "Ticket {$conversationId} (ID: {$ticketId}) status set to {$status} (created new record)");
+                            echo json_encode(['success' => true, 'message' => 'Ticket status updated successfully']);
+                        } else {
+                            echo json_encode(['success' => false, 'message' => 'Failed to create ticket record']);
+                        }
+                        $createStmt->close();
+                    }
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Failed to update ticket status']);
+                }
+                $stmt->close();
+            } catch (Exception $e) {
+                error_log("Error updating ticket status: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Database error occurred']);
             }
             break;
             

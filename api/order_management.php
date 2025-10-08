@@ -77,27 +77,79 @@ try {
 function handleGetOrders($pdo) {
     try {
         // Get approved orders with payment received, and orders in production stages
-        $sql = "SELECT r.*, u.username as customer_name, u.email as customer_email 
-                FROM user_requests r 
-                LEFT JOIN users u ON r.user_id = u.id 
-                WHERE (
-                    (r.status = 'approved' AND r.payment_status IN ('partial_paid', 'fully_paid')) OR
-                    r.status IN ('printing', 'ready_for_pickup', 'on_the_way', 'completed')
-                )
+        $sql = "SELECT 
+                    cr.*,
+                    u.username as customer_name, 
+                    u.email as customer_email,
+                    rd.size,
+                    rd.custom_size,
+                    rd.design_option,
+                    rd.tag_location,
+                    ao.total_price,
+                    ao.payment_status,
+                    ao.paid_amount,
+                    ao.downpayment_percentage,
+                    ao.downpayment_amount,
+                    ao.payment_method,
+                    ao.production_status,
+                    ao.pricing_set_at,
+                    ao.production_started_at,
+                    ao.ready_at,
+                    ao.completed_at
+                FROM customer_requests cr
+                LEFT JOIN users u ON cr.user_id = u.id
+                LEFT JOIN request_details rd ON cr.id = rd.request_id
+                INNER JOIN approved_orders ao ON cr.id = ao.request_id
+                WHERE (cr.deleted IS NULL OR cr.deleted = 0)
+                AND ao.payment_status != 'awaiting_payment'
                 ORDER BY 
-                    CASE r.status 
-                        WHEN 'approved' THEN 1
+                    CASE ao.production_status 
+                        WHEN 'pending' THEN 1
                         WHEN 'printing' THEN 2
                         WHEN 'ready_for_pickup' THEN 3
                         WHEN 'on_the_way' THEN 4
                         WHEN 'completed' THEN 5
                         ELSE 6
                     END,
-                    r.created_at DESC";
+                    cr.created_at DESC";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
         $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Get attachments for each order
+        foreach ($orders as &$order) {
+            $attachStmt = $pdo->prepare("
+                SELECT attachment_type, file_path
+                FROM request_attachments
+                WHERE request_id = ?
+            ");
+            $attachStmt->execute([$order['id']]);
+            $attachments = $attachStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Format for backward compatibility
+            $order['image_path'] = null;
+            $order['front_image_path'] = null;
+            $order['back_image_path'] = null;
+            $order['tag_image_path'] = null;
+            
+            $imagePaths = [];
+            foreach ($attachments as $att) {
+                if ($att['attachment_type'] === 'image') {
+                    $imagePaths[] = $att['file_path'];
+                } elseif ($att['attachment_type'] === 'front_image') {
+                    $order['front_image_path'] = $att['file_path'];
+                } elseif ($att['attachment_type'] === 'back_image') {
+                    $order['back_image_path'] = $att['file_path'];
+                } elseif ($att['attachment_type'] === 'tag_image') {
+                    $order['tag_image_path'] = $att['file_path'];
+                }
+            }
+            
+            if (!empty($imagePaths)) {
+                $order['image_path'] = json_encode($imagePaths);
+            }
+        }
         
         // Format orders for frontend
         $formattedOrders = array_map(function($order) {
@@ -112,7 +164,7 @@ function handleGetOrders($pdo) {
                 'custom_size' => $order['custom_size'],
                 'quantity' => $order['quantity'],
                 'notes' => $order['notes'],
-                'status' => $order['status'],
+                'status' => $order['production_status'],
                 'payment_status' => $order['payment_status'],
                 'total_price' => $order['total_price'],
                 'admin_response' => $order['admin_response'],
@@ -134,7 +186,13 @@ function handleGetOrders($pdo) {
         
         echo json_encode([
             'success' => true,
-            'orders' => $formattedOrders
+            'orders' => $formattedOrders,
+            'debug' => [
+                'total_orders' => count($orders),
+                'formatted_orders' => count($formattedOrders),
+                'sample_statuses' => array_unique(array_column($formattedOrders, 'status')),
+                'query_used' => $sql
+            ]
         ]);
         
     } catch (Exception $e) {
@@ -157,10 +215,19 @@ function handleUpdateStatus($pdo, $input) {
         }
         
         // Get current order details
-        $stmt = $pdo->prepare("SELECT r.*, u.email as customer_email, u.username as customer_name 
-                              FROM user_requests r 
-                              LEFT JOIN users u ON r.user_id = u.id 
-                              WHERE r.id = ?");
+        $stmt = $pdo->prepare("
+            SELECT 
+                cr.*,
+                u.email as customer_email, 
+                u.username as customer_name,
+                ao.production_started_at,
+                ao.ready_at,
+                ao.completed_at
+            FROM customer_requests cr
+            LEFT JOIN users u ON cr.user_id = u.id
+            LEFT JOIN approved_orders ao ON cr.id = ao.request_id
+            WHERE cr.id = ?
+        ");
         $stmt->execute([$orderId]);
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -171,26 +238,42 @@ function handleUpdateStatus($pdo, $input) {
         }
         
         // Update order status with appropriate timestamp
-        $updateFields = ['status = ?', 'admin_response = ?', 'updated_at = NOW()'];
-        $updateValues = [$newStatus, $note];
-        
-        switch ($newStatus) {
-            case 'printing':
-                $updateFields[] = 'production_started_at = NOW()';
-                break;
-            case 'ready_for_pickup':
-                $updateFields[] = 'ready_at = NOW()';
-                break;
-            case 'completed':
-                $updateFields[] = 'completed_at = NOW()';
-                break;
+        $pdo->beginTransaction();
+        try {
+            // Update customer_requests status AND approved_orders production_status
+            $sql = "UPDATE customer_requests SET status = ?, admin_response = ? WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$newStatus, $note, $orderId]);
+            
+            // Update approved_orders production_status and timestamps
+            switch ($newStatus) {
+                case 'printing':
+                    $sql = "UPDATE approved_orders SET production_status = 'printing', production_started_at = NOW() WHERE request_id = ?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$orderId]);
+                    break;
+                case 'ready_for_pickup':
+                    $sql = "UPDATE approved_orders SET production_status = 'ready_for_pickup', ready_at = NOW() WHERE request_id = ?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$orderId]);
+                    break;
+                case 'on_the_way':
+                    $sql = "UPDATE approved_orders SET production_status = 'on_the_way' WHERE request_id = ?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$orderId]);
+                    break;
+                case 'completed':
+                    $sql = "UPDATE approved_orders SET production_status = 'completed', completed_at = NOW() WHERE request_id = ?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$orderId]);
+                    break;
+            }
+            
+            $pdo->commit();
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
         }
-        
-        $updateValues[] = $orderId;
-        
-        $sql = "UPDATE user_requests SET " . implode(', ', $updateFields) . " WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($updateValues);
         
         // Send email notification if requested
         if ($sendEmail && $order['customer_email']) {
@@ -228,33 +311,49 @@ function handleBulkUpdate($pdo, $input) {
         
         // Get order details for email notifications
         $placeholders = str_repeat('?,', count($orderIds) - 1) . '?';
-        $stmt = $pdo->prepare("SELECT r.*, u.email as customer_email, u.username as customer_name 
-                              FROM user_requests r 
-                              LEFT JOIN users u ON r.user_id = u.id 
-                              WHERE r.id IN ($placeholders)");
+        $stmt = $pdo->prepare("
+            SELECT 
+                cr.*,
+                u.email as customer_email, 
+                u.username as customer_name
+            FROM customer_requests cr
+            LEFT JOIN users u ON cr.user_id = u.id
+            WHERE cr.id IN ($placeholders)
+        ");
         $stmt->execute($orderIds);
         $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Update all orders
-        $updateFields = ['status = ?', 'admin_response = ?', 'updated_at = NOW()'];
         $note = "Bulk status update to " . ucfirst(str_replace('_', ' ', $newStatus));
         
-        switch ($newStatus) {
-            case 'printing':
-                $updateFields[] = 'production_started_at = NOW()';
-                break;
-            case 'ready_for_pickup':
-                $updateFields[] = 'ready_at = NOW()';
-                break;
-            case 'completed':
-                $updateFields[] = 'completed_at = NOW()';
-                break;
-        }
-        
-        $sql = "UPDATE user_requests SET " . implode(', ', $updateFields) . " WHERE id IN ($placeholders)";
+        // Update customer_requests status
+        $sql = "UPDATE customer_requests SET status = ?, admin_response = ? WHERE id IN ($placeholders)";
         $values = array_merge([$newStatus, $note], $orderIds);
         $stmt = $pdo->prepare($sql);
         $stmt->execute($values);
+        
+        // Update approved_orders production_status and timestamps
+        switch ($newStatus) {
+            case 'printing':
+                $sql = "UPDATE approved_orders SET production_status = 'printing', production_started_at = NOW() WHERE request_id IN ($placeholders)";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($orderIds);
+                break;
+            case 'ready_for_pickup':
+                $sql = "UPDATE approved_orders SET production_status = 'ready_for_pickup', ready_at = NOW() WHERE request_id IN ($placeholders)";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($orderIds);
+                break;
+            case 'on_the_way':
+                $sql = "UPDATE approved_orders SET production_status = 'on_the_way' WHERE request_id IN ($placeholders)";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($orderIds);
+                break;
+            case 'completed':
+                $sql = "UPDATE approved_orders SET production_status = 'completed', completed_at = NOW() WHERE request_id IN ($placeholders)";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($orderIds);
+                break;
+        }
         
         $pdo->commit();
         
@@ -285,10 +384,14 @@ function handleBulkUpdate($pdo, $input) {
 
 function handleGetProductionCount($pdo) {
     try {
-        $stmt = $pdo->query("SELECT 
-            SUM(CASE WHEN status = 'approved' AND (payment_status = 'partial_paid' OR payment_status = 'fully_paid') THEN 1 ELSE 0 END) as awaiting_production,
-            SUM(CASE WHEN status IN ('printing', 'ready_for_pickup', 'on_the_way') THEN 1 ELSE 0 END) as in_production
-            FROM user_requests");
+        $stmt = $pdo->query("
+            SELECT 
+                SUM(CASE WHEN cr.status = 'approved' AND ao.payment_status IN ('partial_paid', 'fully_paid') AND ao.production_status = 'pending' THEN 1 ELSE 0 END) as awaiting_production,
+                SUM(CASE WHEN ao.production_status IN ('printing', 'ready_for_pickup', 'on_the_way') THEN 1 ELSE 0 END) as in_production
+            FROM customer_requests cr
+            LEFT JOIN approved_orders ao ON cr.id = ao.request_id
+            WHERE (cr.deleted IS NULL OR cr.deleted = 0)
+        ");
         
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $productionCount = ($result['awaiting_production'] ?? 0) + ($result['in_production'] ?? 0);

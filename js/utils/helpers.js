@@ -13,10 +13,16 @@ export class Utils {
     const date = new Date(timestamp)
     const now = new Date()
     const diff = now - date
+    const seconds = Math.floor(diff / 1000)
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
 
-    if (diff < 60000) return "Just now"
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} minutes ago`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} hours ago`
+    if (seconds < 30) return "Just now"
+    if (seconds < 60) return `${seconds}s ago`
+    if (minutes === 1) return "1m ago"
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours === 1) return "1h ago"
+    if (hours < 24) return `${hours}h ago`
     return date.toLocaleDateString(CONFIG.LOCALE)
   }
 

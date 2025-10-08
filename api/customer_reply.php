@@ -52,11 +52,12 @@ try {
         exit();
     }
     
-    // Verify the conversation belongs to this user
+    // Verify the conversation belongs to this user and check ticket status
     $verifyStmt = $conn->prepare("
-        SELECT subject, user_email 
-        FROM support_tickets_messages 
-        WHERE conversation_id = ? AND (user_id = ? OR user_name = ?) 
+        SELECT stm.subject, stm.user_email, COALESCE(st.status, 'open') as ticket_status
+        FROM support_tickets_messages stm
+        LEFT JOIN support_tickets st ON st.id = CAST(SUBSTRING(stm.conversation_id, 8) AS UNSIGNED)
+        WHERE stm.conversation_id = ? AND (stm.user_id = ? OR stm.user_name = ?) 
         LIMIT 1
     ");
     $verifyStmt->bind_param("sis", $conversationId, $userId, $userName);
@@ -68,11 +69,17 @@ try {
         exit();
     }
     
+    // Check if ticket is closed
+    if ($conversation['ticket_status'] === 'closed') {
+        echo json_encode(['success' => false, 'message' => 'This ticket has been closed and no longer accepts replies']);
+        exit();
+    }
+    
     // Insert customer reply
     $insertStmt = $conn->prepare("
         INSERT INTO support_tickets_messages 
         (conversation_id, user_id, user_name, user_email, admin_name, subject, message, is_admin, created_at, is_read) 
-        VALUES (?, ?, ?, ?, NULL, ?, ?, FALSE, NOW(), TRUE)
+        VALUES (?, ?, ?, ?, NULL, ?, ?, FALSE, NOW(), FALSE)
     ");
     
     $userEmail = $_SESSION['user_email'] ?? $conversation['user_email'] ?? 'no-email@example.com';
@@ -87,6 +94,20 @@ try {
     );
     
     if ($insertStmt->execute()) {
+        // Send real-time notification via Pusher
+        require_once '../includes/pusher_config.php';
+        
+        $pusherData = [
+            'conversation_id' => $conversationId,
+            'user_id' => $userId,
+            'user_name' => $userName,
+            'message' => substr($message, 0, 100),
+            'timestamp' => time()
+        ];
+        
+        $pusherResult = triggerPusherEvent('support-channel', 'new-customer-message', $pusherData);
+        error_log("Pusher event sent: " . ($pusherResult ? 'SUCCESS' : 'FAILED') . " - Data: " . json_encode($pusherData));
+        
         echo json_encode([
             'success' => true,
             'message' => 'Reply sent successfully'

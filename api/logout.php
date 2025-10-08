@@ -77,6 +77,11 @@ try {
             logLogoutEvent($user_id, $username, $user_role);
         }
         
+        // Clean up SSE session tracking
+        require_once '../includes/session_manager.php';
+        removeUserSession();
+        error_log("Logout: Removed SSE session for user " . ($user_id ?? 'unknown'));
+        
         // Clear all session data (full logout)
         session_destroy();
         header("Location: ../index.php");

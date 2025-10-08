@@ -15,10 +15,23 @@ class OrderManagement {
     init() {
         console.log('Initializing Order Management System...')
         this.setupEventListeners()
+        this.initializeTabs()
         this.loadOrders()
         
         // Auto-refresh every 30 seconds
         setInterval(() => this.loadOrders(), 30000)
+    }
+    
+    initializeTabs() {
+        // Make sure "All Orders" tab is active by default
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active')
+        })
+        const allOrdersTab = document.querySelector('[data-status="all"]')
+        if (allOrdersTab) {
+            allOrdersTab.classList.add('active')
+        }
+        this.currentFilter = 'all'
     }
 
     setupEventListeners() {
@@ -53,9 +66,10 @@ class OrderManagement {
             
             if (data.success) {
                 this.orders = data.orders || []
+                console.log('Orders loaded:', this.orders.length)
+                console.log('Order statuses:', this.orders.map(o => `${o.id}: ${o.status}`))
                 this.updateStatusCounts()
                 this.displayOrders()
-                console.log('Orders loaded:', this.orders.length)
             } else {
                 throw new Error(data.message || 'Failed to load orders')
             }
@@ -68,7 +82,7 @@ class OrderManagement {
     updateStatusCounts() {
         const counts = {
             all: this.orders.length,
-            approved: this.orders.filter(o => o.status === 'approved' && (o.payment_status === 'partial_paid' || o.payment_status === 'fully_paid')).length,
+            approved: this.orders.filter(o => o.status === 'pending' && (o.payment_status === 'partial_paid' || o.payment_status === 'fully_paid')).length,
             printing: this.orders.filter(o => o.status === 'printing').length,
             ready_for_pickup: this.orders.filter(o => o.status === 'ready_for_pickup').length,
             on_the_way: this.orders.filter(o => o.status === 'on_the_way').length,
@@ -102,17 +116,16 @@ class OrderManagement {
 
         // Filter orders based on current filter
         if (this.currentFilter === 'all') {
-            this.filteredOrders = this.orders.filter(order => 
-                order.status === 'approved' && (order.payment_status === 'partial_paid' || order.payment_status === 'fully_paid') ||
-                ['printing', 'ready_for_pickup', 'on_the_way', 'completed'].includes(order.status)
-            )
+            this.filteredOrders = this.orders
         } else if (this.currentFilter === 'approved') {
             this.filteredOrders = this.orders.filter(order => 
-                order.status === 'approved' && (order.payment_status === 'partial_paid' || order.payment_status === 'fully_paid')
+                order.status === 'pending' && (order.payment_status === 'partial_paid' || order.payment_status === 'fully_paid')
             )
         } else {
             this.filteredOrders = this.orders.filter(order => order.status === this.currentFilter)
         }
+        
+        console.log(`Filter: ${this.currentFilter}, Showing: ${this.filteredOrders.length}/${this.orders.length} orders`)
 
         if (this.filteredOrders.length === 0) {
             grid.innerHTML = `

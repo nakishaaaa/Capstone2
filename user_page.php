@@ -1098,6 +1098,17 @@ if (!$isUserLoggedIn) {
             
             <div class="ai-modal-body">
                 <div class="ai-prompt-section">
+                    <div class="design-type-section">
+                        <label for="designType">Choose design type:</label>
+                        <select id="designType" class="design-type-dropdown">
+                            <option value="">Select a design type...</option>
+                            <option value="business card design with front and back layout">Business Card (Front & Back)</option>
+                            <option value="t-shirt design layout">T-Shirt Design</option>
+                            <option value="logo design">Logo Design</option>
+                            <option value="sticker design layout">Sticker Design</option>
+                            <option value="invitation card design">Invitation Card</option>
+                        </select>
+                    </div>
                     <label for="aiPrompt">Describe the image you want to generate:</label>
                     <textarea id="aiPrompt" placeholder="e.g., A beautiful sunset over mountains with vibrant colors..." rows="4"></textarea>
                     <div class="ai-prompt-actions">
@@ -1270,6 +1281,7 @@ if (!$isUserLoggedIn) {
         </div>
     </div>
 
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script src="js/core/error-tracker.js"></script>
     <script src="js/slideshow.js"></script>
     

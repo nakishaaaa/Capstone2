@@ -65,8 +65,17 @@ function handleCreatePaymentLink($pdo) {
         throw new Exception('Missing required parameters');
     }
     
-    // Get request details
-    $stmt = $pdo->prepare("SELECT * FROM user_requests WHERE id = ? AND user_id = ?");
+    // Get request details with order info
+    $stmt = $pdo->prepare("
+        SELECT 
+            cr.*,
+            ao.total_price,
+            ao.downpayment_amount,
+            ao.payment_status
+        FROM customer_requests cr
+        LEFT JOIN approved_orders ao ON cr.id = ao.request_id
+        WHERE cr.id = ? AND cr.user_id = ?
+    ");
     $stmt->execute([$requestId, $userId]);
     $request = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -136,14 +145,14 @@ function handleCreatePaymentLink($pdo) {
     
     $updateResponse = makePayMongoRequest('/links/' . $linkId, $updateData, 'PUT');
     
-    // Store payment link details in database
+    // Store payment link details in approved_orders
     $stmt = $pdo->prepare("
-        UPDATE user_requests 
+        UPDATE approved_orders
         SET payment_method = 'paymongo_link', 
             paymongo_link_id = ?,
             downpayment_percentage = ?,
             downpayment_amount = ?
-        WHERE id = ?
+        WHERE request_id = ?
     ");
     $stmt->execute([$linkId, $percentage, $paymentAmount, $requestId]);
     
@@ -174,13 +183,13 @@ function handleConfirmLinkPayment($pdo) {
     $paymentStatus = $linkData['attributes']['status'];
     
     if ($paymentStatus === 'paid') {
-        // Update request status to partial_paid
+        // Update order payment status
         $stmt = $pdo->prepare("
-            UPDATE user_requests 
+            UPDATE approved_orders
             SET payment_status = 'partial_paid',
                 paid_amount = downpayment_amount,
                 payment_date = NOW()
-            WHERE id = ? AND paymongo_link_id = ?
+            WHERE request_id = ? AND paymongo_link_id = ?
         ");
         $stmt->execute([$requestId, $linkId]);
         
@@ -209,8 +218,16 @@ function handleManualConfirmPayment($pdo) {
         throw new Exception('Missing request ID');
     }
     
-    // Get request details
-    $stmt = $pdo->prepare("SELECT * FROM user_requests WHERE id = ?");
+    // Get request details with order info
+    $stmt = $pdo->prepare("
+        SELECT 
+            cr.*,
+            ao.paymongo_link_id,
+            ao.downpayment_amount
+        FROM customer_requests cr
+        LEFT JOIN approved_orders ao ON cr.id = ao.request_id
+        WHERE cr.id = ?
+    ");
     $stmt->execute([$requestId]);
     $request = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -229,13 +246,13 @@ function handleManualConfirmPayment($pdo) {
     $paymentStatus = $linkData['attributes']['status'];
     
     if ($paymentStatus === 'paid') {
-        // Update request payment status
+        // Update order payment status
         $stmt = $pdo->prepare("
-            UPDATE user_requests 
+            UPDATE approved_orders
             SET payment_status = 'partial_paid',
                 paid_amount = downpayment_amount,
                 payment_date = NOW()
-            WHERE id = ?
+            WHERE request_id = ?
         ");
         $stmt->execute([$requestId]);
         
@@ -260,8 +277,16 @@ function handleConfirmPaymentByRequest($pdo) {
         throw new Exception('Missing request ID');
     }
     
-    // Get request details including PayMongo link ID
-    $stmt = $pdo->prepare("SELECT * FROM user_requests WHERE id = ?");
+    // Get request details with order info
+    $stmt = $pdo->prepare("
+        SELECT 
+            cr.*,
+            ao.paymongo_link_id,
+            ao.downpayment_amount
+        FROM customer_requests cr
+        LEFT JOIN approved_orders ao ON cr.id = ao.request_id
+        WHERE cr.id = ?
+    ");
     $stmt->execute([$requestId]);
     $request = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -284,13 +309,13 @@ function handleConfirmPaymentByRequest($pdo) {
     $paymentStatus = $linkData['attributes']['status'];
     
     if ($paymentStatus === 'paid') {
-        // Update request status to partial_paid
+        // Update order payment status
         $stmt = $pdo->prepare("
-            UPDATE user_requests 
+            UPDATE approved_orders
             SET payment_status = 'partial_paid',
                 paid_amount = downpayment_amount,
                 payment_date = NOW()
-            WHERE id = ?
+            WHERE request_id = ?
         ");
         $stmt->execute([$requestId]);
         

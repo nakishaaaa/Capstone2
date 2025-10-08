@@ -63,27 +63,109 @@ function handleGetRequests() {
     
     try {
         if ($userData['role'] === 'admin' || $userData['role'] === 'super_admin') {
-            // Admin sees all requests
+            // Admin sees all requests with details
             $stmt = $pdo->prepare("
-                SELECT r.*, u.username as user_name, u.email as user_email 
-                FROM user_requests r 
-                LEFT JOIN users u ON r.user_id = u.id 
-                ORDER BY r.created_at DESC
+                SELECT 
+                    cr.*,
+                    u.username as user_name, 
+                    u.email as user_email,
+                    rd.size,
+                    rd.custom_size,
+                    rd.size_breakdown,
+                    rd.design_option,
+                    rd.tag_location,
+                    ao.total_price,
+                    ao.downpayment_percentage,
+                    ao.downpayment_amount,
+                    ao.paid_amount,
+                    ao.payment_status,
+                    ao.payment_method,
+                    ao.payment_date,
+                    ao.paymongo_link_id,
+                    ao.pricing_set_at,
+                    ao.production_started_at,
+                    ao.ready_at,
+                    ao.completed_at
+                FROM customer_requests cr
+                LEFT JOIN users u ON cr.user_id = u.id
+                LEFT JOIN request_details rd ON cr.id = rd.request_id
+                LEFT JOIN approved_orders ao ON cr.id = ao.request_id
+                WHERE cr.deleted = 0
+                ORDER BY cr.created_at DESC
             ");
             $stmt->execute();
         } else {
             // Users see only their own requests
             $stmt = $pdo->prepare("
-                SELECT r.*, u.username as user_name, u.email as user_email 
-                FROM user_requests r 
-                LEFT JOIN users u ON r.user_id = u.id 
-                WHERE r.user_id = ? 
-                ORDER BY r.created_at DESC
+                SELECT 
+                    cr.*,
+                    u.username as user_name, 
+                    u.email as user_email,
+                    rd.size,
+                    rd.custom_size,
+                    rd.size_breakdown,
+                    rd.design_option,
+                    rd.tag_location,
+                    ao.total_price,
+                    ao.downpayment_percentage,
+                    ao.downpayment_amount,
+                    ao.paid_amount,
+                    ao.payment_status,
+                    ao.payment_method,
+                    ao.payment_date,
+                    ao.paymongo_link_id,
+                    ao.production_status,
+                    ao.pricing_set_at,
+                    ao.production_started_at,
+                    ao.ready_at,
+                    ao.completed_at
+                FROM customer_requests cr
+                LEFT JOIN users u ON cr.user_id = u.id
+                LEFT JOIN request_details rd ON cr.id = rd.request_id
+                LEFT JOIN approved_orders ao ON cr.id = ao.request_id
+                WHERE cr.user_id = ? AND cr.deleted = 0
+                ORDER BY cr.created_at DESC
             ");
             $stmt->execute([$userData['user_id']]);
         }
         
         $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Get attachments for each request
+        foreach ($requests as &$request) {
+            $attachStmt = $pdo->prepare("
+                SELECT attachment_type, file_path
+                FROM request_attachments
+                WHERE request_id = ?
+                ORDER BY attachment_type
+            ");
+            $attachStmt->execute([$request['id']]);
+            $attachments = $attachStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Format attachments for backward compatibility
+            $request['image_path'] = null;
+            $request['front_image_path'] = null;
+            $request['back_image_path'] = null;
+            $request['tag_image_path'] = null;
+            
+            $imagePaths = [];
+            foreach ($attachments as $att) {
+                if ($att['attachment_type'] === 'image') {
+                    $imagePaths[] = $att['file_path'];
+                } elseif ($att['attachment_type'] === 'front_image') {
+                    $request['front_image_path'] = $att['file_path'];
+                } elseif ($att['attachment_type'] === 'back_image') {
+                    $request['back_image_path'] = $att['file_path'];
+                } elseif ($att['attachment_type'] === 'tag_image') {
+                    $request['tag_image_path'] = $att['file_path'];
+                }
+            }
+            
+            if (!empty($imagePaths)) {
+                $request['image_path'] = json_encode($imagePaths);
+            }
+        }
+        
         echo json_encode(['success' => true, 'requests' => $requests]);
     } catch (Exception $e) {
         error_log("Get requests error: " . $e->getMessage());
@@ -316,32 +398,7 @@ function handleCreateRequest() {
             }
         }
         
-        // Check if we need to add new columns for T-shirt customization
-        try {
-            // Check if columns exist and add them if they don't
-            $columns = $pdo->query("SHOW COLUMNS FROM user_requests")->fetchAll(PDO::FETCH_COLUMN);
-            
-            if (!in_array('front_image_path', $columns)) {
-                $pdo->exec("ALTER TABLE user_requests ADD COLUMN front_image_path VARCHAR(255) DEFAULT NULL");
-            }
-            if (!in_array('back_image_path', $columns)) {
-                $pdo->exec("ALTER TABLE user_requests ADD COLUMN back_image_path VARCHAR(255) DEFAULT NULL");
-            }
-            if (!in_array('tag_image_path', $columns)) {
-                $pdo->exec("ALTER TABLE user_requests ADD COLUMN tag_image_path VARCHAR(255) DEFAULT NULL");
-            }
-            if (!in_array('tag_location', $columns)) {
-                $pdo->exec("ALTER TABLE user_requests ADD COLUMN tag_location VARCHAR(100) DEFAULT NULL");
-            }
-            if (!in_array('design_option', $columns)) {
-                $pdo->exec("ALTER TABLE user_requests ADD COLUMN design_option VARCHAR(50) DEFAULT NULL");
-            }
-            if (!in_array('custom_size', $columns)) {
-                $pdo->exec("ALTER TABLE user_requests ADD COLUMN custom_size VARCHAR(100) DEFAULT NULL AFTER size");
-            }
-        } catch (Exception $e) {
-            // Columns might already exist, continue
-        }
+        // No need to alter table structure - using normalized schema
         
         // Handle size breakdown data for T-shirt orders
         $size_breakdown = null;
@@ -356,36 +413,78 @@ function handleCreateRequest() {
             }
         }
         
-        // Insert request with T-shirt specific fields
-        $sql = "INSERT INTO user_requests (
-                    user_id, category, size, quantity, name, contact_number, notes, 
-                    image_path, front_image_path, back_image_path, tag_image_path, tag_location, design_option, custom_size, size_breakdown,
-                    status, created_at, updated_at
-                ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW()
-                )";
+        // Begin transaction for normalized schema
+        $pdo->beginTransaction();
         
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            $userData['user_id'],
-            $_POST['category'],
-            $_POST['size'],
-            $_POST['quantity'],
-            $_POST['name'],
-            $_POST['contact_number'],
-            $_POST['notes'] ?? '',
-            $image_path,
-            $front_image_path,
-            $back_image_path,
-            $tag_image_path,
-            $_POST['tag_location'] ?? null,
-            $_POST['design_option'] ?? null,
-            $_POST['custom_size'] ?? null,
-            $size_breakdown
-        ]);
-        
-        // Get the ID of the newly created request
-        $requestId = $pdo->lastInsertId();
+        try {
+            // 1. Insert into customer_requests
+            $sql = "INSERT INTO customer_requests (
+                        user_id, category, name, contact_number, quantity, notes, status
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?, 'pending'
+                    )";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                $userData['user_id'],
+                $_POST['category'],
+                $_POST['name'],
+                $_POST['contact_number'],
+                $_POST['quantity'],
+                $_POST['notes'] ?? ''
+            ]);
+            
+            $requestId = $pdo->lastInsertId();
+            
+            // 2. Insert into request_details
+            $sql = "INSERT INTO request_details (
+                        request_id, size, custom_size, size_breakdown, design_option, tag_location
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?
+                    )";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                $requestId,
+                $_POST['size'],
+                $_POST['custom_size'] ?? null,
+                $size_breakdown,
+                $_POST['design_option'] ?? null,
+                $_POST['tag_location'] ?? null
+            ]);
+            
+            // 3. Insert attachments into request_attachments
+            $attachSql = "INSERT INTO request_attachments (request_id, attachment_type, file_path) VALUES (?, ?, ?)";
+            $attachStmt = $pdo->prepare($attachSql);
+            
+            // Insert regular images
+            if (!empty($image_paths)) {
+                foreach ($image_paths as $path) {
+                    $attachStmt->execute([$requestId, 'image', $path]);
+                }
+            }
+            
+            // Insert front image
+            if ($front_image_path) {
+                $attachStmt->execute([$requestId, 'front_image', $front_image_path]);
+            }
+            
+            // Insert back image
+            if ($back_image_path) {
+                $attachStmt->execute([$requestId, 'back_image', $back_image_path]);
+            }
+            
+            // Insert tag image
+            if ($tag_image_path) {
+                $attachStmt->execute([$requestId, 'tag_image', $tag_image_path]);
+            }
+            
+            $pdo->commit();
+            
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
         
         // Create a notification for the admin
         $notificationTitle = "New Order Request: " . $_POST['category'];
@@ -453,29 +552,49 @@ function handleUpdateRequest() {
                 return;
             }
             
-            // Fixed 70% downpayment
-            $downpayment_percentage = 70;
-            
-            $sql = "UPDATE user_requests SET 
-                        status = ?, 
-                        admin_response = ?, 
-                        total_price = ?,
-                        downpayment_percentage = ?,
-                        payment_status = 'awaiting_payment',
-                        pricing_set_at = NOW(),
-                        updated_at = NOW() 
-                    WHERE id = ?";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([
-                $input['status'],
-                $input['admin_response'] ?? '',
-                $input['total_price'],
-                $downpayment_percentage,
-                $input['id']
-            ]);
+            $pdo->beginTransaction();
+            try {
+                // Update customer_requests status
+                $sql = "UPDATE customer_requests SET 
+                            status = ?, 
+                            admin_response = ?
+                        WHERE id = ?";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    $input['status'],
+                    $input['admin_response'] ?? '',
+                    $input['id']
+                ]);
+                
+                // Fixed 70% downpayment
+                $downpayment_percentage = 70;
+                $downpayment_amount = ($input['total_price'] * $downpayment_percentage) / 100;
+                
+                // Create approved_orders record
+                $sql = "INSERT INTO approved_orders (
+                            request_id,
+                            total_price,
+                            downpayment_percentage,
+                            downpayment_amount,
+                            payment_status,
+                            pricing_set_at
+                        ) VALUES (?, ?, ?, ?, 'awaiting_payment', NOW())";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    $input['id'],
+                    $input['total_price'],
+                    $downpayment_percentage,
+                    $downpayment_amount
+                ]);
+                
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
         } else {
             // For rejection or other status updates
-            $sql = "UPDATE user_requests SET status = ?, admin_response = ?, updated_at = NOW() WHERE id = ?";
+            $sql = "UPDATE customer_requests SET status = ?, admin_response = ? WHERE id = ?";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $input['status'],
@@ -528,7 +647,8 @@ function handleDeleteRequest() {
     }
     
     try {
-        $stmt = $pdo->prepare("DELETE FROM user_requests WHERE id = ?");
+        // Soft delete
+        $stmt = $pdo->prepare("UPDATE customer_requests SET deleted = 1 WHERE id = ?");
         $stmt->execute([$input['id']]);
         
         if ($stmt->rowCount() > 0) {

@@ -390,6 +390,11 @@ if (isset($_POST['login'])) {
                 
                 // Set login time for force logout comparison
                 $_SESSION['login_time'] = time();
+                
+                // Store session for SSE real-time updates
+                require_once __DIR__ . '/includes/session_manager.php';
+                storeUserSession($user['id'], $role, 24); // Store for 24 hours
+                error_log("Login: Stored SSE session for user " . $user['id'] . " with role " . $role);
 
                 // Debug: Log redirect decision
                 error_log("Login Debug - Redirect check: Role is '" . $role . "', Admin check: " . ($role === 'admin' ? 'true' : 'false') . ", Cashier check: " . ($role === 'cashier' ? 'true' : 'false'));

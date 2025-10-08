@@ -83,30 +83,9 @@
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-}
-
-.status-badge.open {
-    background: rgba(79, 172, 254, 0.2);
-    color: #4facfe;
-    border: 1px solid #4facfe;
-}
-
-.status-badge.pending {
-    background: rgba(245, 158, 11, 0.2);
-    color: #f59e0b;
-    border: 1px solid #f59e0b;
-}
-
-.status-badge.resolved {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-    border: 1px solid #22c55e;
-}
-
-.status-badge.closed {
-    background: rgba(156, 163, 175, 0.2);
-    color: #9ca3af;
-    border: 1px solid #9ca3af;
+    background: transparent;
+    color: #ffffff;
+    border: none;
 }
 
 .priority-badge {
@@ -133,6 +112,31 @@
     background: rgba(59, 130, 246, 0.2);
     color: #3b82f6;
     border: 1px solid #3b82f6;
+}
+
+/* Simple loading spinner */
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #ffffff;
+}
+
+.loading-circle {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: spin-circle 1s linear infinite;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+@keyframes spin-circle {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .no-tickets {
@@ -443,4 +447,34 @@
         min-width: auto;
         margin-bottom: 4px;
     }
+}
+
+/* Closed Ticket Styles - Dark Theme */
+.chat-input-area.closed-ticket {
+    background: #2C2C2E;
+    border-top: 2px solid #e53e3e;
+}
+
+.closed-ticket-message {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    color: #fed7d7;
+    background: #742a2a;
+    border: 1px solid #e53e3e;
+    border-radius: 8px;
+    margin: 12px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.closed-ticket-message i {
+    font-size: 18px;
+    color: #fc8181;
+}
+
+.closed-ticket-message span {
+    flex: 1;
+    line-height: 1.4;
 }

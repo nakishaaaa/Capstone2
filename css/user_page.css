@@ -2869,10 +2869,34 @@ font-size: 1.2rem;
 
 .ai-prompt-section label {
     display: block;
-    font-size: 1.1rem;
+    margin-bottom: 8px;
     font-weight: 600;
-    margin-bottom: 1rem;
-    color: #111111;
+    color: #333;
+}
+
+.design-type-section {
+    margin-bottom: 20px;
+}
+
+.design-type-dropdown {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: #fff;
+    color: #333;
+    transition: border-color 0.3s ease;
+}
+
+.design-type-dropdown:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.design-type-dropdown option {
+    padding: 8px;
 }
 
 #aiPrompt {
@@ -3607,14 +3631,18 @@ box-shadow: none;
 }
 
 .conversation-messages {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    max-height: calc(100% - 223px);
+    height: 355px;
+    max-height: 355px;
     overflow-y: auto;
-    padding-bottom: 0.5rem;
-    margin-bottom: 2rem;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.1);
+    background: rgba(248, 249, 250, 0.8);
+    border-radius: 8px;
 }
 
 /* Custom scrollbar for conversation messages */
@@ -3644,6 +3672,9 @@ box-shadow: none;
     word-break: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
+    min-height: auto;
+    max-height: none;
+    display: block;
 }
 
 .message-row.from-admin { 
@@ -4521,6 +4552,31 @@ box-shadow: none;
     margin-left: 1rem;
     font-weight: 600;
     color: #333;
+}
+
+/* Simple loading spinner for customer pages */
+.loading-spinner, .conv-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #ffffff;
+}
+
+.loading-circle {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: spin-circle 1s linear infinite;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+@keyframes spin-circle {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Mobile responsive for status indicators */

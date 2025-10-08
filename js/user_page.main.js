@@ -80,23 +80,107 @@ class UserPageApp {
         
         // Expose CSRF service
         window.csrfService = csrfService;
-        // Expose API client (optional for reuse)
         window.apiClient = this.apiClient;
     }
 
     initializeSSE() {
         try {
-            // Initialize SSE client for real-time updates
-            this.sseClient = new SSEClient('api/realtime.php', {
-                maxReconnectAttempts: 5,
-                reconnectDelay: 2000,
-                maxReconnectDelay: 30000
+            // Initialize Pusher for real-time messaging
+            this.pusher = new Pusher('5f2e092f1e11a34b880f', {
+                cluster: 'ap1',
+                encrypted: true
             });
             
-            console.log('User Page: SSE client initialized for real-time updates');
+            // Subscribe to support channel
+            this.channel = this.pusher.subscribe('support-channel');
+            
+            // Handle new developer replies (for tickets)
+            this.channel.bind('new-developer-reply', (data) => {
+                console.log('User Page: New developer reply received', data);
+                
+                // Handle ticket notifications
+                if (this.userSupportTickets && data.conversation_id) {
+                    this.userSupportTickets.handleNewReplyNotification(data);
+                }
+            });
+            
+            // Handle new admin replies (for regular customer support)
+            this.channel.bind('new-admin-reply', (data) => {
+                console.log('User Page: New admin reply received', data);
+                
+                // Refresh support messaging if viewing
+                if (this.supportMessaging) {
+                    this.supportMessaging.refreshMessages();
+                }
+            });
+            
+            // Handle connection events
+            this.pusher.connection.bind('connected', () => {
+                console.log('User Page: Real-time connection established');
+            });
+            
+            this.pusher.connection.bind('error', (err) => {
+                console.error('User Page: Connection error', err);
+            });
+            
+            console.log('User Page: Pusher initialized successfully');
         } catch (error) {
-            console.error('User Page: Failed to initialize SSE client:', error);
+            console.error('User Page: Failed to initialize Pusher:', error);
         }
+    }
+    
+    handleAdminReplies(data) {
+        console.log('User Page: Admin replies received:', data);
+        console.log('User Page: Number of messages:', data.messages?.length);
+        console.log('User Page: supportMessaging exists:', !!this.supportMessaging);
+        
+        // Show browser notification
+        if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+                this.showNotification('New Reply from Support', {
+                    body: `${msg.admin_name}: ${msg.message.substring(0, 100)}...`,
+                    icon: '/favicon.ico',
+                    tag: 'admin-reply-' + msg.conversation_id
+                });
+            });
+        }
+
+        // Always update support messaging when admin replies are received
+        if (this.supportMessaging) {
+            console.log('User Page: Calling refreshMessages() on supportMessaging');
+            this.supportMessaging.refreshMessages();
+        } else {
+            console.error('User Page: supportMessaging is not available!');
+        }
+
+        // Update support tickets if viewing tickets
+        if (this.userSupportTickets && this.isCurrentlyViewingTickets()) {
+            this.userSupportTickets.refreshTickets();
+        }
+    }
+
+    showNotification(title, options = {}) {
+        if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+                new Notification(title, options);
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification(title, options);
+                    }
+                });
+            }
+        }
+    }
+
+    isCurrentlyViewingSupport() {
+        // Check if user is currently viewing support section
+        return document.querySelector('#support-section')?.style.display !== 'none';
+    }
+
+    isCurrentlyViewingTickets() {
+        // Check if user is currently viewing support tickets
+        return document.querySelector('#support-tickets-section')?.style.display !== 'none';
     }
 
     defineLogoutHandler() {

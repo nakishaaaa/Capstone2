@@ -37,6 +37,7 @@ export class AIImageGenerator {
     
     initializeElements() {
         this.modal = document.getElementById('aiImageModal');
+        this.designTypeSelect = document.getElementById('designType');
         this.promptTextarea = document.getElementById('aiPrompt');
         this.generateBtn = document.getElementById('generateImageBtn');
         this.clearBtn = document.getElementById('clearPromptBtn');
@@ -105,6 +106,11 @@ export class AIImageGenerator {
         if (this.promptTextarea) {
             this.promptTextarea.addEventListener('input', () => this.validatePrompt());
         }
+        
+        // Design type dropdown change event
+        if (this.designTypeSelect) {
+            this.designTypeSelect.addEventListener('change', () => this.handleDesignTypeChange());
+        }
     }
     
     showModal() {
@@ -138,6 +144,11 @@ export class AIImageGenerator {
         
         // Clear current image
         this.currentImageUrl = null;
+        
+        // Reset dropdown
+        if (this.designTypeSelect) {
+            this.designTypeSelect.value = '';
+        }
     }
     
     clearPrompt() {
@@ -145,6 +156,28 @@ export class AIImageGenerator {
             this.promptTextarea.value = '';
             this.validatePrompt();
             this.promptTextarea.focus();
+        }
+        if (this.designTypeSelect) {
+            this.designTypeSelect.value = '';
+        }
+    }
+    
+    handleDesignTypeChange() {
+        // This method is called when the design type dropdown changes
+        // The actual prompt combination happens in generateImage method
+        this.validatePrompt();
+    }
+    
+    getFullPrompt() {
+        const designType = this.designTypeSelect ? this.designTypeSelect.value : '';
+        const userPrompt = this.promptTextarea ? this.promptTextarea.value.trim() : '';
+        
+        if (designType && userPrompt) {
+            return `${designType}: ${userPrompt}`;
+        } else if (designType) {
+            return designType;
+        } else {
+            return userPrompt;
         }
     }
     
@@ -163,7 +196,7 @@ export class AIImageGenerator {
         if (!this.generateBtn) return;
         
         if (this.isGenerating) {
-            this.generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            this.generateBtn.innerHTML = '<div class="loading-circle" style="width: 16px; height: 16px; margin-right: 8px; display: inline-block;"></div> Generating...';
             this.generateBtn.disabled = true;
         } else {
             this.generateBtn.innerHTML = '<i class="fas fa-magic"></i> Generate Image';
@@ -174,7 +207,7 @@ export class AIImageGenerator {
     async generateImage() {
         if (this.isGenerating || !this.validatePrompt()) return;
         
-        const prompt = this.promptTextarea.value.trim();
+        const prompt = this.getFullPrompt();
         
         this.isGenerating = true;
         this.updateGenerateButton();
@@ -257,7 +290,7 @@ export class AIImageGenerator {
         try {
             // Show loading state on download button
             const originalText = this.downloadBtn.innerHTML;
-            this.downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
+            this.downloadBtn.innerHTML = '<div class="loading-circle" style="width: 16px; height: 16px; margin-right: 8px; display: inline-block;"></div> Downloading...';
             this.downloadBtn.disabled = true;
             
             const formData = new FormData();

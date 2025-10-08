@@ -71,32 +71,35 @@ function getOrders($pdo, $userId) {
     };
     
     // Get total count
-    $countSql = "SELECT COUNT(*) FROM user_requests $whereClause";
+    $countSql = "SELECT COUNT(*) FROM customer_requests $whereClause";
     $countStmt = $pdo->prepare($countSql);
     $countStmt->execute($params);
     $totalOrders = $countStmt->fetchColumn();
     
-    // Get orders
+    // Get orders with details
     $sql = "SELECT 
-                id,
-                category,
-                size,
-                quantity,
-                image_path,
-                name,
-                contact_number,
-                notes,
-                status,
-                admin_response,
-                total_price,
-                downpayment_percentage,
-                payment_status,
-                created_at,
-                updated_at,
-                production_started_at,
-                ready_at,
-                completed_at
-            FROM user_requests 
+                cr.id,
+                cr.category,
+                cr.name,
+                cr.contact_number,
+                cr.quantity,
+                cr.notes,
+                cr.status,
+                cr.admin_response,
+                cr.created_at,
+                cr.updated_at,
+                rd.size,
+                ao.total_price,
+                ao.downpayment_percentage,
+                ao.payment_status,
+                ao.production_status,
+                ao.pricing_set_at,
+                ao.production_started_at,
+                ao.ready_at,
+                ao.completed_at
+            FROM customer_requests cr
+            LEFT JOIN request_details rd ON cr.id = rd.request_id
+            LEFT JOIN approved_orders ao ON cr.id = ao.request_id
             $whereClause 
             $orderBy 
             LIMIT :limit OFFSET :offset";
@@ -111,17 +114,30 @@ function getOrders($pdo, $userId) {
     
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Get attachments for each order
+    foreach ($orders as &$order) {
+        $attachStmt = $pdo->prepare("SELECT attachment_type, file_path FROM request_attachments WHERE request_id = ?");
+        $attachStmt->execute([$order['id']]);
+        $attachments = $attachStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $imagePaths = [];
+        foreach ($attachments as $att) {
+            if ($att['attachment_type'] === 'image') {
+                $imagePaths[] = $att['file_path'];
+            }
+        }
+        $order['image_path'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
+    }
+    
     // Format orders for frontend
     $formattedOrders = array_map(function($order) {
-        // Handle image_path - it might be JSON array or single path
+        // Handle image_path
         $image_url = null;
         if ($order['image_path']) {
             $decoded_paths = json_decode($order['image_path'], true);
             if (is_array($decoded_paths) && !empty($decoded_paths)) {
-                // Use first image from array
                 $image_url = $decoded_paths[0];
             } else {
-                // Single image path
                 $image_url = $order['image_path'];
             }
         }
@@ -143,6 +159,11 @@ function getOrders($pdo, $userId) {
             'totalPrice' => $order['total_price'],
             'downpaymentPercentage' => $order['downpayment_percentage'],
             'paymentStatus' => $order['payment_status'],
+            'production_status' => $order['production_status'],
+            'pricing_set_at' => $order['pricing_set_at'],
+            'production_started_at' => $order['production_started_at'],
+            'ready_at' => $order['ready_at'],
+            'completed_at' => $order['completed_at'],
             'createdAt' => $order['created_at'],
             'updatedAt' => $order['updated_at'],
             'createdAtFormatted' => date('M j, Y g:i A', strtotime($order['created_at'])),
@@ -190,26 +211,29 @@ function getOrderDetail($pdo, $userId) {
     }
     
     $sql = "SELECT 
-                id,
-                category,
-                size,
-                quantity,
-                image_path,
-                name,
-                contact_number,
-                notes,
-                status,
-                admin_response,
-                total_price,
-                downpayment_percentage,
-                payment_status,
-                created_at,
-                updated_at,
-                production_started_at,
-                ready_at,
-                completed_at
-            FROM user_requests 
-            WHERE id = :order_id AND user_id = :user_id";
+                cr.id,
+                cr.category,
+                cr.name,
+                cr.contact_number,
+                cr.quantity,
+                cr.notes,
+                cr.status,
+                cr.admin_response,
+                cr.created_at,
+                cr.updated_at,
+                rd.size,
+                ao.total_price,
+                ao.downpayment_percentage,
+                ao.payment_status,
+                ao.production_status,
+                ao.pricing_set_at,
+                ao.production_started_at,
+                ao.ready_at,
+                ao.completed_at
+            FROM customer_requests cr
+            LEFT JOIN request_details rd ON cr.id = rd.request_id
+            LEFT JOIN approved_orders ao ON cr.id = ao.request_id
+            WHERE cr.id = :order_id AND cr.user_id = :user_id";
     
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
@@ -225,17 +249,22 @@ function getOrderDetail($pdo, $userId) {
         return;
     }
     
-    // Handle image_path - it might be JSON array or single path
-    $image_url = null;
-    if ($order['image_path']) {
-        $decoded_paths = json_decode($order['image_path'], true);
-        if (is_array($decoded_paths) && !empty($decoded_paths)) {
-            // Use first image from array
-            $image_url = $decoded_paths[0];
-        } else {
-            // Single image path
-            $image_url = $order['image_path'];
+    // Get attachments
+    $attachStmt = $pdo->prepare("SELECT attachment_type, file_path FROM request_attachments WHERE request_id = ?");
+    $attachStmt->execute([$orderId]);
+    $attachments = $attachStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $imagePaths = [];
+    foreach ($attachments as $att) {
+        if ($att['attachment_type'] === 'image') {
+            $imagePaths[] = $att['file_path'];
         }
+    }
+    
+    // Handle image_path
+    $image_url = null;
+    if (!empty($imagePaths)) {
+        $image_url = $imagePaths[0];
     }
     
     // Format order for frontend
@@ -282,8 +311,8 @@ function getOrderCounts($pdo, $userId) {
     $sql = "SELECT 
                 status,
                 COUNT(*) as count
-            FROM user_requests 
-            WHERE user_id = :user_id 
+            FROM customer_requests
+            WHERE user_id = :user_id AND deleted = 0
             GROUP BY status";
     
     $stmt = $pdo->prepare($sql);
@@ -344,10 +373,7 @@ function formatStatusDisplay($status) {
 function generateOrderTimeline($order) {
     $timeline = [];
     $currentStatus = $order['status'];
-    
-    // Define status progression
-    $statusFlow = ['pending', 'approved', 'printing', 'ready_for_pickup', 'on_the_way', 'completed'];
-    $currentIndex = array_search($currentStatus, $statusFlow);
+    $productionStatus = $order['production_status'];
     
     // If rejected, handle separately
     if ($currentStatus === 'rejected') {
@@ -388,32 +414,37 @@ function generateOrderTimeline($order) {
         'completed' => true
     ];
     
-    // Order reviewed (completed if status is beyond pending)
-    $reviewCompleted = $currentIndex !== false && $currentIndex > 0;
+    // Determine completion status based on production_status and payment status
+    $reviewCompleted = !empty($order['pricing_set_at']) || !empty($order['total_price']);
+    $approvedCompleted = in_array($order['payment_status'], ['partial_paid', 'fully_paid']);
+    $printingCompleted = ($productionStatus === 'printing' || $productionStatus === 'ready_for_pickup' || $productionStatus === 'on_the_way' || $productionStatus === 'completed');
+    $readyCompleted = ($productionStatus === 'ready_for_pickup' || $productionStatus === 'on_the_way' || $productionStatus === 'completed');
+    $onTheWayCompleted = ($productionStatus === 'on_the_way' || $productionStatus === 'completed');
+    $completedCompleted = ($productionStatus === 'completed');
+    
+    // Order reviewed
     $timeline[] = [
         'status' => 'reviewed',
         'title' => 'Order Reviewed',
         'description' => 'Your order is being reviewed by our team',
-        'timestamp' => $reviewCompleted ? $order['updated_at'] : null,
-        'timestampFormatted' => $reviewCompleted ? date('M j, Y g:i A', strtotime($order['updated_at'])) : 'Pending',
+        'timestamp' => $reviewCompleted ? ($order['pricing_set_at'] ?: $order['updated_at']) : null,
+        'timestampFormatted' => $reviewCompleted ? date('M j, Y g:i A', strtotime($order['pricing_set_at'] ?: $order['updated_at'])) : 'Pending',
         'icon' => 'fas fa-search',
         'completed' => $reviewCompleted
     ];
     
-    // Order approved (completed if status is approved or beyond)
-    $approvedCompleted = $currentIndex !== false && $currentIndex >= 1;
+    // Order approved
     $timeline[] = [
         'status' => 'approved',
         'title' => 'Order Approved',
-        'description' => $order['admin_response'] ?: 'Your order has been approved and payment is being processed',
-        'timestamp' => $approvedCompleted ? $order['updated_at'] : null,
-        'timestampFormatted' => $approvedCompleted ? date('M j, Y g:i A', strtotime($order['updated_at'])) : 'Pending',
+        'description' => 'Your order has been approved and payment is being processed',
+        'timestamp' => $approvedCompleted ? ($order['pricing_set_at'] ?: $order['updated_at']) : null,
+        'timestampFormatted' => $approvedCompleted ? date('M j, Y g:i A', strtotime($order['pricing_set_at'] ?: $order['updated_at'])) : 'Pending',
         'icon' => 'fas fa-check-circle',
         'completed' => $approvedCompleted
     ];
     
-    // Printing (completed if status is printing or beyond)
-    $printingCompleted = $currentIndex !== false && $currentIndex >= 2;
+    // Printing in Progress
     $printingTimestamp = $order['production_started_at'] ?: ($printingCompleted ? $order['updated_at'] : null);
     $timeline[] = [
         'status' => 'printing',
@@ -425,8 +456,7 @@ function generateOrderTimeline($order) {
         'completed' => $printingCompleted
     ];
     
-    // Ready for pickup (completed if status is ready_for_pickup or beyond)
-    $readyCompleted = $currentIndex !== false && $currentIndex >= 3;
+    // Ready for Pickup
     $readyTimestamp = $order['ready_at'] ?: ($readyCompleted ? $order['updated_at'] : null);
     $timeline[] = [
         'status' => 'ready_for_pickup',
@@ -438,9 +468,7 @@ function generateOrderTimeline($order) {
         'completed' => $readyCompleted
     ];
     
-    // On the way (completed if status is on_the_way or beyond)
-    $onTheWayCompleted = $currentIndex !== false && $currentIndex >= 4;
-    // For on_the_way, we use updated_at since there's no specific timestamp field for this status
+    // On the Way
     $onTheWayTimestamp = $onTheWayCompleted ? $order['updated_at'] : null;
     $timeline[] = [
         'status' => 'on_the_way',
@@ -452,8 +480,7 @@ function generateOrderTimeline($order) {
         'completed' => $onTheWayCompleted
     ];
     
-    // Completed (completed only if status is completed)
-    $completedCompleted = $currentStatus === 'completed';
+    // Order Completed
     $completedTimestamp = $order['completed_at'] ?: ($completedCompleted ? $order['updated_at'] : null);
     $timeline[] = [
         'status' => 'completed',

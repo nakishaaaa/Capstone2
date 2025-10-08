@@ -19,6 +19,22 @@ export default class UserSupportTicketsModule {
         window.userSupportTickets = this;
     }
 
+    // Method to refresh tickets (called by real-time updates)
+    refreshTickets() {
+        console.log('Support Tickets: Refreshing tickets due to real-time update');
+        
+        // If tickets modal is open, refresh the tickets list
+        const modal = document.getElementById('supportTicketsModal');
+        if (modal && modal.style.display !== 'none') {
+            this.loadTickets();
+        }
+        
+        // If viewing a specific ticket, refresh its details
+        if (this.currentTicket) {
+            this.viewTicketDetails(this.currentTicket.conversation_id, false); // false = don't show modal again
+        }
+    }
+
     init() {
         this.createTicketsModal();
         this.bindEvents();
@@ -36,7 +52,7 @@ export default class UserSupportTicketsModule {
                     </div>
                     <div class="modal-body" style="padding: 20px; flex: 1; overflow: hidden;">
                         <div id="ticketsLoading" class="loading-spinner">
-                            <i class="fas fa-spinner fa-spin"></i> Loading tickets...
+                            <div class="loading-circle"></div> Loading tickets...
                         </div>
                         <div id="ticketsContent" style="display: none; height: 100%;">
                             <div id="ticketsList" style="height: 100%; overflow-y: auto; padding-right: 10px;"></div>
@@ -317,19 +333,30 @@ export default class UserSupportTicketsModule {
             `;
         }).join('');
 
+        // Check if ticket is closed
+        const isTicketClosed = this.currentTicket && this.currentTicket.status === 'closed';
+        
         return `
             <div class="chat-container">
                 <div class="chat-messages-area" id="chatMessagesArea">
                     ${messagesHTML}
                 </div>
-                <div class="chat-input-area">
-                    <div class="chat-input-container">
-                        <textarea id="customerReplyInput" placeholder="Write a reply..." rows="3"></textarea>
-                        <button id="sendCustomerReplyBtn" class="send-btn" onclick="userSupportTickets.sendReply()">
-                            <i class="fas fa-paper-plane"></i> Send reply
-                        </button>
+                ${isTicketClosed ? `
+                    <div class="chat-input-area closed-ticket">
+                        <div class="closed-ticket-message">
+                            <span>This ticket has been closed. You can view the conversation history but cannot send new replies.</span>
+                        </div>
                     </div>
-                </div>
+                ` : `
+                    <div class="chat-input-area">
+                        <div class="chat-input-container">
+                            <textarea id="customerReplyInput" placeholder="Write a reply..." rows="3"></textarea>
+                            <button id="sendCustomerReplyBtn" class="send-btn" onclick="userSupportTickets.sendReply()">
+                                <i class="fas fa-paper-plane"></i> Send reply
+                            </button>
+                        </div>
+                    </div>
+                `}
             </div>
         `;
     }
@@ -520,8 +547,14 @@ export default class UserSupportTicketsModule {
     handleNewReplyNotification(data) {
         console.log('New reply notification received:', data);
         
-        // Show visual notification
-        this.showNewReplyToast(data);
+        // Visual notification disabled - popup removed
+        // this.showNewReplyToast(data);
+        
+        // Trigger support messaging refresh for real-time conversation updates
+        if (window.supportMessaging) {
+            console.log('Triggering support messaging refresh from ticket notification');
+            window.supportMessaging.refreshMessages();
+        }
         
         // If currently viewing this ticket's details, refresh to show new message
         if (this.currentTicket && this.currentTicket.id == data.conversation_id) {

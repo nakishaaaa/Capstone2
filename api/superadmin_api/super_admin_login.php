@@ -46,6 +46,11 @@ try {
             $_SESSION['role'] = $user['role'];
             $_SESSION['login_time'] = time();
             
+            // Store session for SSE real-time updates
+            require_once '../../includes/session_manager.php';
+            storeUserSession($user['id'], $user['role'], 24); // Store for 24 hours
+            error_log("Developer Login: Stored SSE session for user " . $user['id'] . " with role " . $user['role']);
+            
             // Update last login
             $updateStmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
             $updateStmt->bind_param("i", $user['id']);
