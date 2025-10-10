@@ -1063,15 +1063,134 @@ class MyOrdersModule {
     }
 
     async declineOrder(orderId) {
-        const reason = prompt('Why are you declining this pricing? (This helps us improve our service)');
-        if (!reason || reason.trim() === '') {
+        this.showDeclineModal(orderId);
+    }
+
+    showDeclineModal(orderId) {
+        // Create modal HTML
+        const modalHTML = `
+            <div class="order-modal" id="declineOrderModal" style="display: flex; z-index: 1000;">
+                <div class="order-modal-content" style="max-width: 500px; position: relative; z-index: 1001;">
+                    <div class="modal-header">
+                        <h2>Decline Order</h2>
+                        <button class="modal-close" onclick="myOrdersModule.closeDeclineModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="decline-form">
+                            <p style="margin-bottom: 1.5rem; color: #64748b; line-height: 1.6;">
+                                Please let us know why you're declining this pricing. This helps us improve our service and provide better quotes in the future.
+                            </p>
+                            <div class="form-group" style="margin-bottom: 1.5rem;">
+                                <label for="declineReason" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">
+                                    Reason for declining <span style="color: #dc2626;">*</span>
+                                </label>
+                                <textarea 
+                                    id="declineReason" 
+                                    placeholder="Please provide your reason..."
+                                    style="width: 100%; min-height: 100px; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; resize: vertical; font-family: inherit; position: relative; z-index: 1001; background: white; color: #1a1a1a;"
+                                    maxlength="500"
+                                ></textarea>
+                                <small style="color: #64748b; font-size: 0.8rem;">Maximum 500 characters</small>
+                            </div>
+                            <div class="warning-message" style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; color: #d97706; font-weight: 600; margin-bottom: 0.5rem;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Important Notice
+                                </div>
+                                <p style="margin: 0; color: #92400e; font-size: 0.9rem; line-height: 1.5;">
+                                    Once you decline this order, the action cannot be undone. You'll need to submit a new request if you change your mind.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="display: flex; gap: 1rem; padding: 1.5rem 2rem; border-top: 1px solid #e1e5e9; background: #f8fafc; justify-content: flex-end;">
+                        <button 
+                            class="btn btn-outline" 
+                            onclick="myOrdersModule.closeDeclineModal()"
+                            style="padding: 0.75rem 1.5rem;"
+                        >
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button 
+                            class="btn btn-danger" 
+                            onclick="myOrdersModule.confirmDeclineOrder(${orderId})"
+                            style="background: #dc2626; color: white; border: 1px solid #dc2626; padding: 0.75rem 1.5rem;"
+                        >
+                            <i class="fas fa-times-circle"></i> Decline Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('declineOrderModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        document.body.style.overflow = 'hidden';
+
+        // Focus on textarea
+        setTimeout(() => {
+            const textarea = document.getElementById('declineReason');
+            if (textarea) {
+                textarea.focus();
+                textarea.click(); // Ensure it's clickable
+            }
+        }, 300);
+
+        // Add click outside to close
+        const modal = document.getElementById('declineOrderModal');
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeDeclineModal();
+            }
+        });
+
+        // Add escape key to close
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.closeDeclineModal();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+
+    closeDeclineModal() {
+        const modal = document.getElementById('declineOrderModal');
+        if (modal) {
+            modal.remove();
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    async confirmDeclineOrder(orderId) {
+        const reasonTextarea = document.getElementById('declineReason');
+        const reason = reasonTextarea.value.trim();
+
+        if (!reason) {
             this.showToast('Please provide a reason for declining', 'error');
+            reasonTextarea.focus();
             return;
         }
 
-        if (!confirm('Are you sure you want to decline this order? This action cannot be undone.')) {
+        if (reason.length < 10) {
+            this.showToast('Please provide a more detailed reason (at least 10 characters)', 'error');
+            reasonTextarea.focus();
             return;
         }
+
+        // Disable the button to prevent double submission
+        const confirmBtn = document.querySelector('#declineOrderModal .btn-danger');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Declining...';
 
         try {
             const response = await fetch('/Capstone2/api/decline_order.php', {
@@ -1082,22 +1201,27 @@ class MyOrdersModule {
                 credentials: 'include',
                 body: JSON.stringify({
                     order_id: orderId,
-                    decline_reason: reason.trim()
+                    decline_reason: reason
                 })
             });
 
             const data = await response.json();
 
             if (data.success) {
+                this.closeDeclineModal();
                 this.showToast('Order declined successfully. You can submit a new request anytime.', 'success');
                 this.loadOrders();
                 this.loadOrderCounts();
             } else {
                 this.showToast(data.message || 'Failed to decline order', 'error');
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalText;
             }
         } catch (error) {
             console.error('Error declining order:', error);
             this.showToast('Failed to decline order', 'error');
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = originalText;
         }
     }
 
