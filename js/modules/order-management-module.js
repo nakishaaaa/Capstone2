@@ -8,6 +8,7 @@ export class OrderManagementModule {
         this.toast = toast
         this.modal = modal
         this.orders = []
+        this.awaitingPaymentOrders = []
         this.filteredOrders = []
         this.selectedOrders = new Set()
         this.currentFilter = 'all'
@@ -105,47 +106,65 @@ export class OrderManagementModule {
     }
 
     async loadOrders(silent = false) {
-        if (!this.isActive) return
-        
         try {
-            const response = await fetch('api/order_management.php?action=get_orders', {
-                credentials: 'include'
-            })
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
+            if (!silent) {
+                const grid = document.getElementById('ordersGrid')
+                if (grid) {
+                    grid.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Loading orders...</p></div>'
+                }
             }
-
-            const responseText = await response.text()
-            const data = this.parseJsonResponse(responseText)
             
-            if (data.success) {
-                this.orders = data.orders || []
+            // Load both regular orders and awaiting payment orders
+            const [ordersResponse, awaitingPaymentResponse] = await Promise.all([
+                fetch('api/order_management.php?action=get_orders'),
+                fetch('api/order_management.php?action=get_awaiting_payment')
+            ])
+            
+            const ordersText = await ordersResponse.text()
+            const awaitingPaymentText = await awaitingPaymentResponse.text()
+            
+            const ordersData = this.parseJsonResponse(ordersText)
+            const awaitingPaymentData = this.parseJsonResponse(awaitingPaymentText)
+            
+            if (ordersData.success && awaitingPaymentData.success) {
+                this.orders = ordersData.orders || []
+                this.awaitingPaymentOrders = awaitingPaymentData.orders || []
                 this.updateStatusCounts()
                 this.displayOrders()
-                console.log('Orders loaded:', this.orders.length)
+                console.log('Orders loaded:', this.orders.length, 'Awaiting payment:', this.awaitingPaymentOrders.length)
             } else {
-                throw new Error(data.message || 'Failed to load orders')
+                throw new Error(ordersData.message || awaitingPaymentData.message || 'Failed to load orders')
             }
         } catch (error) {
             console.error('Error loading orders:', error)
-            this.showError('Failed to load orders: ' + error.message)
+            this.toast?.show('Failed to load orders: ' + error.message, 'error')
         }
     }
 
     updateStatusCounts() {
         const counts = {
-            all: this.orders.length,
+            all: this.orders.length + this.awaitingPaymentOrders.length,
+            awaiting_payment: this.awaitingPaymentOrders.length,
             approved: this.orders.filter(o => o.status === 'pending' && (o.payment_status === 'partial_paid' || o.payment_status === 'fully_paid')).length,
             printing: this.orders.filter(o => o.status === 'printing').length,
             ready_for_pickup: this.orders.filter(o => o.status === 'ready_for_pickup').length,
             on_the_way: this.orders.filter(o => o.status === 'on_the_way').length,
-            completed: this.orders.filter(o => o.status === 'completed').length
+            completed: this.orders.filter(o => o.status === 'completed').length,
+            cancelled: this.orders.filter(o => o.payment_status === 'cancelled').length
         }
 
         // Update count displays
         Object.keys(counts).forEach(status => {
-            const element = document.getElementById(`count-${status === 'ready_for_pickup' ? 'ready' : status === 'on_the_way' ? 'delivery' : status}`)
+            let elementId = status
+            if (status === 'ready_for_pickup') {
+                elementId = 'ready'
+            } else if (status === 'on_the_way') {
+                elementId = 'delivery'
+            } else if (status === 'awaiting_payment') {
+                elementId = 'awaiting-payment'
+            }
+            
+            const element = document.getElementById(`count-${elementId}`)
             if (element) {
                 element.textContent = counts[status]
             }
@@ -186,10 +205,14 @@ export class OrderManagementModule {
         // Filter orders based on current filter
         if (this.currentFilter === 'all') {
             this.filteredOrders = this.orders
+        } else if (this.currentFilter === 'awaiting_payment') {
+            this.filteredOrders = this.awaitingPaymentOrders
         } else if (this.currentFilter === 'approved') {
             this.filteredOrders = this.orders.filter(order => 
                 order.status === 'pending' && (order.payment_status === 'partial_paid' || order.payment_status === 'fully_paid')
             )
+        } else if (this.currentFilter === 'cancelled') {
+            this.filteredOrders = this.orders.filter(order => order.payment_status === 'cancelled')
         } else {
             this.filteredOrders = this.orders.filter(order => order.status === this.currentFilter)
         }
@@ -209,7 +232,14 @@ export class OrderManagementModule {
 
     renderOrderCard(order) {
         const isSelected = this.selectedOrders.has(order.id)
-        const statusDisplay = order.status === 'approved' ? 'awaiting production' : order.status
+        
+        // Determine status display based on payment status and current filter
+        let statusDisplay = order.status
+        if (order.payment_status === 'awaiting_payment') {
+            statusDisplay = 'awaiting payment'
+        } else if (order.status === 'approved' || (order.status === 'pending' && (order.payment_status === 'partial_paid' || order.payment_status === 'fully_paid'))) {
+            statusDisplay = 'awaiting production'
+        }
         
         return `
             <div class="order-card ${isSelected ? 'selected' : ''}" onclick="event.stopPropagation(); window.orderManagement.toggleSelection(${order.id})">
@@ -221,12 +251,14 @@ export class OrderManagementModule {
                     <div class="order-date">${this.formatDate(order.created_at)}</div>
                 </div>
 
-                <div class="order-status-badge ${order.status === 'approved' ? 'approved' : order.status}">
-                    ${this.getStatusLabel(statusDisplay)}
-                </div>
+                ${statusDisplay !== 'awaiting payment' && statusDisplay !== 'awaiting production' ? `
+                    <div class="order-status-badge ${statusDisplay.replace(' ', '_')}">
+                        ${this.getStatusLabel(statusDisplay)}
+                    </div>
+                ` : ''}
 
                 <div class="customer-info">
-                    <div class="customer-name">${this.escapeHtml(order.customer_name || order.name)}</div>
+                    <div class="customer-name">${this.getCustomerFullName(order)}</div>
                     <div class="customer-contact">${this.escapeHtml(order.contact_number)}</div>
                     ${order.customer_email ? `<div class="customer-contact">${this.escapeHtml(order.customer_email)}</div>` : ''}
                 </div>
@@ -247,9 +279,15 @@ export class OrderManagementModule {
                 </div>
 
                 <div class="order-actions">
-                    <button class="action-btn primary" onclick="event.stopPropagation(); updateOrderStatus(${order.id})">
-                        <i class="fas fa-edit"></i> Update Status
-                    </button>
+                    ${order.payment_status !== 'cancelled' ? `
+                        <button class="action-btn primary" onclick="event.stopPropagation(); updateOrderStatus(${order.id})">
+                            <i class="fas fa-edit"></i> Update Status
+                        </button>
+                    ` : `
+                        <div class="cancelled-info" style="padding: 0.5rem; background: #f3f4f6; border-radius: 6px; color: #6b7280; text-align: center;">
+                            <i class="fas fa-ban"></i> Cancelled by Customer
+                        </div>
+                    `}
                     <button class="action-btn secondary" onclick="event.stopPropagation(); viewOrderDetails(${order.id})">
                         <i class="fas fa-eye"></i> Details
                     </button>
@@ -293,7 +331,8 @@ export class OrderManagementModule {
     }
 
     showStatusModal(orderId) {
-        const order = this.orders.find(o => o.id === orderId)
+        // Search in both orders arrays
+        const order = this.orders.find(o => o.id === orderId) || this.awaitingPaymentOrders.find(o => o.id === orderId)
         if (!order) return
 
         console.log('Opening status modal for order:', orderId, 'Current status:', order.status)
@@ -305,8 +344,8 @@ export class OrderManagementModule {
         const statusSelect = document.getElementById('newStatus')
         const currentStatus = order.status === 'approved' ? 'approved' : order.status
         
-        console.log('Mapped status for options:', currentStatus)
-        const optionsHtml = this.getStatusOptions(currentStatus)
+        console.log('Mapped status for options:', currentStatus, 'Payment status:', order.payment_status)
+        const optionsHtml = this.getStatusOptions(currentStatus, order.payment_status)
         console.log('Generated options HTML:', optionsHtml)
         
         statusSelect.innerHTML = optionsHtml
@@ -314,16 +353,23 @@ export class OrderManagementModule {
         console.log('Number of options in dropdown:', statusSelect.options.length)
     }
 
-    getStatusOptions(currentStatus) {
+    getStatusOptions(currentStatus, paymentStatus = null) {
         const options = ['<option value="">Select status...</option>']
         
-        console.log('Getting status options for:', currentStatus)
+        console.log('Getting status options for:', currentStatus, 'Payment status:', paymentStatus)
+        
+        // Handle awaiting payment orders
+        if (paymentStatus === 'awaiting_payment') {
+            options.push('<option value="cancel_order">❌ Cancel Order</option>')
+            return options.join('')
+        }
         
         switch (currentStatus) {
             case 'approved':
             case 'awaiting_production':
             case 'pending_production':
                 options.push('<option value="printing">🖨️ Start Printing</option>')
+                options.push('<option value="cancel_order">❌ Cancel Order</option>')
                 break
             case 'printing':
                 options.push('<option value="ready_for_pickup">📦 Ready for Pickup</option>')
@@ -342,6 +388,7 @@ export class OrderManagementModule {
             default:
                 console.warn('Unknown status:', currentStatus, 'defaulting to approved options')
                 options.push('<option value="printing">🖨️ Start Printing</option>')
+                options.push('<option value="cancel_order">❌ Cancel Order</option>')
                 break
         }
         
@@ -369,20 +416,28 @@ export class OrderManagementModule {
         }
 
         try {
+            // Handle cancel order action differently
+            const action = newStatus === 'cancel_order' ? 'cancel_order' : 'update_status'
+            const requestBody = {
+                action: action,
+                order_id: orderId,
+                note: note,
+                send_email: sendEmail,
+                csrf_token: window.csrfToken
+            }
+            
+            // Only add status for regular updates, not for cancellations
+            if (action === 'update_status') {
+                requestBody.status = newStatus
+            }
+            
             const response = await fetch('api/order_management.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({
-                    action: 'update_status',
-                    order_id: orderId,
-                    status: newStatus,
-                    note: note,
-                    send_email: sendEmail,
-                    csrf_token: window.csrfToken
-                })
+                body: JSON.stringify(requestBody)
             })
 
             // Check if response is ok
@@ -394,7 +449,10 @@ export class OrderManagementModule {
             const data = this.parseJsonResponse(responseText)
             
             if (data.success) {
-                this.showSuccess(`Order status updated to ${this.getStatusLabel(newStatus)}!`)
+                const message = action === 'cancel_order' 
+                    ? 'Order cancelled successfully!' 
+                    : `Order status updated to ${this.getStatusLabel(newStatus)}!`
+                this.showSuccess(message)
                 this.closeStatusModal()
                 this.loadOrders()
             } else {
@@ -469,7 +527,7 @@ export class OrderManagementModule {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1.5rem;">
                     <div>
                         <h4 style="margin: 0 0 0.5rem 0; color: #6b7280; font-size: 0.875rem; font-weight: 500;">Customer</h4>
-                        <p style="margin: 0; font-size: 1rem; font-weight: 600; color: #111827;">${this.escapeHtml(order.customer_name || order.name)}</p>
+                        <p style="margin: 0; font-size: 1rem; font-weight: 600; color: #111827;">${this.getCustomerFullName(order)}</p>
                     </div>
                     <div>
                         <h4 style="margin: 0 0 0.5rem 0; color: #6b7280; font-size: 0.875rem; font-weight: 500;">Contact</h4>
@@ -686,12 +744,15 @@ export class OrderManagementModule {
     getStatusLabel(status) {
         const labels = {
             'all': 'All Orders',
+            'awaiting_payment': 'Awaiting Payment',
+            'awaiting payment': 'Awaiting Payment',
             'approved': 'Awaiting Production',
             'awaiting production': 'Awaiting Production',
             'printing': 'Printing',
             'ready_for_pickup': 'Ready for Pickup',
             'on_the_way': 'On the Way',
-            'completed': 'Completed'
+            'completed': 'Completed',
+            'cancelled': 'Cancelled'
         }
         return labels[status] || status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
     }
@@ -702,7 +763,8 @@ export class OrderManagementModule {
             'printing': '#ebf8ff',
             'ready_for_pickup': '#fffaf0',
             'on_the_way': '#f0f9ff',
-            'completed': '#f0fff4'
+            'completed': '#f0fff4',
+            'cancelled': '#f3f4f6'
         }
         return colors[status] || '#f7fafc'
     }
@@ -713,7 +775,8 @@ export class OrderManagementModule {
             'printing': '#2a4365',
             'ready_for_pickup': '#744210',
             'on_the_way': '#1e3a8a',
-            'completed': '#22543d'
+            'completed': '#22543d',
+            'cancelled': '#6b7280'
         }
         return colors[status] || '#4a5568'
     }
@@ -724,7 +787,8 @@ export class OrderManagementModule {
             'printing': '#90cdf4',
             'ready_for_pickup': '#f6e05e',
             'on_the_way': '#93c5fd',
-            'completed': '#9ae6b4'
+            'completed': '#9ae6b4',
+            'cancelled': '#d1d5db'
         }
         return colors[status] || '#cbd5e0'
     }
@@ -755,7 +819,11 @@ export class OrderManagementModule {
         const labels = {
             'partial_paid': 'Partially Paid',
             'fully_paid': 'Fully Paid',
-            'awaiting_payment': 'Awaiting Payment'
+            'awaiting_payment': 'Awaiting Payment',
+            'cancelled': 'Cancelled',
+            'failed': 'Failed',
+            'processing': 'Processing',
+            'pending_pricing': 'Pending Pricing'
         }
         return labels[status] || status
     }
@@ -1219,6 +1287,28 @@ export class OrderManagementModule {
             console.error('Error parsing size breakdown:', error);
             return '<span style="color: #ef4444; font-style: italic;">Error displaying size breakdown</span>';
         }
+    }
+
+    getCustomerFullName(order) {
+        // Use the 'name' field first (which contains full name), then fallback to username
+        if (order.name && order.name.trim() && order.name !== order.customer_name) {
+            return this.escapeHtml(order.name.trim())
+        } else if (order.customer_full_name && order.customer_full_name.trim() !== ' ' && order.customer_full_name !== 'null null') {
+            return this.escapeHtml(order.customer_full_name.trim())
+        } else if (order.customer_first_name && order.customer_last_name) {
+            return this.escapeHtml(`${order.customer_first_name} ${order.customer_last_name}`)
+        } else if (order.customer_first_name) {
+            return this.escapeHtml(order.customer_first_name)
+        } else {
+            return this.escapeHtml(order.customer_name || 'Unknown')
+        }
+    }
+
+    escapeHtml(text) {
+        if (!text) return ''
+        const div = document.createElement('div')
+        div.textContent = text
+        return div.innerHTML
     }
 }
 

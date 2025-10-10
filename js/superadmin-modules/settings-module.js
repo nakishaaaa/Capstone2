@@ -116,6 +116,57 @@ export class SettingsModule {
                     </div>
                 </div>
             </section>
+
+            <!-- Delete Backup Confirmation Modal -->
+            <div id="deleteBackupModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center;">
+                <div class="modal-content" style="background-color: #ffffff; border-radius: 8px; padding: 0; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); position: relative;">
+                    <div class="modal-header" style="padding: 20px; border-bottom: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="margin: 0; color: #000000; font-size: 1.2rem;">Delete Backup</h4>
+                        <span class="close" onclick="closeDeleteBackupModal()" style="cursor: pointer; font-size: 24px; color: #000000;">&times;</span>
+                    </div>
+                    <div class="modal-body" style="padding: 24px;">
+                        <div class="warning-message" style="display: flex; align-items: flex-start; gap: 12px;">
+                            <i class="fas fa-exclamation-triangle" style="color: #dc3545; font-size: 24px; margin-top: 2px;"></i>
+                            <div>
+                                <p style="margin: 0 0 8px 0; font-weight: 600;"><strong>This will permanently delete the backup file.</strong></p>
+                                <p style="margin: 0; color: #666;">Backup ID: <span id="deleteBackupId"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-actions" style="display: flex; gap: 12px; justify-content: flex-end; padding: 0 24px 24px 24px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeDeleteBackupModal()" style="padding: 8px 16px; border: 1px solid #ccc; background: #fff; color: #333; border-radius: 4px; cursor: pointer;">Cancel</button>
+                        <button type="button" class="btn btn-danger" onclick="executeDeleteBackup()" style="padding: 8px 16px; border: 1px solid #dc3545; background: #dc3545; color: #fff; border-radius: 4px; cursor: pointer;">
+                            <i class="fas fa-trash"></i> Delete Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Restore Backup Confirmation Modal -->
+            <div id="restoreConfirmModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center;">
+                <div class="modal-content" style="background-color: #ffffff; border-radius: 8px; padding: 0; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); position: relative;">
+                    <div class="modal-header" style="padding: 20px; border-bottom: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="margin: 0; color: #000000; font-size: 1.2rem;">Restore Database Backup</h4>
+                        <span class="close" onclick="closeRestoreModal()" style="cursor: pointer; font-size: 24px; color: #000000;">&times;</span>
+                    </div>
+                    <div class="modal-body" style="padding: 24px;">
+                        <div class="warning-message" style="display: flex; align-items: flex-start; gap: 12px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 16px;">
+                            <i class="fas fa-exclamation-triangle" style="color: #856404; font-size: 24px; margin-top: 2px;"></i>
+                            <div>
+                                <p style="margin: 0 0 8px 0; font-weight: 600; color: #856404;"><strong>This will overwrite all current data and cannot be undone.</strong></p>
+                                <p style="margin: 0; color: #856404;">Selected file: <span id="selectedFileName"></span></p>
+                                <p style="margin: 8px 0 0 0; color: #856404;">Are you sure you want to continue?</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-actions" style="display: flex; gap: 12px; justify-content: flex-end; padding: 0 24px 24px 24px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeRestoreModal()" style="padding: 8px 16px; border: 1px solid #ccc; background: #fff; color: #333; border-radius: 4px; cursor: pointer;">Cancel</button>
+                        <button type="button" class="btn btn-danger" onclick="executeRestore()" style="padding: 8px 16px; border: 1px solid #dc3545; background: #dc3545; color: #fff; border-radius: 4px; cursor: pointer;">
+                            <i class="fas fa-upload"></i> Restore Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
         `;
         this.loadCurrentSettings();
         this.setupGlobalFunctions();
@@ -128,9 +179,13 @@ export class SettingsModule {
         window.clearSystemCache = () => this.clearSystemCache();
         window.runSystemCheck = () => this.runSystemCheck();
         window.createManualBackup = () => this.createManualBackup();
-        window.restoreFromBackup = () => this.restoreFromBackup();
+        window.restoreFromBackup = () => this.showRestoreModal();
         window.downloadBackup = (id) => this.downloadBackup(id);
-        window.deleteBackup = (id) => this.deleteBackup(id);
+        window.deleteBackup = (id) => this.showDeleteBackupModal(id);
+        window.closeDeleteBackupModal = () => this.closeDeleteBackupModal();
+        window.executeDeleteBackup = () => this.executeDeleteBackup();
+        window.closeRestoreModal = () => this.closeRestoreModal();
+        window.executeRestore = () => this.executeRestore();
     }
 
 
@@ -224,7 +279,14 @@ export class SettingsModule {
     }
 
     async clearSystemCache() {
-        if (confirm('Clear system cache? This may temporarily slow down the system.')) {
+        const confirmed = await this.showConfirmModal(
+            'Clear System Cache?',
+            'This may temporarily slow down the system while the cache is being rebuilt.',
+            'Clear Cache',
+            'Cancel'
+        );
+        
+        if (confirmed) {
             try {
                 const response = await fetch('api/superadmin_api/super_admin_actions.php', {
                     method: 'POST',
@@ -244,6 +306,115 @@ export class SettingsModule {
                 this.dashboard.showNotification('Error clearing cache', 'error');
             }
         }
+    }
+
+    showConfirmModal(title, message, confirmText = 'OK', cancelText = 'Cancel') {
+        return new Promise((resolve) => {
+            const existingModal = document.getElementById('customConfirmModal');
+            if (existingModal) existingModal.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'customConfirmModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+
+            modal.innerHTML = `
+                <div style="
+                    background: white;
+                    border-radius: 12px;
+                    padding: 2rem;
+                    max-width: 400px;
+                    width: 90%;
+                    text-align: center;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="
+                        width: 48px;
+                        height: 48px;
+                        border-radius: 50%;
+                        background: #dbeafe;
+                        color: #3b82f6;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin: 0 auto 1rem auto;
+                    ">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                    </div>
+                    <h3 style="
+                        margin: 0 0 0.5rem 0;
+                        color: #1f2937;
+                        font-size: 1.125rem;
+                        font-weight: 600;
+                    ">
+                        ${title}
+                    </h3>
+                    <p style="
+                        margin: 0 0 1.5rem 0;
+                        color: #6b7280;
+                        font-size: 0.875rem;
+                        line-height: 1.5;
+                    ">
+                        ${message}
+                    </p>
+                    <div style="display: flex; gap: 0.75rem; justify-content: center;">
+                        <button id="confirmCancel" style="
+                            background: #f3f4f6;
+                            color: #374151;
+                            border: 1px solid #d1d5db;
+                            border-radius: 6px;
+                            padding: 0.5rem 1.5rem;
+                            font-size: 0.875rem;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">
+                            ${cancelText}
+                        </button>
+                        <button id="confirmOk" style="
+                            background: #3b82f6;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            padding: 0.5rem 1.5rem;
+                            font-size: 0.875rem;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">
+                            ${confirmText}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const handleResponse = (result) => {
+                modal.remove();
+                resolve(result);
+            };
+
+            document.getElementById('confirmOk').onclick = () => handleResponse(true);
+            document.getElementById('confirmCancel').onclick = () => handleResponse(false);
+            modal.onclick = (e) => {
+                if (e.target === modal) handleResponse(false);
+            };
+        });
     }
 
     async runSystemCheck() {
@@ -353,23 +524,81 @@ export class SettingsModule {
         }
     }
 
-    async restoreFromBackup() {
+    showRestoreModal() {
+        console.log('showRestoreModal called');
         const fileInput = document.getElementById('backupFile');
         if (!fileInput.files[0]) {
             this.dashboard.showNotification('Please select a backup file', 'error');
             return;
         }
 
-        if (!confirm('This will overwrite current data. Are you sure?')) {
-            return;
+        const fileName = fileInput.files[0].name;
+        console.log('Selected file:', fileName);
+        
+        const selectedFileNameElement = document.getElementById('selectedFileName');
+        const modal = document.getElementById('restoreConfirmModal');
+        
+        console.log('selectedFileName element:', selectedFileNameElement);
+        console.log('modal element:', modal);
+        
+        if (selectedFileNameElement) {
+            selectedFileNameElement.textContent = fileName;
         }
+        
+        if (modal) {
+            // Remove modal from its current parent and append to body
+            if (modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+            document.body.appendChild(modal);
+            
+            // Force all the styles to ensure modal appears with !important
+            modal.style.setProperty('display', 'flex', 'important');
+            modal.style.setProperty('position', 'fixed', 'important');
+            modal.style.setProperty('top', '0', 'important');
+            modal.style.setProperty('left', '0', 'important');
+            modal.style.setProperty('width', '100vw', 'important');
+            modal.style.setProperty('height', '100vh', 'important');
+            modal.style.setProperty('background-color', 'rgba(0, 0, 0, 0.5)', 'important');
+            modal.style.setProperty('z-index', '999999', 'important'); // Maximum z-index
+            modal.style.setProperty('justify-content', 'center', 'important');
+            modal.style.setProperty('align-items', 'center', 'important');
+            modal.style.setProperty('visibility', 'visible', 'important');
+            modal.style.setProperty('opacity', '1', 'important');
+            modal.style.setProperty('pointer-events', 'auto', 'important');
+            modal.style.setProperty('transition', 'none', 'important');
+            modal.style.setProperty('animation', 'none', 'important');
+            
+            // Also disable animations on modal-content
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.style.setProperty('transition', 'none', 'important');
+                modalContent.style.setProperty('animation', 'none', 'important');
+                modalContent.style.setProperty('transform', 'none', 'important');
+            }
+            
+            console.log('Restore modal moved to body and display set to flex with all styles applied');
+            console.log('Modal parent is now:', modal.parentNode);
+        } else {
+            console.error('Restore modal element not found!');
+        }
+    }
 
+    closeRestoreModal() {
+        const modal = document.getElementById('restoreConfirmModal');
+        modal.style.display = 'none';
+    }
+
+    async executeRestore() {
+        const fileInput = document.getElementById('backupFile');
+        
         try {
             const formData = new FormData();
             formData.append('action', 'restore_backup');
             formData.append('backup_file', fileInput.files[0]);
 
             this.dashboard.showNotification('Restoring from backup...', 'info');
+            this.closeRestoreModal();
 
             const response = await fetch('api/superadmin_api/super_admin_actions.php', {
                 method: 'POST',
@@ -411,10 +640,49 @@ export class SettingsModule {
         }
     }
 
-    async deleteBackup(backupId) {
-        if (!confirm('Delete this backup? This action cannot be undone.')) {
-            return;
+    showDeleteBackupModal(backupId) {
+        console.log('showDeleteBackupModal called with ID:', backupId);
+        this.currentDeleteBackupId = backupId;
+        
+        const deleteBackupIdElement = document.getElementById('deleteBackupId');
+        const modal = document.getElementById('deleteBackupModal');
+        
+        console.log('deleteBackupId element:', deleteBackupIdElement);
+        console.log('modal element:', modal);
+        
+        if (deleteBackupIdElement) {
+            deleteBackupIdElement.textContent = backupId;
         }
+        
+        if (modal) {
+            // Force all the styles to ensure modal appears
+            modal.style.display = 'flex';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.zIndex = '9999';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+            
+            console.log('Modal display set to flex with all styles applied');
+        } else {
+            console.error('Modal element not found!');
+        }
+    }
+
+    closeDeleteBackupModal() {
+        const modal = document.getElementById('deleteBackupModal');
+        modal.style.display = 'none';
+        this.currentDeleteBackupId = null;
+    }
+
+    async executeDeleteBackup() {
+        if (!this.currentDeleteBackupId) return;
 
         try {
             const response = await fetch('api/superadmin_api/super_admin_actions.php', {
@@ -422,7 +690,7 @@ export class SettingsModule {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'delete_backup',
-                    backup_id: backupId
+                    backup_id: this.currentDeleteBackupId
                 })
             });
 
@@ -437,6 +705,8 @@ export class SettingsModule {
             console.error('Error deleting backup:', error);
             this.dashboard.showNotification('Error deleting backup', 'error');
         }
+        
+        this.closeDeleteBackupModal();
     }
 
     formatFileSize(bytes) {

@@ -221,6 +221,10 @@ class MyOrdersModule {
                             `<button class="btn btn-primary" onclick="myOrdersModule.showPaymentOptions(${order.id})">
                                 <i class="fas fa-credit-card"></i>
                                 Make Payment
+                            </button>
+                            <button class="btn btn-outline btn-decline" onclick="myOrdersModule.declineOrder(${order.id})" style="border-color: #dc3545; color: #dc3545;">
+                                <i class="fas fa-times"></i>
+                                Decline Pricing
                             </button>` :
                             order.hasPayment && order.isPaid ?
                                 `<div class="payment-status-indicator">
@@ -391,14 +395,7 @@ class MyOrdersModule {
                         </div>
                     ` : ''}
                     
-                    ${order.image_url ? `
-                        <div class="detail-item full-width">
-                            <label>Attached Image</label>
-                            <div class="image-preview">
-                                <img src="${order.image_url}" alt="Order image" onclick="window.open('${order.image_url}', '_blank')">
-                            </div>
-                        </div>
-                    ` : ''}
+                    ${this.renderAttachedImages(order)}
                 </div>
                 
                 ${order.adminResponse ? `
@@ -1064,10 +1061,86 @@ class MyOrdersModule {
             document.body.style.overflow = 'auto';
         }
     }
+
+    async declineOrder(orderId) {
+        const reason = prompt('Why are you declining this pricing? (This helps us improve our service)');
+        if (!reason || reason.trim() === '') {
+            this.showToast('Please provide a reason for declining', 'error');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to decline this order? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/Capstone2/api/decline_order.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    order_id: orderId,
+                    decline_reason: reason.trim()
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast('Order declined successfully. You can submit a new request anytime.', 'success');
+                this.loadOrders();
+                this.loadOrderCounts();
+            } else {
+                this.showToast(data.message || 'Failed to decline order', 'error');
+            }
+        } catch (error) {
+            console.error('Error declining order:', error);
+            this.showToast('Failed to decline order', 'error');
+        }
+    }
+
+
+    renderAttachedImages(order) {
+        if (!order.image_path && !order.image_url) return '';
+        
+        let images = [];
+        
+        // Check if it's a JSON array of multiple images
+        if (order.image_path) {
+            try {
+                const parsed = JSON.parse(order.image_path);
+                if (Array.isArray(parsed)) {
+                    images = parsed;
+                } else {
+                    images = [order.image_path];
+                }
+            } catch (e) {
+                // Single image path
+                images = [order.image_path];
+            }
+        } else if (order.image_url) {
+            images = [order.image_url];
+        }
+        
+        if (images.length === 0) return '';
+        
+        return `
+            <div class="detail-item full-width">
+                <label>Attached Image${images.length > 1 ? 's' : ''}</label>
+                <div class="images-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
+                    ${images.map((img, index) => `
+                        <div class="image-preview" style="position: relative;">
+                            <img src="${img}" alt="Order image ${index + 1}" onclick="window.open('${img}', '_blank')" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; cursor: pointer;">
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
 }
 
 // Initialize the module
 const myOrdersModule = new MyOrdersModule();
-
-// Make it globally available
 window.myOrdersModule = myOrdersModule;

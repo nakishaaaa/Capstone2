@@ -2,6 +2,7 @@
 session_start();
 require_once '../../includes/config.php';
 require_once '../../includes/audit_helper.php';
+require_once '../../includes/developer_login_auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ../../devlog.php');
@@ -20,7 +21,7 @@ if (empty($username) || empty($password)) {
 
 try {
     // Check for developer user
-    $stmt = $conn->prepare("SELECT id, username, password, role, deleted_at FROM users WHERE username = ? AND role = 'developer'");
+    $stmt = $conn->prepare("SELECT id, username, password, role, email, deleted_at FROM users WHERE username = ? AND role = 'developer'");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -37,27 +38,21 @@ try {
                 exit();
             }
             
-            // Log successful login using audit helper
-            logLoginEvent($user['id'], $user['username'], 'developer');
+            // Send OTP verification email instead of direct login
+            $otpCode = DeveloperLoginAuth::sendLoginCode($user);
             
-            // Set session variables
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['login_time'] = time();
-            
-            // Store session for SSE real-time updates
-            require_once '../../includes/session_manager.php';
-            storeUserSession($user['id'], $user['role'], 24); // Store for 24 hours
-            error_log("Developer Login: Stored SSE session for user " . $user['id'] . " with role " . $user['role']);
-            
-            // Update last login
-            $updateStmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-            $updateStmt->bind_param("i", $user['id']);
-            $updateStmt->execute();
-            
-            header('Location: ../../super_admin_dashboard.php');
-            exit();
+            if ($otpCode) {
+                // Log OTP sent event
+                logLoginEvent($user['id'], $user['username'], 'developer', 'OTP_SENT');
+                
+                // Redirect to OTP verification page
+                header('Location: ../../dev_otp_verify.php');
+                exit();
+            } else {
+                $_SESSION['super_admin_error'] = 'Failed to send verification email. Please try again.';
+                header('Location: ../../devlog.php');
+                exit();
+            }
         }
     }
     

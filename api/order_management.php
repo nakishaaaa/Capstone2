@@ -36,6 +36,8 @@ try {
         case 'GET':
             if ($action === 'get_orders') {
                 handleGetOrders($pdo);
+            } elseif ($action === 'get_awaiting_payment') {
+                handleGetAwaitingPayment($pdo);
             } elseif ($action === 'get_production_count') {
                 handleGetProductionCount($pdo);
             } else {
@@ -58,6 +60,8 @@ try {
                 handleUpdateStatus($pdo, $input);
             } elseif ($input['action'] === 'bulk_update') {
                 handleBulkUpdate($pdo, $input);
+            } elseif ($input['action'] === 'cancel_order') {
+                handleCancelOrder($pdo, $input);
             } else {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'message' => 'Invalid action']);
@@ -81,6 +85,9 @@ function handleGetOrders($pdo) {
                     cr.*,
                     u.username as customer_name, 
                     u.email as customer_email,
+                    u.firstname as customer_first_name,
+                    u.lastname as customer_last_name,
+                    CONCAT(u.firstname, ' ', u.lastname) as customer_full_name,
                     rd.size,
                     rd.custom_size,
                     rd.design_option,
@@ -101,15 +108,18 @@ function handleGetOrders($pdo) {
                 LEFT JOIN request_details rd ON cr.id = rd.request_id
                 INNER JOIN approved_orders ao ON cr.id = ao.request_id
                 WHERE (cr.deleted IS NULL OR cr.deleted = 0)
-                AND ao.payment_status != 'awaiting_payment'
+                AND ao.payment_status NOT IN ('awaiting_payment')
                 ORDER BY 
-                    CASE ao.production_status 
-                        WHEN 'pending' THEN 1
-                        WHEN 'printing' THEN 2
-                        WHEN 'ready_for_pickup' THEN 3
-                        WHEN 'on_the_way' THEN 4
-                        WHEN 'completed' THEN 5
-                        ELSE 6
+                    CASE ao.payment_status
+                        WHEN 'cancelled' THEN 7
+                        ELSE CASE ao.production_status 
+                            WHEN 'pending' THEN 1
+                            WHEN 'printing' THEN 2
+                            WHEN 'ready_for_pickup' THEN 3
+                            WHEN 'on_the_way' THEN 4
+                            WHEN 'completed' THEN 5
+                            ELSE 6
+                        END
                     END,
                     cr.created_at DESC";
         
@@ -406,6 +416,136 @@ function handleGetProductionCount($pdo) {
         echo json_encode([
             'success' => false,
             'message' => 'Error fetching production count: ' . $e->getMessage()
+        ]);
+    }
+}
+
+function handleGetAwaitingPayment($pdo) {
+    try {
+        // Get approved orders that are awaiting payment
+        $sql = "SELECT 
+                    cr.*,
+                    u.username as customer_name, 
+                    u.email as customer_email,
+                    u.firstname as customer_first_name,
+                    u.lastname as customer_last_name,
+                    CONCAT(u.firstname, ' ', u.lastname) as customer_full_name,
+                    rd.size,
+                    rd.custom_size,
+                    rd.design_option,
+                    rd.tag_location,
+                    ao.total_price,
+                    ao.payment_status,
+                    ao.paid_amount,
+                    ao.downpayment_percentage,
+                    ao.downpayment_amount,
+                    ao.payment_method,
+                    ao.production_status,
+                    ao.pricing_set_at,
+                    ao.production_started_at,
+                    ao.ready_at,
+                    ao.completed_at
+                FROM customer_requests cr
+                LEFT JOIN users u ON cr.user_id = u.id
+                LEFT JOIN request_details rd ON cr.id = rd.request_id
+                INNER JOIN approved_orders ao ON cr.id = ao.request_id
+                WHERE (cr.deleted IS NULL OR cr.deleted = 0)
+                AND ao.payment_status = 'awaiting_payment'
+                ORDER BY cr.created_at DESC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Get attachments for each order
+        foreach ($orders as &$order) {
+            $attachStmt = $pdo->prepare("
+                SELECT attachment_type, file_path
+                FROM request_attachments
+                WHERE request_id = ?
+            ");
+            $attachStmt->execute([$order['id']]);
+            $attachments = $attachStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $imagePaths = [];
+            foreach ($attachments as $att) {
+                if ($att['attachment_type'] === 'image') {
+                    $imagePaths[] = $att['file_path'];
+                }
+            }
+            $order['image_path'] = !empty($imagePaths) ? json_encode($imagePaths) : null;
+            
+            // Format order data
+            $order['orderNumber'] = 'ORD-' . str_pad($order['id'], 6, '0', STR_PAD_LEFT);
+            $order['createdAtFormatted'] = date('M j, Y g:i A', strtotime($order['created_at']));
+            $order['updatedAtFormatted'] = date('M j, Y g:i A', strtotime($order['updated_at']));
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'orders' => $orders
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Error fetching awaiting payment orders: ' . $e->getMessage()
+        ]);
+    }
+}
+
+function handleCancelOrder($pdo, $input) {
+    try {
+        $orderId = $input['order_id'] ?? null;
+        $note = $input['note'] ?? '';
+        $sendEmail = $input['send_email'] ?? false;
+        
+        if (!$orderId) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        // Start transaction
+        $pdo->beginTransaction();
+        
+        // Update customer_requests status to cancelled
+        $stmt = $pdo->prepare("
+            UPDATE customer_requests 
+            SET status = 'cancelled',
+                admin_response = CONCAT(COALESCE(admin_response, ''), '\n\n🚫 Admin cancelled order: ', ?)
+            WHERE id = ?
+        ");
+        $stmt->execute([$note ?: 'Order cancelled by admin', $orderId]);
+        
+        // Update approved_orders payment_status to cancelled
+        $stmt = $pdo->prepare("
+            UPDATE approved_orders 
+            SET payment_status = 'cancelled'
+            WHERE request_id = ?
+        ");
+        $stmt->execute([$orderId]);
+        
+        // Commit transaction
+        $pdo->commit();
+        
+        // Log admin action
+        error_log("ADMIN CANCELLED ORDER - Order #{$orderId} cancelled by admin. Note: " . ($note ?: 'No note provided'));
+        
+        // TODO: Send email notification if requested
+        if ($sendEmail) {
+            // Email notification logic can be added here
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Order cancelled successfully'
+        ]);
+        
+    } catch (Exception $e) {
+        $pdo->rollback();
+        error_log("Error cancelling order: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'message' => 'Failed to cancel order: ' . $e->getMessage()
         ]);
     }
 }

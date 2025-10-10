@@ -71,7 +71,7 @@ function getSalesStats() {
         $stockStats = $stmt->fetch();
         
         // Pending requests count
-        $stmt = $pdo->query("SELECT COUNT(*) as pending_requests FROM user_requests WHERE status = 'pending'");
+        $stmt = $pdo->query("SELECT COUNT(*) as pending_requests FROM customer_requests WHERE status = 'pending'");
         $requestStats = $stmt->fetch();
         
         echo json_encode([
@@ -395,6 +395,15 @@ function processSale($data) {
         }
         
         $pdo->commit();
+        
+        // Trigger real-time stats update via Pusher
+        try {
+            require_once '../includes/pusher_config.php';
+            triggerAdminStatsUpdate($conn);
+        } catch (Exception $pusherError) {
+            error_log("Pusher trigger error: " . $pusherError->getMessage());
+        }
+        
         echo json_encode(['success' => true, 'sale_id' => $saleId, 'message' => 'Sale processed successfully']);
         
     } catch(Exception $e) {

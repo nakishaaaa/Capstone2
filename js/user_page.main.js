@@ -1,7 +1,7 @@
 import { ANIMATION_SETTINGS } from './modules/config-module.js';
 import { csrfService } from './modules/csrf-module.js';
 import { ApiClient } from './core/api-client.js';
-import { SSEClient } from './core/sse-client.js';
+import { PusherClient } from './core/pusher-client.js';
 import './modules/ui-module.js';
 import { FormManager } from './modules/form-module.js';
 import { UserDropdownManager } from './modules/user-dropdown-module.js';
@@ -25,7 +25,7 @@ class UserPageApp {
         this.devTicketManager = null;
         this.userSupportTickets = null;
         this.apiClient = new ApiClient();
-        this.sseClient = null;
+        this.pusherClient = null;
         
         this.init();
     }
@@ -60,10 +60,13 @@ class UserPageApp {
         this.aiPhotoEditor = new AIPhotoEditor();
         this.aiDropdownManager = new AIDropdownManager();
         
+        // Initialize Pusher for real-time updates
+        this.pusherClient = new PusherClient();
+        
         // Support functionality
         this.supportMessaging = new SupportMessaging();
         this.devTicketManager = new DevTicketManager();
-        this.userSupportTickets = new UserSupportTicketsModule(this.sseClient);
+        this.userSupportTickets = new UserSupportTicketsModule(this.pusherClient);
         this.userSupportTickets.init();
     }
     
@@ -188,9 +191,9 @@ class UserPageApp {
         const api = this.apiClient;
         window.handleLogout = async (role = 'user') => {
             try {
-                // Close SSE connection before logout
-                if (this.sseClient) {
-                    this.sseClient.close();
+                // Close Pusher connection before logout
+                if (this.pusherClient) {
+                    this.pusherClient.disconnect();
                 }
                 
                 // Ensure CSRF token is available

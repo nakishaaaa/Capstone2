@@ -134,7 +134,7 @@ if (!$isStaffLoggedIn) {
                 </div>
                 
                 <div class="stats-grid">
-                    <div class="stat-card">
+                    <div class="stat-card clickable-card" onclick="switchSection('sales-report')" title="View Sales Reports">
                         <div class="stat-icon">
                             <i class="fas fa-peso-sign"></i>
                         </div>
@@ -143,7 +143,7 @@ if (!$isStaffLoggedIn) {
                             <p>Total Sales Today</p>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card clickable-card" onclick="switchSection('pos')" title="Go to POS System">
                         <div class="stat-icon">
                             <i class="fas fa-shopping-cart"></i>
                         </div>
@@ -152,7 +152,7 @@ if (!$isStaffLoggedIn) {
                             <p>Orders Today</p>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card clickable-card" onclick="switchSection('requests')" title="View Customer Requests">
                         <div class="stat-icon">
                             <i class="fas fa-inbox"></i>
                         </div>
@@ -161,7 +161,7 @@ if (!$isStaffLoggedIn) {
                             <p>Requests</p>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card clickable-card" onclick="switchSection('sales-management')" title="Manage Products">
                         <div class="stat-icon">
                             <i class="fas fa-boxes"></i>
                         </div>
@@ -170,7 +170,7 @@ if (!$isStaffLoggedIn) {
                             <p>Total Products</p>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card clickable-card" onclick="switchSection('inventory')" title="View Inventory Management">
                         <div class="stat-icon">
                             <i class="fas fa-exclamation-triangle"></i>
                         </div>
@@ -622,6 +622,7 @@ if (!$isStaffLoggedIn) {
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
                             <option value="rejected">Rejected</option>
+                            <option value="cancelled">Cancelled</option>
                         </select>
                         <button class="btn btn-primary" onclick="refreshRequests()">
                             <i class="fas fa-sync"></i> Refresh
@@ -629,17 +630,6 @@ if (!$isStaffLoggedIn) {
                     </div>
                 </div>
                 
-                <div class="requests-actions" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                    <form method="POST" action="api/clear_requests.php" onsubmit="return confirm('Are you sure you want to clear all requests?');" style="margin: 0;">
-                        <button type="submit" class="btn btn-danger">
-                            Clear All Requests
-                        </button>
-                    </form>
-                        
-                    <button class="btn btn-secondary" onclick="viewRequestHistory()">
-                        View History
-                    </button>
-                </div>
 
                 <!-- Request Statistics -->
                 <div class="requests-stats">
@@ -713,6 +703,9 @@ if (!$isStaffLoggedIn) {
                     <button class="tab-btn active" data-status="all" onclick="filterByStatus('all')">
                         <i class="fas fa-list"></i> All Orders (<span id="count-all">0</span>)
                     </button>
+                    <button class="tab-btn" data-status="awaiting_payment" onclick="filterByStatus('awaiting_payment')">
+                        <i class="fas fa-money-bill-wave"></i> Awaiting Payment (<span id="count-awaiting-payment">0</span>)
+                    </button>
                     <button class="tab-btn" data-status="approved" onclick="filterByStatus('approved')">
                         <i class="fas fa-check-circle"></i> Awaiting Production (<span id="count-approved">0</span>)
                     </button>
@@ -727,6 +720,9 @@ if (!$isStaffLoggedIn) {
                     </button>
                     <button class="tab-btn" data-status="completed" onclick="filterByStatus('completed')">
                         <i class="fas fa-check-double"></i> Completed (<span id="count-completed">0</span>)
+                    </button>
+                    <button class="tab-btn" data-status="cancelled" onclick="filterByStatus('cancelled')">
+                        <i class="fas fa-ban"></i> Cancelled (<span id="count-cancelled">0</span>)
                     </button>
                 </div>
 
@@ -1066,14 +1062,34 @@ if (!$isStaffLoggedIn) {
                     </div>
                     <div class="form-group">
                         <label for="userPassword">Password</label>
-                        <input type="password" id="userPassword" name="password" required autocomplete="new-password">
+                        <div class="input-container" style="position: relative;">
+                            <input type="password" id="userPassword" name="password" required autocomplete="new-password" style="padding-right: 50px;">
+                            <button type="button" id="toggle-add-password" style="position:absolute;right:10px;top:10%;transform:translateY(-10%);background:none;border:none;outline:none;cursor:pointer;padding:5px;z-index:10;display:flex;align-items:center;justify-content:center;">
+                                <img id="add-eye-icon" src="images/svg/eye-slash-black.svg" alt="Show Password" width="20" height="20">
+                            </button>
+                            <div id="addPasswordRequirements" style="margin-top: 0.5rem; font-size: 0.875rem;">
+                                <div id="add-req-length" style="color: #dc3545; display: flex; align-items: center; gap: 0.25rem;">
+                                    <span>✗</span> Minimum 8 characters
+                                </div>
+                                <div id="add-req-lowercase" style="color: #dc3545; display: flex; align-items: center; gap: 0.25rem;">
+                                    <span>✗</span> A lowercase letter
+                                </div>
+                                <div id="add-req-uppercase" style="color: #dc3545; display: flex; align-items: center; gap: 0.25rem;">
+                                    <span>✗</span> A capital (uppercase) letter
+                                </div>
+                                <div id="add-req-number" style="color: #dc3545; display: flex; align-items: center; gap: 0.25rem;">
+                                    <span>✗</span> A number
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="addUserRole">Role</label>
                         <select id="addUserRole" name="role" required>
                             <option value="">Select Role</option>
+                            <option value="super_admin">Super Admin - Full system access</option>
                             <option value="admin">Admin - Full access to all features</option>
-                            <option value="cashier">Cashier - POS and inventory view only</option>
+                            <option value="cashier">Cashier - POS and inventory</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1113,8 +1129,10 @@ if (!$isStaffLoggedIn) {
                     <div class="form-group">
                         <label for="editUserRole">Role</label>
                         <select id="editUserRole" name="role" required>
+                            <option value="">Select Role</option>
+                            <option value="super_admin">Super Admin - Full system access</option>
                             <option value="admin">Admin - Full access to all features</option>
-                            <option value="cashier">Cashier - POS and inventory view only</option>
+                            <option value="cashier">Cashier - POS and inventory</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1123,9 +1141,23 @@ if (!$isStaffLoggedIn) {
                         </label>
                         <div class="input-container" style="position: relative; display: none;" id="passwordContainer">
                             <input type="password" id="newPassword" name="new_password" placeholder="New password (if resetting)" autocomplete="new-password" style="padding-right: 50px;">
-                            <button type="button" id="toggle-reset-password" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;outline:none;cursor:pointer;padding:5px;z-index:10;display:flex;align-items:center;justify-content:center;">
+                            <button type="button" id="toggle-reset-password" style="position:absolute;right:10px;top:10%;transform:translateY(-10%);background:none;border:none;outline:none;cursor:pointer;padding:5px;z-index:10;display:flex;align-items:center;justify-content:center;">
                                 <img id="reset-eye-icon" src="images/svg/eye-slash-black.svg" alt="Show Password" width="20" height="20">
                             </button>
+                            <div id="passwordRequirements" style="margin-top: 0.5rem; font-size: 0.875rem;">
+                                <div id="req-length" style="color: #dc3545; display: flex; align-items: center; gap: 0.25rem;">
+                                    <span>✗</span> Minimum 8 characters
+                                </div>
+                                <div id="req-lowercase" style="color: #dc3545; display: flex; align-items: center; gap: 0.25rem;">
+                                    <span>✗</span> A lowercase letter
+                                </div>
+                                <div id="req-uppercase" style="color: #dc3545; display: flex; align-items: center; gap: 0.25rem;">
+                                    <span>✗</span> A capital (uppercase) letter
+                                </div>
+                                <div id="req-number" style="color: #dc3545; display: flex; align-items: center; gap: 0.25rem;">
+                                    <span>✗</span> A number
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-actions">

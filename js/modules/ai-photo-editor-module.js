@@ -74,14 +74,14 @@ export class AIPhotoEditor {
             this.closeBtn.addEventListener('click', () => this.hideModal());
         }
         
-        // Click outside modal to close
-        if (this.modal) {
-            this.modal.addEventListener('click', (e) => {
-                if (e.target === this.modal) {
-                    this.hideModal();
-                }
-            });
-        }
+        // Click outside modal to close - DISABLED
+        // if (this.modal) {
+        //     this.modal.addEventListener('click', (e) => {
+        //         if (e.target === this.modal) {
+        //             this.hideModal();
+        //         }
+        //     });
+        // }
         
         // Escape key to close
         document.addEventListener('keydown', (e) => {

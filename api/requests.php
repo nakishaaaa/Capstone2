@@ -63,7 +63,7 @@ function handleGetRequests() {
     
     try {
         if ($userData['role'] === 'admin' || $userData['role'] === 'super_admin') {
-            // Admin sees all requests with details
+            // Admin sees only pending and rejected requests (approved ones are in Order Management)
             $stmt = $pdo->prepare("
                 SELECT 
                     cr.*,
@@ -90,7 +90,7 @@ function handleGetRequests() {
                 LEFT JOIN users u ON cr.user_id = u.id
                 LEFT JOIN request_details rd ON cr.id = rd.request_id
                 LEFT JOIN approved_orders ao ON cr.id = ao.request_id
-                WHERE cr.deleted = 0
+                WHERE cr.deleted = 0 AND cr.status IN ('pending', 'rejected', 'cancelled')
                 ORDER BY cr.created_at DESC
             ");
             $stmt->execute();
@@ -166,7 +166,22 @@ function handleGetRequests() {
             }
         }
         
-        echo json_encode(['success' => true, 'requests' => $requests]);
+        // Get stats for badge
+        $stats = [];
+        if ($userData['role'] === 'admin' || $userData['role'] === 'super_admin') {
+            $statsStmt = $pdo->prepare("
+                SELECT 
+                    COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+                    COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
+                    COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
+                FROM customer_requests
+                WHERE deleted = 0
+            ");
+            $statsStmt->execute();
+            $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
+        }
+        
+        echo json_encode(['success' => true, 'requests' => $requests, 'stats' => $stats]);
     } catch (Exception $e) {
         error_log("Get requests error: " . $e->getMessage());
         http_response_code(500);
@@ -505,6 +520,27 @@ function handleCreateRequest() {
             error_log("Email notification error: " . $emailError->getMessage());
         }
         
+        // Trigger real-time stats update via Pusher
+        try {
+            global $conn;
+            require_once '../includes/pusher_config.php';
+            
+            // Update stats for all admins
+            triggerAdminStatsUpdate($conn);
+            
+            // Send new request notification to admin channel
+            triggerPusherEvent('admin-channel', 'new-request', [
+                'title' => 'New Order Request',
+                'message' => "New {$_POST['category']} request from {$_POST['name']}",
+                'request_id' => $requestId,
+                'category' => $_POST['category'],
+                'customer' => $_POST['name'],
+                'timestamp' => time()
+            ]);
+        } catch (Exception $pusherError) {
+            error_log("Pusher trigger error: " . $pusherError->getMessage());
+        }
+        
         echo json_encode(['success' => true, 'message' => 'Request submitted successfully']);
     } catch (Exception $e) {
         error_log("Create request error: " . $e->getMessage());
@@ -521,7 +557,7 @@ function handleUpdateRequest() {
     if (!$userData['is_logged_in']) {
         // Fallback check
         $userData = getUserSessionData();
-        if (!$userData['is_logged_in'] || $userData['role'] !== 'admin') {
+        if (!$userData['is_logged_in'] || ($userData['role'] !== 'admin' && $userData['role'] !== 'super_admin')) {
             http_response_code(401);
             echo json_encode(['error' => 'Unauthorized - Admin only']);
             return;
@@ -570,26 +606,49 @@ function handleUpdateRequest() {
                 $downpayment_percentage = 70;
                 $downpayment_amount = ($input['total_price'] * $downpayment_percentage) / 100;
                 
-                // Create approved_orders record
-                $sql = "INSERT INTO approved_orders (
-                            request_id,
-                            total_price,
-                            downpayment_percentage,
-                            downpayment_amount,
-                            payment_status,
-                            pricing_set_at
-                        ) VALUES (?, ?, ?, ?, 'awaiting_payment', NOW())";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([
-                    $input['id'],
-                    $input['total_price'],
-                    $downpayment_percentage,
-                    $downpayment_amount
-                ]);
+                // Check if approved_orders record already exists
+                $checkStmt = $pdo->prepare("SELECT id FROM approved_orders WHERE request_id = ?");
+                $checkStmt->execute([$input['id']]);
+                
+                if ($checkStmt->rowCount() > 0) {
+                    // Update existing record
+                    $sql = "UPDATE approved_orders SET 
+                                total_price = ?,
+                                downpayment_percentage = ?,
+                                downpayment_amount = ?,
+                                payment_status = 'awaiting_payment',
+                                pricing_set_at = NOW()
+                            WHERE request_id = ?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([
+                        $input['total_price'],
+                        $downpayment_percentage,
+                        $downpayment_amount,
+                        $input['id']
+                    ]);
+                } else {
+                    // Create new approved_orders record
+                    $sql = "INSERT INTO approved_orders (
+                                request_id,
+                                total_price,
+                                downpayment_percentage,
+                                downpayment_amount,
+                                payment_status,
+                                pricing_set_at
+                            ) VALUES (?, ?, ?, ?, 'awaiting_payment', NOW())";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([
+                        $input['id'],
+                        $input['total_price'],
+                        $downpayment_percentage,
+                        $downpayment_amount
+                    ]);
+                }
                 
                 $pdo->commit();
             } catch (Exception $e) {
                 $pdo->rollBack();
+                error_log("Approval transaction error: " . $e->getMessage());
                 throw $e;
             }
         } else {
@@ -604,6 +663,15 @@ function handleUpdateRequest() {
         }
         
         if ($stmt->rowCount() > 0) {
+            // Trigger real-time stats update via Pusher
+            try {
+                global $conn;
+                require_once '../includes/pusher_config.php';
+                triggerAdminStatsUpdate($conn);
+            } catch (Exception $pusherError) {
+                error_log("Pusher trigger error: " . $pusherError->getMessage());
+            }
+            
             echo json_encode(['success' => true, 'message' => 'Request updated successfully']);
         } else {
             http_response_code(404);

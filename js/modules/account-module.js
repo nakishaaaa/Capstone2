@@ -49,6 +49,9 @@ export class AccountManager {
             this.changePasswordForm.addEventListener('submit', (e) => this.handlePasswordChange(e));
         }
 
+        // Password validation for change password form
+        this.setupPasswordValidation();
+
         // Account edit functionality
         this.setupAccountEditListeners();
 
@@ -461,6 +464,77 @@ export class AccountManager {
         document.getElementById('passwordChangeForm').style.display = 'block';
     }
 
+    setupPasswordValidation() {
+        const passwordInput = document.getElementById('newPassword');
+        const lengthRequirement = document.getElementById('change-length-requirement');
+        const lowercaseRequirement = document.getElementById('change-lowercase-requirement');
+        const uppercaseRequirement = document.getElementById('change-uppercase-requirement');
+        const numberRequirement = document.getElementById('change-number-requirement');
+        
+        if (passwordInput && lengthRequirement && lowercaseRequirement && uppercaseRequirement && numberRequirement) {
+            const updatePasswordRequirements = () => {
+                const password = passwordInput.value;
+                
+                // Check requirements
+                const isValidLength = password.length >= 8 && password.length <= 64;
+                const hasLowercase = /[a-z]/.test(password);
+                const hasUppercase = /[A-Z]/.test(password);
+                const hasNumber = /[0-9]/.test(password);
+                
+                // Update length requirement
+                if (isValidLength) {
+                    lengthRequirement.classList.remove('invalid');
+                    lengthRequirement.classList.add('valid');
+                    lengthRequirement.querySelector('.requirement-icon').className = 'fas fa-check requirement-icon';
+                } else {
+                    lengthRequirement.classList.remove('valid');
+                    lengthRequirement.classList.add('invalid');
+                    lengthRequirement.querySelector('.requirement-icon').className = 'fas fa-times requirement-icon';
+                }
+                
+                // Update lowercase requirement
+                if (hasLowercase) {
+                    lowercaseRequirement.classList.remove('invalid');
+                    lowercaseRequirement.classList.add('valid');
+                    lowercaseRequirement.querySelector('.requirement-icon').className = 'fas fa-check requirement-icon';
+                } else {
+                    lowercaseRequirement.classList.remove('valid');
+                    lowercaseRequirement.classList.add('invalid');
+                    lowercaseRequirement.querySelector('.requirement-icon').className = 'fas fa-times requirement-icon';
+                }
+                
+                // Update uppercase requirement
+                if (hasUppercase) {
+                    uppercaseRequirement.classList.remove('invalid');
+                    uppercaseRequirement.classList.add('valid');
+                    uppercaseRequirement.querySelector('.requirement-icon').className = 'fas fa-check requirement-icon';
+                } else {
+                    uppercaseRequirement.classList.remove('valid');
+                    uppercaseRequirement.classList.add('invalid');
+                    uppercaseRequirement.querySelector('.requirement-icon').className = 'fas fa-times requirement-icon';
+                }
+                
+                // Update number requirement
+                if (hasNumber) {
+                    numberRequirement.classList.remove('invalid');
+                    numberRequirement.classList.add('valid');
+                    numberRequirement.querySelector('.requirement-icon').className = 'fas fa-check requirement-icon';
+                } else {
+                    numberRequirement.classList.remove('valid');
+                    numberRequirement.classList.add('invalid');
+                    numberRequirement.querySelector('.requirement-icon').className = 'fas fa-times requirement-icon';
+                }
+            };
+            
+            // Add event listeners
+            passwordInput.addEventListener('input', updatePasswordRequirements);
+            passwordInput.addEventListener('keyup', updatePasswordRequirements);
+            
+            // Initial check
+            updatePasswordRequirements();
+        }
+    }
+
     resetPasswordForm() {
         const form = document.getElementById('changePasswordForm');
         if (form) {
@@ -480,6 +554,26 @@ export class AccountManager {
             toggles.forEach(iconImg => {
                 iconImg.src = 'images/svg/eye-slash.svg';
                 iconImg.alt = 'Show password';
+            });
+            
+            // Reset password requirements
+            const requirements = [
+                'change-length-requirement',
+                'change-lowercase-requirement', 
+                'change-uppercase-requirement',
+                'change-number-requirement'
+            ];
+            
+            requirements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.classList.remove('valid');
+                    element.classList.add('invalid');
+                    const icon = element.querySelector('.requirement-icon');
+                    if (icon) {
+                        icon.className = 'fas fa-times requirement-icon';
+                    }
+                }
             });
         }
     }

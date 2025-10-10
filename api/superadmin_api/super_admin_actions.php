@@ -842,7 +842,12 @@ try {
                     SELECT 
                         id,
                         CONCAT('New support ticket: ', subject) as title,
-                        CONCAT('From: ', username, ' - ', LEFT(message, 100), '...') as message,
+                        CONCAT('From: ', username, ' - ', 
+                            IF(CHAR_LENGTH(message) > 100, 
+                                CONCAT(LEFT(message, 100), '...'), 
+                                message
+                            )
+                        ) as message,
                         'info' as type,
                         COALESCE(is_read, FALSE) as is_read,
                         created_at,
@@ -876,7 +881,12 @@ try {
                         SELECT 
                             id,
                             CONCAT('New support message: ', COALESCE(subject, 'No subject')) as title,
-                            CONCAT('From: ', user_name, ' - ', LEFT(message, 100), '...') as message,
+                            CONCAT('From: ', user_name, ' - ', 
+                                IF(CHAR_LENGTH(message) > 100, 
+                                    CONCAT(LEFT(message, 100), '...'), 
+                                    message
+                                )
+                            ) as message,
                             'info' as type,
                             COALESCE(is_read, FALSE) as is_read,
                             created_at,
@@ -1227,6 +1237,88 @@ try {
                 echo json_encode(['success' => true, 'message' => 'Backup deleted successfully']);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Failed to delete backup']);
+            }
+            break;
+
+        case 'restore_backup':
+            if (!isset($_FILES['backup_file']) || $_FILES['backup_file']['error'] !== UPLOAD_ERR_OK) {
+                echo json_encode(['success' => false, 'message' => 'No backup file uploaded or upload error']);
+                break;
+            }
+
+            $uploadedFile = $_FILES['backup_file'];
+            $fileName = $uploadedFile['name'];
+            $tmpName = $uploadedFile['tmp_name'];
+            
+            // Validate file extension
+            $allowedExtensions = ['sql', 'zip'];
+            $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            
+            if (!in_array($fileExtension, $allowedExtensions)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid file type. Only .sql and .zip files are allowed']);
+                break;
+            }
+
+            try {
+                // Read the SQL file content
+                $sqlContent = file_get_contents($tmpName);
+                
+                if ($sqlContent === false) {
+                    echo json_encode(['success' => false, 'message' => 'Failed to read backup file']);
+                    break;
+                }
+
+                // Disable foreign key checks temporarily
+                $conn->query('SET FOREIGN_KEY_CHECKS = 0');
+                $conn->query('SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO"');
+                
+                // Use multi_query to execute the entire SQL file at once
+                if ($conn->multi_query($sqlContent)) {
+                    $successCount = 0;
+                    $errorCount = 0;
+                    
+                    // Process all results
+                    do {
+                        $successCount++;
+                        // Store first result set if available
+                        if ($result = $conn->store_result()) {
+                            $result->free();
+                        }
+                        // Check if there are more results
+                        if (!$conn->more_results()) {
+                            break;
+                        }
+                    } while ($conn->next_result());
+                    
+                    // Check for errors
+                    if ($conn->errno) {
+                        $errorCount++;
+                        error_log("SQL Error in restore: " . $conn->error);
+                    }
+                } else {
+                    $errorCount = 1;
+                    error_log("SQL Error in restore: " . $conn->error);
+                    $successCount = 0;
+                }
+                
+                // Re-enable foreign key checks
+                $conn->query('SET FOREIGN_KEY_CHECKS = 1');
+                
+                // Log the restore action
+                logAuditEvent($_SESSION['user_id'], 'backup_restored', "Database restored from backup: {$fileName}. Executed {$successCount} statements, {$errorCount} errors");
+                
+                if ($errorCount > 0) {
+                    echo json_encode(['success' => false, 'message' => "Backup restored with {$errorCount} errors. Check logs for details."]);
+                } else {
+                    echo json_encode(['success' => true, 'message' => "Backup restored successfully. {$successCount} statements executed."]);
+                }
+                
+            } catch (Exception $e) {
+                // Re-enable foreign key checks in case of error
+                $conn->query('SET FOREIGN_KEY_CHECKS = 1');
+                
+                error_log("Backup restore error: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Error restoring backup: ' . $e->getMessage()]);
             }
             break;
 

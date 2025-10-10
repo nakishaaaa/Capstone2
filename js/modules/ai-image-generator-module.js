@@ -61,14 +61,14 @@ export class AIImageGenerator {
             this.closeBtn.addEventListener('click', () => this.hideModal());
         }
         
-        // Click outside modal to close
-        if (this.modal) {
-            this.modal.addEventListener('click', (e) => {
-                if (e.target === this.modal) {
-                    this.hideModal();
-                }
-            });
-        }
+        // Click outside modal to close - DISABLED
+        // if (this.modal) {
+        //     this.modal.addEventListener('click', (e) => {
+        //         if (e.target === this.modal) {
+        //             this.hideModal();
+        //         }
+        //     });
+        // }
         
         // Escape key to close
         document.addEventListener('keydown', (e) => {
@@ -196,7 +196,7 @@ export class AIImageGenerator {
         if (!this.generateBtn) return;
         
         if (this.isGenerating) {
-            this.generateBtn.innerHTML = '<div class="loading-circle" style="width: 16px; height: 16px; margin-right: 8px; display: inline-block;"></div> Generating...';
+            this.generateBtn.innerHTML = 'Generating...';
             this.generateBtn.disabled = true;
         } else {
             this.generateBtn.innerHTML = '<i class="fas fa-magic"></i> Generate Image';
@@ -290,7 +290,7 @@ export class AIImageGenerator {
         try {
             // Show loading state on download button
             const originalText = this.downloadBtn.innerHTML;
-            this.downloadBtn.innerHTML = '<div class="loading-circle" style="width: 16px; height: 16px; margin-right: 8px; display: inline-block;"></div> Downloading...';
+            this.downloadBtn.innerHTML = 'Downloading...';
             this.downloadBtn.disabled = true;
             
             const formData = new FormData();

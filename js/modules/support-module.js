@@ -520,15 +520,39 @@ export default class SupportMessaging {
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Failed to load messages');
             const messages = data.data.messages || [];
-            const list = messages.map(m => `
-                <div class="message-row ${m.is_admin ? 'from-admin' : 'from-user'}">
-                    <div class="message-header">
-                        <span class="sender">${(m.sender_name||'').replace(/</g,'&lt;')}</span>
-                        <span class="time" data-timestamp="${m.created_at}">${this.timeAgo(m.created_at)}</span>
+            const list = messages.map(m => {
+                // Parse attachment paths if they exist
+                let attachmentsHTML = '';
+                if (m.attachment_paths) {
+                    try {
+                        const paths = JSON.parse(m.attachment_paths);
+                        if (Array.isArray(paths) && paths.length > 0) {
+                            attachmentsHTML = `
+                                <div class="message-attachments">
+                                    ${paths.map(path => `
+                                        <a href="${path}" target="_blank" class="attachment-image">
+                                            <img src="${path}" alt="Attachment" style="max-width: 200px; max-height: 200px; border-radius: 8px; margin-top: 8px;">
+                                        </a>
+                                    `).join('')}
+                                </div>
+                            `;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing attachment paths:', e);
+                    }
+                }
+                
+                return `
+                    <div class="message-row ${m.is_admin ? 'from-admin' : 'from-user'}">
+                        <div class="message-header">
+                            <span class="sender">${(m.sender_name||'').replace(/</g,'&lt;')}</span>
+                            <span class="time" data-timestamp="${m.created_at}">${this.timeAgo(m.created_at)}</span>
+                        </div>
+                        <div class="message-body">${(m.message||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+                        ${attachmentsHTML}
                     </div>
-                    <div class="message-body">${(m.message||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
             // Create status indicator for header
             const statusBadge = conversationStatus !== 'open' ? 
@@ -550,7 +574,14 @@ export default class SupportMessaging {
                 replySection = `
                     <div class="conversation-reply">
                         <textarea id="replyTextarea" class="reply-textarea" rows="3" placeholder="Write a reply..."></textarea>
+                        <div class="reply-attachments">
+                            <input type="file" id="replyAttachment" accept="image/*" multiple style="display: none;">
+                            <div id="replyAttachmentPreview" class="attachment-preview" style="display: none; margin-top: 8px;"></div>
+                        </div>
                         <div class="reply-actions">
+                            <button class="btn-attach" id="attachImageBtn" title="Attach images">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
                             <button class="support-send-btn" id="sendReplyBtn"><i class="fas fa-paper-plane"></i> Send reply</button>
                         </div>
                     </div>
@@ -587,12 +618,22 @@ export default class SupportMessaging {
                 if (sendBtn && replyTA) {
                     sendBtn.addEventListener('click', async () => {
                         const text = replyTA.value.trim();
-                        if (!text) return;
+                        const fileInput = this.conversationDetailEl.querySelector('#replyAttachment');
+                        const files = fileInput ? fileInput.files : null;
+                        
+                        if (!text && (!files || files.length === 0)) {
+                            alert('Please enter a message or attach an image');
+                            return;
+                        }
+                        
                         sendBtn.disabled = true;
-                        sendBtn.innerHTML = '<div class="loading-circle" style="width: 16px; height: 16px; margin-right: 8px; display: inline-block;"></div> Sending...';
+                        sendBtn.innerHTML = 'Sending...';
                         try {
-                            await this.sendReply(conversationId, text);
+                            await this.sendReply(conversationId, text, files);
                             replyTA.value = '';
+                            if (fileInput) fileInput.value = '';
+                            const previewDiv = this.conversationDetailEl.querySelector('#replyAttachmentPreview');
+                            if (previewDiv) previewDiv.style.display = 'none';
                             // refresh messages
                             this.viewConversation(conversationId);
                         } catch (err) {
@@ -611,6 +652,32 @@ export default class SupportMessaging {
                         }
                     });
                 }
+                
+                // Handle attachment button
+                const attachBtn = this.conversationDetailEl.querySelector('#attachImageBtn');
+                const fileInput = this.conversationDetailEl.querySelector('#replyAttachment');
+                const previewDiv = this.conversationDetailEl.querySelector('#replyAttachmentPreview');
+                
+                if (attachBtn && fileInput) {
+                    attachBtn.addEventListener('click', () => {
+                        fileInput.click();
+                    });
+                    
+                    fileInput.addEventListener('change', (e) => {
+                        const files = Array.from(e.target.files);
+                        if (files.length > 0) {
+                            previewDiv.style.display = 'block';
+                            previewDiv.innerHTML = `
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                                    <span style="color: #10b981;"><i class="fas fa-image"></i> ${files.length} image${files.length > 1 ? 's' : ''} selected</span>
+                                    <button type="button" onclick="document.getElementById('replyAttachment').value=''; document.getElementById('replyAttachmentPreview').style.display='none';" style="background: none; border: none; color: #ef4444; cursor: pointer;">
+                                        <i class="fas fa-times"></i> Remove
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    });
+                }
             }
         } catch (e) {
             console.error(e);
@@ -618,22 +685,46 @@ export default class SupportMessaging {
         }
     }
 
-    async sendReply(conversationId, message) {
+    async sendReply(conversationId, message, files = null) {
         const csrfToken = await this.getCSRFToken();
-        const payload = {
-            conversation_id: conversationId,
-            subject: '',
-            message,
-            csrf_token: csrfToken
-        };
-        const res = await fetch('/Capstone2/api/customer_support.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message || 'Failed to send');
-        return data;
+        
+        // If files are attached, use FormData
+        if (files && files.length > 0) {
+            const formData = new FormData();
+            formData.append('conversation_id', conversationId);
+            formData.append('subject', '');
+            formData.append('message', message || '');
+            formData.append('csrf_token', csrfToken);
+            
+            // Append all files
+            for (let i = 0; i < files.length; i++) {
+                formData.append('attachments[]', files[i]);
+            }
+            
+            const res = await fetch('/Capstone2/api/customer_support.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Failed to send');
+            return data;
+        } else {
+            // No files, use JSON
+            const payload = {
+                conversation_id: conversationId,
+                subject: '',
+                message,
+                csrf_token: csrfToken
+            };
+            const res = await fetch('/Capstone2/api/customer_support.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Failed to send');
+            return data;
+        }
     }
 }
 

@@ -282,8 +282,6 @@ class EmailNotifications {
                     <p>Your trusted partner for quality printing services.</p>
                     
                     <div class='contact-info'>
-                        <p>📧 Email: support@053prints.com</p>
-                        <p>📞 Phone: +63 XXX XXX XXXX</p>
                         <p>🏪 Visit our store for pickup and inquiries</p>
                     </div>
                 </div>

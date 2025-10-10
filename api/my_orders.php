@@ -131,14 +131,17 @@ function getOrders($pdo, $userId) {
     
     // Format orders for frontend
     $formattedOrders = array_map(function($order) {
-        // Handle image_path
+        // Handle image_path - keep full array for order details
         $image_url = null;
+        $image_path_full = null;
         if ($order['image_path']) {
             $decoded_paths = json_decode($order['image_path'], true);
             if (is_array($decoded_paths) && !empty($decoded_paths)) {
-                $image_url = $decoded_paths[0];
+                $image_url = $decoded_paths[0]; // First image for list view
+                $image_path_full = $order['image_path']; // Full array for details
             } else {
                 $image_url = $order['image_path'];
+                $image_path_full = $order['image_path'];
             }
         }
         
@@ -150,6 +153,7 @@ function getOrders($pdo, $userId) {
             'size' => $order['size'],
             'quantity' => $order['quantity'],
             'image_url' => $image_url,
+            'image_path' => $image_path_full,
             'customerName' => $order['name'],
             'contactNumber' => $order['contact_number'],
             'notes' => $order['notes'],
@@ -263,8 +267,10 @@ function getOrderDetail($pdo, $userId) {
     
     // Handle image_path
     $image_url = null;
+    $image_path_full = null;
     if (!empty($imagePaths)) {
-        $image_url = $imagePaths[0];
+        $image_url = $imagePaths[0]; // First image for thumbnail
+        $image_path_full = json_encode($imagePaths); // Full array for details
     }
     
     // Format order for frontend
@@ -276,6 +282,7 @@ function getOrderDetail($pdo, $userId) {
         'size' => $order['size'],
         'quantity' => $order['quantity'],
         'image_url' => $image_url,
+        'image_path' => $image_path_full,
         'customerName' => $order['name'],
         'contactNumber' => $order['contact_number'],
         'notes' => $order['notes'],

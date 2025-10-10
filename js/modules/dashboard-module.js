@@ -3,18 +3,18 @@
 import { ApiClient } from "../core/api-client.js"
 import { Utils } from "../utils/helpers.js"
 import { CONFIG } from "../core/config.js"
-import { SSEClient } from "../core/sse-client.js"
+import { PusherClient } from "../core/pusher-client.js"
 
 export class DashboardModule {
   constructor(toastManager) {
     this.api = new ApiClient()
     this.toast = toastManager
     this.charts = {}
-    this.sseClient = null
+    this.pusherClient = null
     this.lastStatsData = null
     this.currentPeriod = 'daily'
     this.lastChartData = null
-    this.initializeSSE()
+    this.initializePusher()
   }
 
   async loadStats() {
@@ -382,36 +382,29 @@ export class DashboardModule {
     }
   }
 
-  initializeSSE() {
+  initializePusher() {
     try {
-      // Initialize SSE client for real-time updates
-      this.sseClient = new SSEClient('api/realtime.php', {
-        maxReconnectAttempts: 5,
-        reconnectDelay: 2000,
-        maxReconnectDelay: 30000
-      })
+      // Initialize Pusher client for real-time updates
+      this.pusherClient = new PusherClient()
 
       // Handle stats updates
-      this.sseClient.on('stats_update', (data) => {
+      this.pusherClient.on('stats_update', (data) => {
         this.handleRealTimeStatsUpdate(data)
       })
 
       // Handle connection events
-      this.sseClient.on('connection', (status) => {
+      this.pusherClient.on('connection', (status) => {
         if (status.status === 'connected') {
-          console.log('Dashboard: Real-time connection established')
+          console.log('Dashboard: Pusher connection established')
         } else if (status.status === 'error') {
-          console.warn('Dashboard: Real-time connection error, falling back to periodic updates')
+          console.warn('Dashboard: Pusher connection error')
         }
       })
 
-      // Handle heartbeat to ensure connection is alive
-      this.sseClient.on('heartbeat', (data) => {
-        console.log('Dashboard: Heartbeat received', new Date(data.timestamp * 1000))
-      })
+      console.log('Dashboard: Pusher real-time updates initialized')
 
     } catch (error) {
-      console.error('Dashboard: Failed to initialize SSE client:', error)
+      console.error('Dashboard: Failed to initialize Pusher client:', error)
       this.toast.warning('Real-time updates unavailable, using periodic updates')
     }
   }
@@ -493,10 +486,10 @@ export class DashboardModule {
   }
 
   destroy() {
-    // Clean up SSE connection
-    if (this.sseClient) {
-      this.sseClient.close()
-      this.sseClient = null
+    // Clean up Pusher connection
+    if (this.pusherClient) {
+      this.pusherClient.disconnect()
+      this.pusherClient = null
     }
     
     // Clean up charts

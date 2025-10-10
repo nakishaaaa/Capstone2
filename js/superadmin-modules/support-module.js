@@ -315,7 +315,7 @@ export class SupportModule {
                         ${conv.last_message_by === 'admin' ? 'You: ' : ''}${this.truncateText(conv.last_message || conv.message, 50)}
                     </div>
                 </div>
-                <div class="conversation-time">${this.timeAgo(conv.last_message_at || conv.created_at)}</div>
+                <div class="conversation-time">${this.formatTimeAgo(conv.last_message_at || conv.created_at)}</div>
             </div>
             `;
         }).join('');
@@ -379,10 +379,10 @@ export class SupportModule {
                     <div class="message-bubble ${isAdmin ? 'admin-bubble' : 'customer-bubble'}">
                         <div class="bubble-header">
                             ${isAdmin ? 
-                                `<span class="bubble-time">${this.timeAgo(msg.created_at)}</span>
+                                `<span class="bubble-time">${this.formatTimeAgo(msg.created_at)}</span>
                                  <span class="bubble-sender">${this.escapeHtml(msg.sender_name)}</span>` :
                                 `<span class="bubble-sender">${this.escapeHtml(msg.sender_name)}</span>
-                                 <span class="bubble-time">${this.timeAgo(msg.created_at)}</span>`
+                                 <span class="bubble-time">${this.formatTimeAgo(msg.created_at)}</span>`
                             }
                         </div>
                         <div class="message-text">${this.escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
@@ -435,10 +435,19 @@ export class SupportModule {
             if (ticketStatus) {
                 ticketStatus.value = ticket.status || 'open';
             }
+            
+            // Show/hide input area based on status
+            const conversationStatus = ticket.status || 'open';
+            if (conversationStatus === 'resolved' || conversationStatus === 'closed') {
+                if (chatInputArea) chatInputArea.style.display = 'none';
+                this.showStatusMessage(conversationStatus);
+            } else {
+                if (chatInputArea) chatInputArea.style.display = 'block';
+                this.hideStatusMessage();
+            }
         }
         
         if (chatHeader) chatHeader.style.display = 'flex';
-        if (chatInputArea) chatInputArea.style.display = 'block';
     }
 
     async sendReply() {
@@ -586,7 +595,7 @@ export class SupportModule {
             if (conversationId) {
                 const conversation = this.currentConversations.find(c => c.ticket_id === conversationId);
                 if (conversation && (conversation.last_message_at || conversation.created_at)) {
-                    element.textContent = this.timeAgo(conversation.last_message_at || conversation.created_at);
+                    element.textContent = this.formatTimeAgo(conversation.last_message_at || conversation.created_at);
                 }
             }
         });
@@ -597,7 +606,7 @@ export class SupportModule {
             if (messageElement) {
                 const messageIndex = Array.from(messageElement.parentNode.children).indexOf(messageElement);
                 if (this.currentMessages[messageIndex] && this.currentMessages[messageIndex].created_at) {
-                    element.textContent = this.timeAgo(this.currentMessages[messageIndex].created_at);
+                    element.textContent = this.formatTimeAgo(this.currentMessages[messageIndex].created_at);
                 }
             }
         });
@@ -617,12 +626,53 @@ export class SupportModule {
         `;
     }
 
-    // Utility functions
-    timeAgo(datetime) {
-        if (!datetime) return 'Never';
+    showStatusMessage(status) {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        // Remove existing status message if any
+        const existingMessage = chatMessages.querySelector('.conversation-status-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+        
+        const statusMessage = document.createElement('div');
+        statusMessage.className = 'conversation-status-message';
+        statusMessage.style.cssText = `
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px;
+            text-align: center;
+            color: #6b7280;
+        `;
+        
+        statusMessage.innerHTML = `
+            <i class="fas fa-${status === 'resolved' ? 'check-circle' : 'lock'}" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
+            <strong>Conversation ${status === 'resolved' ? 'Resolved' : 'Closed'}</strong><br>
+            <small>${status === 'resolved' ? 'This conversation has been marked as resolved.' : 'This conversation has been closed.'}</small><br>
+            <small>Change status to "Open" to reopen and continue the conversation.</small>
+        `;
+        
+        chatMessages.appendChild(statusMessage);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    hideStatusMessage() {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        const existingMessage = chatMessages.querySelector('.conversation-status-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+    }
+
+    formatTimeAgo(dateString) {
         const now = new Date();
-        const past = new Date(datetime);
-        const diffInSeconds = Math.floor((now - past) / 1000);
+        const date = new Date(dateString);
+        const diffInSeconds = Math.floor((now - date) / 1000);
         
         if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
         if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
@@ -729,6 +779,16 @@ export class SupportModule {
                     conversation.status = newStatus;
                 }
                 this.updateConversationsList();
+                
+                // Update UI based on new status
+                const chatInputArea = document.getElementById('chatInputArea');
+                if (newStatus === 'resolved' || newStatus === 'closed') {
+                    if (chatInputArea) chatInputArea.style.display = 'none';
+                    this.showStatusMessage(newStatus);
+                } else {
+                    if (chatInputArea) chatInputArea.style.display = 'block';
+                    this.hideStatusMessage();
+                }
             } else {
                 this.showError(result.message || 'Failed to update ticket status');
                 // Reset dropdown to previous value

@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ticket_id'])) {
         try {
             // Search for the ticket in support_messages by subject pattern (any message in conversation)
             $stmt = $conn->prepare("
-                SELECT conversation_id, user_email, subject, message, created_at 
+                SELECT conversation_id, user_email, subject, message, created_at, conversation_status 
                 FROM support_messages 
                 WHERE subject LIKE ? AND message_type = 'customer_support'
                 ORDER BY created_at ASC
@@ -523,6 +523,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ticket_id'])) {
                 <div class="ticket-meta">
                     <span><strong>Subject:</strong> <?= htmlspecialchars(preg_replace('/^\[.*?\]\s*/', '', $conversation['subject'])) ?></span>
                     <span><strong>Created:</strong> <?= date('M j, Y g:i A', strtotime($conversation['created_at'])) ?></span>
+                    <?php 
+                    $status = $conversation['conversation_status'] ?? 'open';
+                    $statusColors = [
+                        'open' => '#0f62fe',
+                        'solved' => '#059669',
+                        'closed' => '#6b7280'
+                    ];
+                    $statusColor = $statusColors[$status] ?? '#0f62fe';
+                    ?>
+                    <span class="status-indicator" style="background: <?= $statusColor ?>">
+                        <?= strtoupper($status) ?>
+                    </span>
                 </div>
             </div>
             
@@ -562,33 +574,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ticket_id'])) {
             </div>
             
             <!-- Reply Form Section -->
-            <div class="reply-section">
-                <h4>
-                    <i class="fas fa-reply"></i>
-                    Continue Conversation
-                </h4>
-                
-                <form id="replyForm" class="reply-form">
-                    <input type="hidden" name="ticket_id" value="<?= htmlspecialchars($ticket_id) ?>">
-                    <input type="hidden" name="conversation_id" value="<?= htmlspecialchars($conversation['conversation_id']) ?>">
+            <?php if ($status === 'open'): ?>
+                <div class="reply-section">
+                    <h4>
+                        <i class="fas fa-reply"></i>
+                        Continue Conversation
+                    </h4>
                     
-                    <div class="reply-input-container">
-                        <textarea 
-                            id="reply_message" 
-                            name="message" 
-                            required 
-                            placeholder="Type your message..."
-                        ></textarea>
-                    </div>
+                    <form id="replyForm" class="reply-form">
+                        <input type="hidden" name="ticket_id" value="<?= htmlspecialchars($ticket_id) ?>">
+                        <input type="hidden" name="conversation_id" value="<?= htmlspecialchars($conversation['conversation_id']) ?>">
+                        
+                        <div class="reply-input-container">
+                            <textarea 
+                                id="reply_message" 
+                                name="message" 
+                                required 
+                                placeholder="Type your message..."
+                            ></textarea>
+                        </div>
+                        
+                        <button type="submit" class="send-button" id="replySubmitBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
                     
-                    <button type="submit" class="send-button" id="replySubmitBtn">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </form>
-                
-                <div id="replyMessage" style="margin-top: 12px; padding: 12px; border-radius: 6px; display: none;"></div>
+                    <div id="replyMessage" style="margin-top: 12px; padding: 12px; border-radius: 6px; display: none;"></div>
                 </div>
-            </div>
+            <?php else: ?>
+                <div class="reply-section" style="background: #f3f4f6; border: 1px solid #e5e7eb;">
+                    <div style="text-align: center; padding: 20px; color: #6b7280;">
+                        <i class="fas fa-<?= $status === 'solved' ? 'check-circle' : 'lock' ?>" style="font-size: 32px; margin-bottom: 12px; color: <?= $statusColor ?>"></i>
+                        <h4 style="margin: 0 0 8px 0; color: #374151;">Ticket <?= ucfirst($status) ?></h4>
+                        <p style="margin: 0; font-size: 14px;">
+                            <?php if ($status === 'solved'): ?>
+                                This ticket has been marked as solved by our support team.
+                            <?php else: ?>
+                                This ticket has been closed and no new messages can be sent.
+                            <?php endif; ?>
+                        </p>
+                        <p style="margin: 8px 0 0 0; font-size: 13px;">
+                            If you need further assistance, please submit a new support request.
+                        </p>
+                    </div>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 

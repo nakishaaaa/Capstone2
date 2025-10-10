@@ -954,18 +954,35 @@ if (!$isUserLoggedIn) {
                                 <div class="form-group">
                                     <label for="newPassword">New Password</label>
                                     <div class="password-input-group">
-                                        <input type="password" id="newPassword" name="new_password" required minlength="6">
+                                        <input type="password" id="newPassword" name="new_password" required minlength="8" maxlength="64">
                                         <button type="button" class="password-toggle" data-target="newPassword">
                                             <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
                                         </button>
                                     </div>
-                                    <small class="form-help">Password must be at least 6 characters long</small>
+                                    <div class="password-requirements-container">
+                                        <div class="password-requirement" id="change-length-requirement">
+                                            <i class="fas fa-times requirement-icon"></i>
+                                            <span>Minimum 8 characters</span>
+                                        </div>
+                                        <div class="password-requirement" id="change-lowercase-requirement">
+                                            <i class="fas fa-times requirement-icon"></i>
+                                            <span>A lowercase letter</span>
+                                        </div>
+                                        <div class="password-requirement" id="change-uppercase-requirement">
+                                            <i class="fas fa-times requirement-icon"></i>
+                                            <span>A capital (uppercase) letter</span>
+                                        </div>
+                                        <div class="password-requirement" id="change-number-requirement">
+                                            <i class="fas fa-times requirement-icon"></i>
+                                            <span>A number</span>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="confirmPassword">Confirm New Password</label>
                                     <div class="password-input-group">
-                                        <input type="password" id="confirmPassword" name="confirm_password" required minlength="6">
+                                        <input type="password" id="confirmPassword" name="confirm_password" required minlength="8" maxlength="64">
                                         <button type="button" class="password-toggle" data-target="confirmPassword">
                                             <img src="images/svg/eye-slash-black.svg" alt="Show password" width="20" height="20">
                                         </button>
@@ -1139,9 +1156,6 @@ if (!$isUserLoggedIn) {
                                 Download Image
                             </button>
                         </div>
-                        <div class="ai-image-info">
-                            <p><strong>Prompt:</strong> <span id="usedPrompt"></span></p>
-                        </div>
                     </div>
                     
                     <div class="ai-error" id="aiError" style="display: none;">
@@ -1222,9 +1236,6 @@ if (!$isUserLoggedIn) {
                                 <i class="fas fa-redo"></i>
                                 Edit New Photo
                             </button>
-                        </div>
-                        <div class="ai-image-info">
-                            <p><strong>Edit Instructions:</strong> <span id="usedEditPrompt"></span></p>
                         </div>
                     </div>
                     

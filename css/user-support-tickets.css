@@ -1,5 +1,17 @@
 /* User Support Tickets Styles */
 
+/* Simple loading text without spinner */
+.loading-text-only {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 16px;
+    font-weight: 500;
+}
+
 .support-tickets-modal {
     max-width: 800px;
     width: 90%;

@@ -23,6 +23,7 @@ export class UserManagementModule {
                     <div class="filter-controls">
                         <select id="roleFilter">
                             <option value="">All Roles</option>
+                            <option value="super_admin">Super Admin</option>
                             <option value="admin">Admin</option>
                             <option value="cashier">Cashier</option>
                             <option value="user">Customer</option>
@@ -76,9 +77,11 @@ export class UserManagementModule {
                             <div class="form-group">
                                 <label for="role">Role</label>
                                 <select id="role" name="role" required>
+                                    <option value="" disabled selected>Select Role</option>
                                     <option value="super_admin">Super Admin</option>
                                     <option value="admin">Admin</option>
                                     <option value="cashier">Cashier</option>
+                                    <option value="user">Customer</option>
                                 </select>
                             </div>
                             <div class="form-group" id="passwordGroup">
@@ -411,7 +414,18 @@ export class UserManagementModule {
                 document.getElementById('userId').value = user.id;
                 document.getElementById('username').value = user.username || '';
                 document.getElementById('email').value = user.email || '';
-                document.getElementById('role').value = user.role || 'user';
+                
+                // Set role with debugging
+                const roleSelect = document.getElementById('role');
+                const userRole = user.role || 'user';
+                console.log('Setting role to:', userRole);
+                roleSelect.value = userRole;
+                
+                // Verify the role was set correctly
+                if (roleSelect.value !== userRole) {
+                    console.warn('Role not set correctly. Available options:', Array.from(roleSelect.options).map(o => o.value));
+                    console.warn('Trying to set:', userRole);
+                }
                 
                 if (passwordGroup) {
                     passwordGroup.querySelector('input').required = false;

@@ -65,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $userName = 'Anonymous';
     $userEmail = !empty($email) ? $email : 'anonymous@guest.local';
     
-    // Generate user-friendly ticket ID
-    $ticketId = 'ANON-' . date('Y') . '-' . str_pad(rand(1000, 9999), 4, '0', STR_PAD_LEFT);
+    // Generate user-friendly ticket ID from 000000 to 999999
+    $ticketId = 'ANON-' . date('Y') . '-' . str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
     
     // Create a unique conversation ID for anonymous messages
     $conversationId = 'anon_' . time() . '_' . bin2hex(random_bytes(4));

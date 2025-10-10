@@ -47,6 +47,15 @@ class UserManagementModule {
 
         // Setup password toggle for reset password
         this.setupPasswordToggle('newPassword', 'toggle-reset-password', 'reset-eye-icon');
+        
+        // Setup password requirements validation for edit user
+        this.setupPasswordRequirements();
+        
+        // Setup password toggle for add user
+        this.setupPasswordToggle('userPassword', 'toggle-add-password', 'add-eye-icon');
+        
+        // Setup password requirements validation for add user
+        this.setupAddPasswordRequirements();
     }
 
     async loadUsers() {
@@ -230,11 +239,19 @@ class UserManagementModule {
         document.getElementById('editUserName').value = user.username;
         document.getElementById('editUserEmail').value = user.email;
         document.getElementById('editUserRole').value = user.role;
+
         document.getElementById('resetPassword').checked = false;
         document.getElementById('passwordContainer').style.display = 'none';
         document.getElementById('newPassword').required = false;
+        document.getElementById('newPassword').value = ''; // Clear password field
 
         document.getElementById('editUserModal').style.display = 'flex';
+        
+        // Re-initialize password toggle when modal opens
+        this.setupPasswordToggle('newPassword', 'toggle-reset-password', 'reset-eye-icon');
+        
+        // Re-initialize password requirements validation
+        this.setupPasswordRequirements();
     }
 
     closeEditUserModal() {
@@ -253,6 +270,16 @@ class UserManagementModule {
     async handleAddUser(event) {
         event.preventDefault();
         
+        // Validate password requirements
+        const passwordInput = document.getElementById('userPassword');
+        if (passwordInput) {
+            const isPasswordValid = this.validateAddPasswordRequirements(passwordInput.value);
+            if (!isPasswordValid) {
+                this.showError('Password does not meet all requirements. Please ensure it has at least 8 characters, includes uppercase and lowercase letters, and contains a number.');
+                return;
+            }
+        }
+        
         try {
             const formData = new FormData(event.target);
             formData.append('action', 'add_user');
@@ -262,6 +289,18 @@ class UserManagementModule {
                 method: 'POST',
                 body: formData
             });
+
+            // Check if response is ok first
+            if (!response.ok) {
+                // Try to parse error response
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (parseError) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+            }
 
             const data = await response.json();
 
@@ -285,6 +324,18 @@ class UserManagementModule {
 
     async handleEditUser(event) {
         event.preventDefault();
+        
+        // Check if password reset is enabled and validate requirements
+        const resetPasswordCheckbox = document.getElementById('resetPassword');
+        const newPasswordInput = document.getElementById('newPassword');
+        
+        if (resetPasswordCheckbox && resetPasswordCheckbox.checked && newPasswordInput) {
+            const isPasswordValid = this.validatePasswordRequirements(newPasswordInput.value);
+            if (!isPasswordValid) {
+                this.showError('Password does not meet all requirements. Please ensure it has at least 8 characters, includes uppercase and lowercase letters, and contains a number.');
+                return;
+            }
+        }
         
         try {
             const formData = new FormData(event.target);
@@ -386,20 +437,105 @@ class UserManagementModule {
         const eyeSlashSrc = 'images/svg/eye-slash-black.svg';
         
         if (input && button && iconImg) {
-            button.addEventListener('click', () => {
-                if (input.type === 'password') {
-                    input.type = 'text';
-                    iconImg.src = eyeSrc;
-                    iconImg.alt = 'Hide Password';
-                } else {
-                    input.type = 'password';
-                    iconImg.src = eyeSlashSrc;
-                    iconImg.alt = 'Show Password';
+            // Remove existing event listeners to prevent duplicates
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+            
+            // Add fresh event listener
+            newButton.addEventListener('click', () => {
+                // Get fresh references to elements inside the event handler
+                const currentInput = document.getElementById(inputId);
+                const currentIcon = document.getElementById(iconId);
+                
+                if (currentInput && currentIcon) {
+                    if (currentInput.type === 'password') {
+                        currentInput.type = 'text';
+                        currentIcon.src = eyeSrc;
+                        currentIcon.alt = 'Hide Password';
+                    } else {
+                        currentInput.type = 'password';
+                        currentIcon.src = eyeSlashSrc;
+                        currentIcon.alt = 'Show Password';
+                    }
                 }
             });
+            
             // Set initial icon state
             iconImg.src = eyeSlashSrc;
             iconImg.alt = 'Show Password';
+            
+            // Ensure input is password type initially
+            input.type = 'password';
+        }
+    }
+
+    // Password requirements validation for edit user
+    setupPasswordRequirements() {
+        const passwordInput = document.getElementById('newPassword');
+        if (passwordInput) {
+            passwordInput.addEventListener('input', () => {
+                this.validatePasswordRequirements(passwordInput.value);
+            });
+        }
+    }
+
+    // Password requirements validation for add user
+    setupAddPasswordRequirements() {
+        const passwordInput = document.getElementById('userPassword');
+        if (passwordInput) {
+            passwordInput.addEventListener('input', () => {
+                this.validateAddPasswordRequirements(passwordInput.value);
+            });
+        }
+    }
+
+    validatePasswordRequirements(password) {
+        const requirements = {
+            length: password.length >= 8,
+            lowercase: /[a-z]/.test(password),
+            uppercase: /[A-Z]/.test(password),
+            number: /\d/.test(password)
+        };
+
+        // Update requirement indicators
+        this.updateRequirementIndicator('req-length', requirements.length);
+        this.updateRequirementIndicator('req-lowercase', requirements.lowercase);
+        this.updateRequirementIndicator('req-uppercase', requirements.uppercase);
+        this.updateRequirementIndicator('req-number', requirements.number);
+
+        // Return whether all requirements are met
+        return Object.values(requirements).every(req => req);
+    }
+
+    validateAddPasswordRequirements(password) {
+        const requirements = {
+            length: password.length >= 8,
+            lowercase: /[a-z]/.test(password),
+            uppercase: /[A-Z]/.test(password),
+            number: /\d/.test(password)
+        };
+
+        // Update requirement indicators for add user form
+        this.updateRequirementIndicator('add-req-length', requirements.length);
+        this.updateRequirementIndicator('add-req-lowercase', requirements.lowercase);
+        this.updateRequirementIndicator('add-req-uppercase', requirements.uppercase);
+        this.updateRequirementIndicator('add-req-number', requirements.number);
+
+        // Return whether all requirements are met
+        return Object.values(requirements).every(req => req);
+    }
+
+    updateRequirementIndicator(elementId, isMet) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const span = element.querySelector('span');
+            if (isMet) {
+                element.style.color = '#28a745'; // Green
+                span.textContent = '✓';
+            } else {
+                element.style.color = '#dc3545'; // Red
+                span.textContent = '✗';
+            }
         }
     }
 

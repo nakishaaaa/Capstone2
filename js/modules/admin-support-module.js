@@ -585,26 +585,8 @@ export class AdminSupportManager {
             console.error('Admin Support: Failed to initialize Pusher:', error);
         }
         
-        // Fallback: Use existing SSE client if available
-        if (this.sseClient) {
-            console.log('Admin Support: SSE client available as fallback');
-            
-            // Listen for heartbeat to update timestamps
-            this.sseClient.on('heartbeat', (data) => {
-                this.updateTimestamps();
-            });
-            
-            // Listen for connection status
-            this.sseClient.on('connection', (data) => {
-                if (data.status === 'connected') {
-                    console.log('Admin Support: SSE connection established');
-                } else if (data.status === 'error') {
-                    console.warn('Admin Support: Real-time connection error, using manual refresh');
-                }
-            });
-        } else {
-            console.warn('Admin Support: No SSE client available, using manual refresh only');
-        }
+        // Note: Support messages use Pusher for real-time updates
+        // Manual refresh is available as backup
         
         // Start timestamp update interval as fallback
         this.startTimestampUpdates();
@@ -919,11 +901,9 @@ export class AdminSupportManager {
     }
 
     destroy() {
-        // Clean up SSE event listeners (don't close the shared client)
-        if (this.sseClient) {
-            this.sseClient.off('heartbeat');
-            this.sseClient.off('activity_update');
-            this.sseClient.off('connection');
+        // Clean up Pusher event listeners
+        if (this.pusher) {
+            this.pusher.disconnect();
         }
         
         // Clear timestamp update interval
@@ -1096,6 +1076,193 @@ export class AdminSupportManager {
         // You can integrate with your existing toast system
         console.log('Support Success:', message);
         // Temporary success indication - replace with proper notification
+    }
+    
+    addStatusControls(currentStatus) {
+        const chatHeader = document.getElementById('chatHeader');
+        if (!chatHeader) return;
+        
+        // Remove existing status controls if any
+        const existingControls = chatHeader.querySelector('.status-controls');
+        if (existingControls) {
+            existingControls.remove();
+        }
+        
+        // Create status dropdown
+        const statusControls = document.createElement('div');
+        statusControls.className = 'status-controls';
+        statusControls.style.cssText = 'display: flex; gap: 8px; margin-left: auto; align-items: center;';
+        
+        const statusOptions = [
+            { value: 'open', label: 'Open', color: '#0f62fe' },
+            { value: 'solved', label: 'Solved', color: '#059669' },
+            { value: 'closed', label: 'Closed', color: '#6b7280' }
+        ];
+        
+        // Create dropdown select
+        const select = document.createElement('select');
+        select.className = 'status-dropdown';
+        select.style.cssText = `
+            padding: 6px 32px 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            color: #374151;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3e%3cpolyline points="6 9 12 15 18 9"%3e%3c/polyline%3e%3c/svg%3e');
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 16px;
+            outline: none;
+        `;
+        
+        // Prevent border color change on focus
+        select.onfocus = () => {
+            const currentOption = statusOptions.find(opt => opt.value === currentStatus);
+            if (currentOption) {
+                select.style.borderColor = currentOption.color;
+            }
+        };
+        
+        // Add options to dropdown
+        statusOptions.forEach(option => {
+            const optionEl = document.createElement('option');
+            optionEl.value = option.value;
+            optionEl.textContent = option.label;
+            optionEl.style.color = option.color;
+            
+            if (currentStatus === option.value) {
+                optionEl.selected = true;
+            }
+            
+            select.appendChild(optionEl);
+        });
+        
+        // Set dropdown color based on current status
+        const currentOption = statusOptions.find(opt => opt.value === currentStatus);
+        if (currentOption) {
+            select.style.borderColor = currentOption.color;
+            select.style.color = currentOption.color;
+        }
+        
+        // Handle status change
+        select.onchange = (e) => {
+            const newStatus = e.target.value;
+            if (newStatus !== currentStatus) {
+                this.updateConversationStatus(newStatus);
+            }
+        };
+        
+        // Add hover effect
+        select.onmouseover = () => {
+            const currentOption = statusOptions.find(opt => opt.value === currentStatus);
+            select.style.background = '#f9fafb';
+            select.style.backgroundImage = `url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3e%3cpolyline points="6 9 12 15 18 9"%3e%3c/polyline%3e%3c/svg%3e')`;
+            select.style.backgroundRepeat = 'no-repeat';
+            select.style.backgroundPosition = 'right 8px center';
+            select.style.backgroundSize = '16px';
+        };
+        select.onmouseout = () => {
+            const currentOption = statusOptions.find(opt => opt.value === currentStatus);
+            select.style.background = 'white';
+            select.style.backgroundImage = `url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3e%3cpolyline points="6 9 12 15 18 9"%3e%3c/polyline%3e%3c/svg%3e')`;
+            select.style.backgroundRepeat = 'no-repeat';
+            select.style.backgroundPosition = 'right 8px center';
+            select.style.backgroundSize = '16px';
+        };
+        
+        statusControls.appendChild(select);
+        chatHeader.appendChild(statusControls);
+    }
+    
+    showStatusMessage(status) {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        // Remove existing status message if any
+        const existingMessage = chatMessages.querySelector('.conversation-status-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+        
+        const statusMessage = document.createElement('div');
+        statusMessage.className = 'conversation-status-message';
+        statusMessage.style.cssText = `
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px;
+            text-align: center;
+            color: #6b7280;
+        `;
+        
+        statusMessage.innerHTML = `
+            <i class="fas fa-${status === 'solved' ? 'check-circle' : 'lock'}" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
+            <strong>Conversation ${status === 'solved' ? 'Solved' : 'Closed'}</strong><br>
+            <small>${status === 'solved' ? 'This conversation has been marked as solved.' : 'This conversation has been closed.'}</small><br>
+            <small>Click "Open" to reopen and continue the conversation.</small>
+        `;
+        
+        chatMessages.appendChild(statusMessage);
+    }
+    
+    hideStatusMessage() {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        const existingMessage = chatMessages.querySelector('.conversation-status-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+    }
+    
+    async updateConversationStatus(newStatus) {
+        if (!this.selectedConversationId) return;
+        
+        try {
+            const csrfToken = await this.getCSRFToken();
+            
+            const response = await fetch('/Capstone2/api/admin_support_messages.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'update_conversation_status',
+                    conversation_id: this.selectedConversationId,
+                    status: newStatus,
+                    csrf_token: csrfToken
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showSuccess(`Conversation marked as ${newStatus}`);
+                
+                // Update local state
+                const conversation = this.currentConversations.find(c => c.conversation_id === this.selectedConversationId);
+                if (conversation) {
+                    conversation.conversation_status = newStatus;
+                }
+                
+                // Refresh the UI
+                this.showChatInterface();
+                
+                // Reload conversations to update the list
+                await this.loadConversations();
+            } else {
+                this.showError(result.message || 'Failed to update status');
+            }
+        } catch (error) {
+            console.error('Error updating conversation status:', error);
+            this.showError('Failed to update conversation status');
+        }
     }
 }
 

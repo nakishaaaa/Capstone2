@@ -125,24 +125,28 @@ export class POSModule {
 
     this.cart.forEach((item, index) => {
       const cartItem = document.createElement("div")
-      cartItem.className = "cart-item"
+      cartItem.className = `cart-item ${item.removed ? 'cart-item-removed' : ''}`
+
+      const isRemoved = item.removed
+      const opacity = isRemoved ? '0.5' : '1'
+      const pointerEvents = isRemoved ? 'none' : 'auto'
 
       cartItem.innerHTML = `
-        <div class="cart-item-info">
+        <div class="cart-item-info" style="opacity: ${opacity};">
           <div class="cart-item-name">${Utils.escapeHtml(item.name)}</div>
           <div class="cart-item-price">${Utils.formatCurrency(item.price)} each</div>
         </div>
-        <div class="quantity-controls">
-          <button class="quantity-btn" onclick="window.posModule.updateQuantity(${index}, -1)">-</button>
+        <div class="quantity-controls" style="opacity: ${opacity}; pointer-events: ${pointerEvents};">
+          <button class="quantity-btn" onclick="window.posModule.updateQuantity(${index}, -1)" ${isRemoved ? 'disabled' : ''}>-</button>
           <input type="number" class="quantity-input" value="${item.quantity}" 
                  onchange="window.posModule.setQuantity(${index}, this.value)" 
-                 min="1" max="${item.stock}">
-          <button class="quantity-btn" onclick="window.posModule.updateQuantity(${index}, 1)">+</button>
+                 min="1" max="${item.stock}" ${isRemoved ? 'disabled' : ''}>
+          <button class="quantity-btn" onclick="window.posModule.updateQuantity(${index}, 1)" ${isRemoved ? 'disabled' : ''}>+</button>
         </div>
-        <div class="item-total">${Utils.formatCurrency(item.price * item.quantity)}</div>
-        <button class="action-btn" onclick="window.posModule.removeFromCart(${index})" 
-                style="background: #dc3545; color: white;">
-          <i class="fas fa-trash"></i>
+        <div class="item-total" style="opacity: ${opacity};">${isRemoved ? 'Removed' : Utils.formatCurrency(item.price * item.quantity)}</div>
+        <button class="action-btn" onclick="window.posModule.${isRemoved ? 'restoreToCart' : 'removeFromCart'}(${index})" 
+                style="background: ${isRemoved ? '#28a745' : '#dc3545'}; color: white;">
+          <i class="fas fa-${isRemoved ? 'undo' : 'trash'}"></i>
         </button>
       `
 
@@ -152,6 +156,10 @@ export class POSModule {
 
   updateQuantity(index, change) {
     const item = this.cart[index]
+    
+    // Skip if item is removed
+    if (item.removed) return
+    
     const newQuantity = item.quantity + change
 
     if (newQuantity <= 0) {
@@ -171,6 +179,10 @@ export class POSModule {
 
   setQuantity(index, quantity) {
     const item = this.cart[index]
+    
+    // Skip if item is removed
+    if (item.removed) return
+    
     const newQuantity = Number.parseInt(quantity)
 
     if (newQuantity <= 0) {
@@ -192,14 +204,25 @@ export class POSModule {
 
   removeFromCart(index) {
     const item = this.cart[index]
-    this.cart.splice(index, 1)
+    item.removed = true
     this.updateCartDisplay()
     this.updateCartTotals()
-    this.toast.info(`${item.name} removed from cart`)
+    this.toast.info(`${item.name} removed from cart (greyed out)`)
+  }
+
+  restoreToCart(index) {
+    const item = this.cart[index]
+    item.removed = false
+    this.updateCartDisplay()
+    this.updateCartTotals()
+    this.toast.success(`${item.name} restored to cart`)
   }
 
   updateCartTotals() {
-    const subtotal = this.cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    // Only include non-removed items in totals
+    const subtotal = this.cart
+      .filter(item => !item.removed)
+      .reduce((sum, item) => sum + item.price * item.quantity, 0)
     const tax = subtotal * CONFIG.TAX_RATE
     const total = subtotal + tax
 

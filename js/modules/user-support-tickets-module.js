@@ -4,10 +4,10 @@
  */
 
 export default class UserSupportTicketsModule {
-    constructor(sseClient = null) {
+    constructor(pusherClient = null) {
         this.tickets = [];
         this.currentTicket = null;
-        this.sseClient = sseClient;
+        this.pusherClient = pusherClient;
         
         // Register global functions immediately
         window.openSupportTicketsModal = () => this.openModal();
@@ -51,8 +51,8 @@ export default class UserSupportTicketsModule {
                         <span class="close" onclick="closeSupportTicketsModal()">&times;</span>
                     </div>
                     <div class="modal-body" style="padding: 20px; flex: 1; overflow: hidden;">
-                        <div id="ticketsLoading" class="loading-spinner">
-                            <div class="loading-circle"></div> Loading tickets...
+                        <div id="ticketsLoading" class="loading-text-only">
+                            Loading tickets...
                         </div>
                         <div id="ticketsContent" style="display: none; height: 100%;">
                             <div id="ticketsList" style="height: 100%; overflow-y: auto; padding-right: 10px;"></div>
@@ -479,11 +479,11 @@ export default class UserSupportTicketsModule {
     }
 
     initializeRealtimeUpdates() {
-        if (this.sseClient) {
-            console.log('UserSupportTickets: Setting up real-time updates');
+        if (this.pusherClient) {
+            console.log('UserSupportTickets: Setting up Pusher real-time updates');
             
-            // Listen for real-time notifications
-            this.sseClient.on('realtime_notifications', (notifications) => {
+            // Listen for real-time notifications (support replies)
+            this.pusherClient.on('realtime_notifications', (notifications) => {
                 this.handleRealtimeNotifications(notifications);
             });
         } else {
@@ -776,9 +776,9 @@ export default class UserSupportTicketsModule {
     }
 
     destroy() {
-        // Clean up SSE event listeners
-        if (this.sseClient) {
-            this.sseClient.off('realtime_notifications');
+        // Clean up Pusher event listeners
+        if (this.pusherClient) {
+            this.pusherClient.off('realtime_notifications');
         }
         
         console.log('UserSupportTickets module destroyed');

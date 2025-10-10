@@ -135,10 +135,10 @@ class DeveloperLoginAuth {
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background: #f4f4f4; }
                 .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
-                .header { background: #dc2626; color: white; padding: 30px; text-align: center; }
+                .header { background: #1a1a1a; color: white; padding: 30px; text-align: center; }
                 .header h1 { margin: 0; font-size: 24px; }
                 .content { padding: 30px; text-align: center; }
-                .verification-code { display: inline-block; padding: 15px 25px; background: #f8f9fa; border: 2px solid #dc2626; border-radius: 8px; font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #dc2626; margin: 20px 0; font-family: monospace; }
+                .verification-code { display: inline-block; padding: 15px 25px; background: #f8f9fa; border: 2px solid #1a1a1a; border-radius: 8px; font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #1a1a1a; margin: 20px 0; font-family: monospace; }
                 .security-notice { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 15px; margin: 20px 0; color: #991b1b; }
                 .footer { background: #f8f9fa; text-align: center; padding: 20px; color: #666; font-size: 14px; }
             </style>
@@ -146,13 +146,13 @@ class DeveloperLoginAuth {
         <body>
             <div class='container'>
                 <div class='header'>
-                    <h1>🔒 053 PRINTS</h1>
+                    <h1>053 PRINTS</h1>
                     <p style='margin: 10px 0 0 0;'>Developer Login Verification</p>
                 </div>
                 
                 <div class='content'>
-                    <p>Hello <strong>$userName</strong>,</p>
-                    <p>A developer login attempt was made for your account.</p>
+                    <p style='text-align: left;'>Hello <strong>$userName</strong>,</p>
+                    <p style='text-align: left;'>A developer login attempt was made for your account.</p>
                     
                     <div class='security-notice'>
                         <strong>🛡️ Security Alert:</strong> Developer accounts require email verification for enhanced security.

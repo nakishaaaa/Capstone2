@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'developer') {
 }
 
 require_once 'includes/config.php';
+require_once 'includes/pusher_config.php';
 
 // Generate CSRF token for this session
 $csrfToken = generateCSRFToken();
@@ -61,6 +62,34 @@ $unreadCount = 0;
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script src="js/core/error-tracker.js"></script>
+    <script>
+        // Initialize Pusher for real-time updates
+        const pusher = new Pusher('<?php echo PUSHER_KEY; ?>', {
+            cluster: '<?php echo PUSHER_CLUSTER; ?>',
+            encrypted: true
+        });
+        
+        // Subscribe to developer channel
+        const developerChannel = pusher.subscribe('developer-channel');
+        
+        // Listen for system events
+        developerChannel.bind('system-alert', function(data) {
+            showNotification(data.message, data.type || 'info');
+        });
+        
+        developerChannel.bind('user-activity', function(data) {
+            updateActivityFeed(data);
+        });
+        
+        developerChannel.bind('support-ticket', function(data) {
+            updateSupportBadge();
+            if (data.message) {
+                showNotification(data.message, 'info');
+            }
+        });
+        
+        console.log('Pusher initialized for developer dashboard');
+    </script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -411,26 +440,38 @@ $unreadCount = 0;
 
         // Quick action functions
         async function clearCache() {
-            if (confirm('Clear system cache?')) {
-                try {
-                    showNotification('Clearing cache...', 'info');
-                    
-                    const response = await fetch('api/superadmin_api/super_admin_actions.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'clear_cache' })
-                    });
-                    
-                    const data = await response.json();
-                    if (data.success) {
-                        showNotification(data.message, 'success');
-                    } else {
-                        showNotification(data.message || 'Failed to clear cache', 'error');
-                    }
-                } catch (error) {
-                    console.error('Error clearing cache:', error);
-                    showNotification('Error clearing cache', 'error');
+            // Use the settings module's confirm modal if available
+            if (window.superAdminDashboard && window.superAdminDashboard.settingsModule) {
+                const confirmed = await window.superAdminDashboard.settingsModule.showConfirmModal(
+                    'Clear System Cache?',
+                    'This may temporarily slow down the system while the cache is being rebuilt.',
+                    'Clear Cache',
+                    'Cancel'
+                );
+                
+                if (!confirmed) return;
+            } else if (!confirm('Clear system cache?')) {
+                return;
+            }
+            
+            try {
+                showNotification('Clearing cache...', 'info');
+                
+                const response = await fetch('api/superadmin_api/super_admin_actions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'clear_cache' })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification(data.message || 'Failed to clear cache', 'error');
                 }
+            } catch (error) {
+                console.error('Error clearing cache:', error);
+                showNotification('Error clearing cache', 'error');
             }
         }
 
@@ -452,6 +493,153 @@ $unreadCount = 0;
 
         // Make CSRF token available globally for soft delete functions
         window.csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
+        
+        // Real-time update functions
+        function updateActivityFeed(data) {
+            const activityList = document.getElementById('recentActivityList');
+            if (!activityList) return;
+            
+            const activityItem = document.createElement('div');
+            activityItem.className = 'activity-item new-activity';
+            activityItem.innerHTML = `
+                <i class="fas ${getActivityIcon(data.type)}"></i>
+                <div class="activity-content">
+                    <span class="activity-text">${data.message}</span>
+                    <span class="activity-time">${formatTime(new Date())}</span>
+                </div>
+            `;
+            
+            // Add to top of list
+            activityList.insertBefore(activityItem, activityList.firstChild);
+            
+            // Remove old items if more than 10
+            const items = activityList.querySelectorAll('.activity-item');
+            if (items.length > 10) {
+                items[items.length - 1].remove();
+            }
+            
+            // Highlight new item
+            setTimeout(() => {
+                activityItem.classList.remove('new-activity');
+            }, 3000);
+        }
+        
+        function updateSupportBadge() {
+            // Update support ticket badge count
+            fetch('api/superadmin_api/super_admin_actions.php?action=get_support_count')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('supportBadge');
+                    if (badge && data.success) {
+                        if (data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.style.display = 'inline';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => console.error('Error updating support badge:', error));
+        }
+        
+        function getActivityIcon(type) {
+            const icons = {
+                'user_login': 'fa-sign-in-alt',
+                'user_logout': 'fa-sign-out-alt',
+                'user_create': 'fa-user-plus',
+                'user_update': 'fa-user-edit',
+                'system_backup': 'fa-download',
+                'maintenance': 'fa-tools',
+                'support_ticket': 'fa-headset',
+                'order_update': 'fa-shopping-cart',
+                'default': 'fa-info-circle'
+            };
+            return icons[type] || icons.default;
+        }
+        
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // Enhanced notification function with better styling
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existingNotifications = document.querySelectorAll('.pusher-notification');
+            existingNotifications.forEach(n => n.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `pusher-notification ${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <i class="fas ${getNotificationIcon(type)}"></i>
+                    <span>${message}</span>
+                    <button class="notification-close" onclick="this.parentElement.parentElement.remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            // Add styles if not already added
+            if (!document.getElementById('pusher-notification-styles')) {
+                const styles = document.createElement('style');
+                styles.id = 'pusher-notification-styles';
+                styles.textContent = `
+                    .pusher-notification {
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        z-index: 10000;
+                        min-width: 300px;
+                        max-width: 500px;
+                        padding: 15px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                        animation: slideIn 0.3s ease-out;
+                    }
+                    .pusher-notification.info { background: #e3f2fd; border-left: 4px solid #2196f3; color: #1565c0; }
+                    .pusher-notification.success { background: #e8f5e8; border-left: 4px solid #4caf50; color: #2e7d32; }
+                    .pusher-notification.warning { background: #fff3e0; border-left: 4px solid #ff9800; color: #ef6c00; }
+                    .pusher-notification.error { background: #ffebee; border-left: 4px solid #f44336; color: #c62828; }
+                    .notification-content { display: flex; align-items: center; gap: 10px; }
+                    .notification-close { background: none; border: none; cursor: pointer; opacity: 0.7; }
+                    .notification-close:hover { opacity: 1; }
+                    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+                `;
+                document.head.appendChild(styles);
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+        
+        function getNotificationIcon(type) {
+            const icons = {
+                'info': 'fa-info-circle',
+                'success': 'fa-check-circle',
+                'warning': 'fa-exclamation-triangle',
+                'error': 'fa-times-circle'
+            };
+            return icons[type] || icons.info;
+        }
+        
+        // Initialize real-time updates on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSupportBadge();
+            
+            // Update support badge every 30 seconds
+            setInterval(updateSupportBadge, 30000);
+            
+            console.log('Developer dashboard real-time features initialized');
+        });
         
         // Toggle description cell function for backup history
         window.toggleDescriptionCell = function(backupId, fullDescription, truncatedDescription) {

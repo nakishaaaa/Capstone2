@@ -96,6 +96,9 @@ class AdminDashboard {
       window.productManagementModule = this.modules.productManagement
       window.notificationsModule = this.modules.notifications
       
+      // Make navigation function globally accessible for dashboard card clicks
+      window.switchSection = (sectionId) => this.navigation.showSection(sectionId)
+      
       // Only expose requests module for admin users
       if (this.modules.requests) {
         window.requestsModule = this.modules.requests

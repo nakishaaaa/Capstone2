@@ -1,4 +1,4 @@
-import { SSEClient } from "../core/sse-client.js"
+import { PusherClient } from "../core/pusher-client.js"
 
 export class RequestsModule {
   constructor(toast, modal) {
@@ -7,7 +7,7 @@ export class RequestsModule {
     this.requests = []
     this.filteredRequests = []
     this.currentFilter = 'all'
-    this.sseClient = null
+    this.pusherClient = null
     this.lastRequestsData = null
     this.isHistoryView = false
     this.historyData = []
@@ -18,7 +18,19 @@ export class RequestsModule {
     console.log('Initializing Requests Module...')
     console.log('Current user role:', window.userRole)
     this.setupEventListeners()
-    this.initializeSSE()
+    this.requestNotificationPermission()
+    this.initializePusher()
+    // Load initial requests to update badge
+    this.loadRequests()
+  }
+  
+  requestNotificationPermission() {
+    // Request browser notification permission for admins
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log('Notification permission:', permission)
+      })
+    }
   }
 
   setupEventListeners() {
@@ -54,9 +66,11 @@ export class RequestsModule {
       }
 
       const data = await response.json()
+      console.log('Requests API response:', data)
       
       if (data.success) {
         this.requests = data.requests || []
+        console.log('Stats from API:', data.stats)
         this.updateStats(data.stats)
         this.displayRequests()
         console.log('Requests loaded successfully:', this.requests.length)
@@ -71,7 +85,14 @@ export class RequestsModule {
   }
 
   updateStats(stats) {
-    if (!stats) return
+    console.log('updateStats called with:', stats)
+    if (!stats) {
+      console.warn('No stats provided to updateStats')
+      return
+    }
+    
+    // Update badge first (always available)
+    this.updateRequestsBadge(stats.pending || 0)
     
     // Check if the required DOM elements exist (they won't exist for cashier accounts)
     const pendingElement = document.getElementById('pending-requests')
@@ -79,7 +100,8 @@ export class RequestsModule {
     const rejectedElement = document.getElementById('rejected-requests')
     
     if (!pendingElement || !approvedElement || !rejectedElement) {
-      // User doesn't have access to requests section, skip update
+      // User doesn't have access to requests section stats cards, but badge is updated
+      console.log('Stats cards not found, but badge updated')
       return
     }
     
@@ -91,19 +113,23 @@ export class RequestsModule {
     if (totalRequestsElement) {
       totalRequestsElement.textContent = stats.pending || 0
     }
-
-    this.updateRequestsBadge(stats.pending || 0)
   }
 
   updateRequestsBadge(pendingCount) {
+    console.log('Updating requests badge with count:', pendingCount)
     const badge = document.getElementById('requestsBadge')
+    console.log('Badge element found:', badge)
     if (badge) {
       if (pendingCount > 0) {
         badge.textContent = pendingCount
         badge.style.display = 'inline'
+        console.log('Badge updated and shown with count:', pendingCount)
       } else {
         badge.style.display = 'none'
+        console.log('Badge hidden (count is 0)')
       }
+    } else {
+      console.warn('Badge element not found!')
     }
   }
 
@@ -371,6 +397,7 @@ export class RequestsModule {
               ${request.status === 'pending' ? 'background: #fffbeb; color: #b45309; border: 1px solid #fcd34d;' : ''}
               ${request.status === 'approved' ? 'background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7;' : ''}
               ${request.status === 'rejected' ? 'background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5;' : ''}
+              ${request.status === 'cancelled' ? 'background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db;' : ''}
             ">
               ${request.status}
             </span>
@@ -533,36 +560,61 @@ export class RequestsModule {
     return div.innerHTML
   }
 
-  initializeSSE() {
+  initializePusher() {
     try {
-      // Initialize SSE client for real-time updates
-      this.sseClient = new SSEClient('api/realtime.php', {
-        maxReconnectAttempts: 5,
-        reconnectDelay: 2000,
-        maxReconnectDelay: 30000
-      })
+      // Initialize Pusher client for real-time updates
+      this.pusherClient = new PusherClient()
 
       // Handle stats updates for requests
-      this.sseClient.on('stats_update', (data) => {
+      this.pusherClient.on('stats_update', (data) => {
         this.handleRealTimeStatsUpdate(data)
       })
-
-      // Handle activity updates (new requests) - only for actual requests, not support messages
-      this.sseClient.on('activity_update', (activity) => {
-        this.handleRealTimeActivityUpdate(activity)
+      
+      // Handle new request notifications
+      this.pusherClient.on('new_request', (data) => {
+        this.handleNewRequestNotification(data)
       })
 
       // Handle connection events
-      this.sseClient.on('connection', (status) => {
+      this.pusherClient.on('connection', (status) => {
         if (status.status === 'connected') {
-          console.log('Requests: Real-time connection established')
+          console.log('Requests: Pusher connection established')
         } else if (status.status === 'error') {
-          console.warn('Requests: Real-time connection error, using manual refresh')
+          console.warn('Requests: Pusher connection error')
         }
       })
 
+      console.log('Requests: Pusher real-time updates initialized')
+
     } catch (error) {
-      console.error('Requests: Failed to initialize SSE client:', error)
+      console.error('Requests: Failed to initialize Pusher client:', error)
+    }
+  }
+
+  handleNewRequestNotification(data) {
+    try {
+      console.log('Requests: New request notification received', data)
+      
+      // Show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(data.title || 'New Order Request', {
+          body: data.message,
+          icon: '/favicon.ico',
+          tag: 'request-' + data.request_id,
+          requireInteraction: false
+        })
+      }
+      
+      // Show toast notification
+      if (this.toast) {
+        this.toast.info(data.message, data.title)
+      }
+      
+      // Reload requests to show the new one
+      this.loadRequests()
+      
+    } catch (error) {
+      console.error('Requests: Error handling new request notification:', error)
     }
   }
 
@@ -864,10 +916,10 @@ export class RequestsModule {
   }
 
   destroy() {
-    // Clean up SSE connection
-    if (this.sseClient) {
-      this.sseClient.close()
-      this.sseClient = null
+    // Clean up Pusher connection
+    if (this.pusherClient) {
+      this.pusherClient.disconnect()
+      this.pusherClient = null
     }
     
     console.log('Requests module destroyed')

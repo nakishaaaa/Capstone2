@@ -57,9 +57,9 @@ export class NotificationsModule {
                         <div class="notification-icon">
                             <i class="fas fa-${this.getNotificationIcon(notification)}"></i>
                         </div>
-                        <div class="notification-content" onclick="toggleNotificationText(${notification.id})">
+                        <div class="notification-content" ${notification.message.length > 80 ? `onclick="toggleNotificationText(${notification.id})"` : ''}>
                             <h4>${notification.title}</h4>
-                            <p class="notification-text" data-full-text="${notification.message.replace(/"/g, '&quot;')}" data-truncated="true">
+                            <p class="notification-text" data-full-text="${notification.message.replace(/"/g, '&quot;')}" data-truncated="${notification.message.length > 80 ? 'true' : 'false'}">
                                 ${notification.message.length > 80 ? notification.message.substring(0, 80) + '...' : notification.message}
                                 ${notification.message.length > 80 ? '<span class="expand-hint"> (click to expand)</span>' : ''}
                             </p>

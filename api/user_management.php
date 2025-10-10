@@ -179,13 +179,23 @@ function addUser($pdo) {
             return;
         }
         
-        // Check if email already exists
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+        // Check if email already exists (including unverified accounts)
+        $stmt = $pdo->prepare("SELECT id, is_email_verified FROM users WHERE email = ?");
         $stmt->execute([$email]);
-        if ($stmt->fetch()) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Email already exists']);
-            return;
+        $existing_user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing_user) {
+            // If user exists and is verified, return error
+            if ($existing_user['is_email_verified']) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Email already exists']);
+                return;
+            } else {
+                // If user exists but is not verified, delete the old unverified account
+                $delete_stmt = $pdo->prepare("DELETE FROM users WHERE id = ? AND is_email_verified = FALSE");
+                $delete_stmt->execute([$existing_user['id']]);
+                error_log("Removed existing unverified account for email: " . $email);
+            }
         }
         
         // Hash password

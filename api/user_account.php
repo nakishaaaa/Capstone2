@@ -432,9 +432,37 @@ function updatePassword($pdo, $user_id, $input) {
             return;
         }
         
-        if (strlen($input['new_password']) < 6) {
+        // Validate password requirements (same as registration)
+        if (strlen($input['new_password']) < 8) {
             http_response_code(400);
-            echo json_encode(['error' => 'New password must be at least 6 characters long']);
+            echo json_encode(['error' => 'Password must be at least 8 characters long']);
+            return;
+        }
+        
+        if (strlen($input['new_password']) > 64) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must be no more than 64 characters long']);
+            return;
+        }
+        
+        // Check for at least one lowercase letter
+        if (!preg_match('/[a-z]/', $input['new_password'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must contain at least one lowercase letter']);
+            return;
+        }
+        
+        // Check for at least one uppercase letter
+        if (!preg_match('/[A-Z]/', $input['new_password'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must contain at least one uppercase letter']);
+            return;
+        }
+        
+        // Check for at least one number
+        if (!preg_match('/[0-9]/', $input['new_password'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must contain at least one number']);
             return;
         }
         
